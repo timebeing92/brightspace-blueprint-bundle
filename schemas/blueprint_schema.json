@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "coursecraft.blueprint/2",
+  "title": "Coursecraft Flat-File Course Blueprint",
+  "description": "Structured model emitted by build_blueprint_bundle.py from a Brightspace/D2L export. Both the Markdown and DOCX blueprints render from an instance of this schema. The blueprint frame follows the 2020 CGPS template, but each week's inner structure mirrors the course's own page headings, and content is carried as formatting-preserving blocks (paragraphs / bullets with link-aware runs) rather than flattened text.",
+  "type": "object",
+  "required": ["schema", "course_title", "front_matter", "weeks"],
+  "additionalProperties": false,
+  "definitions": {
+    "run": {
+      "type": "object",
+      "description": "An inline run of text with an optional link.",
+      "required": ["text", "href"],
+      "additionalProperties": false,
+      "properties": {
+        "text": {"type": "string"},
+        "href": {"type": "string", "description": "Link target, or empty. http(s)/mailto render as live links; other hrefs are shown as text plus the reference."}
+      }
+    },
+    "block": {
+      "type": "object",
+      "description": "A paragraph ('p') or list item ('li') made of runs, preserving source formatting.",
+      "required": ["kind", "level", "runs"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"type": "string", "enum": ["p", "li"]},
+        "level": {"type": "integer", "description": "List nesting depth for 'li' (1-based); 0 for paragraphs."},
+        "runs": {"type": "array", "items": {"$ref": "#/definitions/run"}}
+      }
+    },
+    "blocks": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/block"}
+    },
+    "labeled_section": {
+      "type": "object",
+      "description": "A course section kept under its own heading label, with formatting-preserving blocks.",
+      "required": ["label", "blocks"],
+      "additionalProperties": false,
+      "properties": {
+        "label": {"type": "string", "description": "The course's own heading (e.g. 'Required Resources', 'Multimedia', 'Checklist')."},
+        "blocks": {"$ref": "#/definitions/blocks"}
+      }
+    }
+  },
+  "properties": {
+    "schema": {"type": "string", "const": "coursecraft.blueprint/2"},
+    "template_reference": {"type": "string"},
+    "course_number": {"type": "string", "description": "Header course number. Empty renders as 'Course #'. Pass via --course-number."},
+    "course_title": {"type": "string", "description": "Course title; falls back to the de-slugged label."},
+    "term": {"type": "string", "description": "Header term. Empty renders as 'Term'."},
+    "front_matter": {
+      "type": "object",
+      "description": "Course-level sections rendered above the weekly tables, each as blocks.",
+      "required": ["course_description", "required_materials", "course_learning_outcomes", "course_introduction"],
+      "additionalProperties": false,
+      "properties": {
+        "course_description": {"$ref": "#/definitions/blocks"},
+        "required_materials": {"$ref": "#/definitions/blocks"},
+        "course_learning_outcomes": {"$ref": "#/definitions/blocks"},
+        "course_introduction": {"$ref": "#/definitions/blocks"}
+      }
+    },
+    "weeks": {
+      "type": "array",
+      "description": "One entry per detected week/module section, in week order where detectable.",
+      "items": {
+        "type": "object",
+        "required": ["title"],
+        "additionalProperties": false,
+        "properties": {
+          "title": {"type": "string", "description": "Section title (e.g. 'Week 1'), verbatim from the manifest."},
+          "overview": {"$ref": "#/definitions/blocks", "description": "Intro plus any overview-headed segments. When a week has no objectives heading, its objectives text stays here (fallback)."},
+          "learning_objectives": {"$ref": "#/definitions/blocks", "description": "Segments under an objectives/outcomes heading. Empty when the course used no such heading."},
+          "resources": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}, "description": "Readings/media/required/optional segments, each under its own course label."},
+          "assignments": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}, "description": "Dropbox folders / assessment quicklinks placed in this module: label = name + points/grade/rubric, blocks = instruction content. Due day-of-week rides along in the instructions; coded numeric dates are term-relative and deliberately not extracted."},
+          "discussions": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}, "description": "Discussion topics placed in this module: label = title + points/grade/rubric, blocks = description content."},
+          "other_sections": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}, "description": "Any remaining course headings that don't map to a blueprint bucket (Checklist, Next Steps, Case Study, etc.), preserved under their own labels."}
+        }
+      }
+    },
+    "unplaced_activities": {
+      "type": "object",
+      "description": "Activities found in D2L object XML but not joined to any module quicklink by resource code.",
+      "additionalProperties": false,
+      "properties": {
+        "assignments": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}},
+        "discussions": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}}
+      }
+    },
+    "diagnostics": {"type": "array", "items": {"type": "string"}, "description": "Extraction notes carried from the structure and activity passes."}
+  }
+}

@@ -1,0 +1,112 @@
+# How the export maps to the blueprint
+
+This bundle turns a Brightspace/D2L **course export** into a flat-file
+**course blueprint** shaped after `reference/Course Blueprint Template 2020 CGPS.docx`.
+It is an *extraction + review* tool, not a generator: it surfaces what is in the
+package and marks what it cannot find. It never invents instructional content.
+
+## Design stance: mirror, don't reconstruct
+
+The blueprint template encodes a *backwards-design* intent (LOs → aligned
+assessments → supporting resources). A built course is the forward artifact and
+that design logic is baked into pages, not labeled. Rather than guess intent, we
+**mirror the course's own structure inside the blueprint frame**: the per-week
+inner structure comes from the course's own page headings, with a small alias
+table normalizing only the few universal buckets. See the README's *Design
+philosophy* section for the full rationale.
+
+## Pipeline
+
+`build_blueprint_bundle.py` orchestrates the bundled scripts, then renders one
+structured model to Markdown and DOCX:
+
+1. `export_inventory.py` — component counts, recognizable D2L XML, asset counts.
+2. `manifest_probe.py` — organizations/items/resources, identifierref usage,
+   likely quiz/HTML resources, suspicious hrefs.
+3. `reconstruct_course_structure.py --extract-html` — the module/topic tree plus
+   HTML topic bodies as **`body_segments`**: each page is split by its own
+   `<h1>`–`<h4>` headings, and each segment is parsed into formatting-preserving
+   **blocks** — paragraphs and list items with link-aware runs
+   (`{kind, level, runs:[{text, href}]}`). Paragraphs, bullet lists, links, and
+   video/iframe embeds survive; `<script>`/`<style>` and page-template artifacts
+   (e.g. "Basic Page - No Banner") are dropped.
+4. `extract_course_activities.py` — dropbox folders, discussions, grade joins.
+   Assignment instructions and discussion descriptions are parsed into the same
+   blocks (`instructions_blocks` / `description_blocks`), so their formatting is
+   preserved too.
+5. `course_qa_report.py` — severity-tiered export QA (optional, `--skip-qa`).
+6. **model build** → `<label>__blueprint.json` (see `schemas/blueprint_schema.json`).
+7. **render** → `<label>__blueprint.md` and `<label>__blueprint.docx`.
+
+## How each week is assembled
+
+Each detected week/module gathers its HTML topics, and every topic's
+`body_segments` are routed by heading:
+
+| Blueprint row | Fed by (heading alias, case-insensitive substring) |
+| --- | --- |
+| **Overview** | intro text before the first heading + headings matching `overview / introduction / welcome / start here / intro / orientation` |
+| **Learning Objectives** | headings matching `objective / outcome(s) / goals / competenc / students will be able / swbat` |
+| **Assigned Reading and Multimedia** (Resources) | headings matching `reading / resource / material / multimedia / media / video / watch / listen / textbook / reference / required / optional / explore` — each kept under its **own** course label (e.g. "Required Resources", "Multimedia") |
+| **Assignment(s) and Instructions** | dropbox folders joined to the module by `resource_code`; quiz quicklinks. Numeric due dates are NOT encoded (see below) |
+| **Discussion Board Prompts** | discussion topics joined by `resource_code` |
+| **Other course sections** | any remaining heading (Checklist, Next Steps, Case Study, Instructions…) preserved under its own label. Only shown when present. |
+
+Ordering matters in the alias table: **objectives is checked before resources**
+(so "Learning Objectives" doesn't match the `material` substring), and resources
+before overview.
+
+### The Learning Objectives fallback
+
+If a week's pages have **no** objectives heading, Learning Objectives is left
+empty (`Needs review`) and that text stays in **Overview** — the tool does not
+guess which sentences are objectives. When the course *does* use an objectives
+heading, that block is split out cleanly into the LO row.
+
+### Topics with no headings
+
+A page with no `<h1>`–`<h4>` headings is a single chunk. It is classified by the
+**topic title** (e.g. a "Learning Materials" page → Resources); if the title is
+uninformative it defaults to Overview. Content is never dropped.
+
+## Course-level front matter
+
+Description / Materials / Outcomes / Introduction are pulled course-wide:
+Materials and Outcomes prefer a matching **segment** (a resources or objectives
+heading anywhere in the course) and fall back to a whole topic whose title
+matches; Description and Introduction match by topic title. Empty → `Needs review`.
+
+## Joins
+
+- **Module ↔ activity join is by `resource_code`.** Dropbox folders and
+  discussions are placed under the week whose manifest items share their resource
+  code. Anything not joined lands in an **Unplaced Activities** section so it is
+  visible rather than dropped silently.
+
+## Known limitations (tell the reviewer)
+
+- **Headers are not in the package.** Course number / term come from CLI flags.
+- **Segmentation depends on real headings.** A course that styles headings as
+  bold paragraphs instead of `<h1>`–`<h4>` will under-segment (content stays in
+  Overview). This is intentional: we follow real structure, not guesswork.
+- **Numeric due dates are deliberately not encoded.** The coded date fields in
+  the XML are term-relative (they shift every time the course is offered), so
+  encoding them would be misleading. The day-of-week cadence that assignments,
+  discussions, and checklists actually communicate is written into the page /
+  instructions HTML, so it is already carried in the extracted assignment,
+  discussion, and overview text. (The UTC-timestamp caveat in
+  `BRIGHTSPACE_PACKAGE_STRUCTURE_AND_IMPORT_NOTES.md` is why those coded fields
+  are not trustworthy to surface directly.)
+- **Formatting is preserved, not reflowed.** Paragraphs, bullet lists, and links
+  are carried through as authored (links render live in both Markdown and DOCX).
+  Fine inline styling (bold/italic, fonts, colors) and images are not carried —
+  images become an `[image: alt]` marker when they have alt text. Very unusual
+  page markup can still mis-block, but the common D2L shapes are handled.
+- The blueprint is a **review surface**, not an instructional-design approval.
+
+## Reading the output
+
+- `Needs review: not found in export extraction.` — a single field had no
+  confident source.
+- `None found in export extraction.` — a list field had no items.
+- `Extraction Notes` — diagnostics carried from the structure/activity passes.
