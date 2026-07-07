@@ -5,6 +5,21 @@ changes** section at the bottom is the active to-do for the next session.
 
 ---
 
+## 2026-07-07 — DOCX layout option and XML checklist extraction (done)
+
+Added `--docx-section-layout top|left` to the normal bundle command. `top`
+remains the default stacked-section DOCX layout; `left` renders the same
+schema-backed blueprint model with shaded section labels in a left column. The
+left layout uses full-page-width weekly tables, and the front-matter tables
+remain full width.
+
+Checklist extraction now treats `checklist_d2l.xml` as the typical source. The
+activity pass extracts checklist payloads and joins them to module checklist
+quicklinks by `resource_code`/`rCode`; HTML checklist page headings are still
+preserved when present. If a manifest checklist link exists but the XML payload
+is unavailable, the blueprint keeps a visible checklist entry instead of
+dropping it.
+
 ## 2026-07-07 — Activity metadata rendering cleanup (done)
 
 Assignment and discussion entries now keep the activity title clean and render

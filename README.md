@@ -83,16 +83,20 @@ Follows the template's frame, populated from the export:
   Overview · Learning Objectives · Assigned Reading and Multimedia (resources /
   learning materials, with the course's own sub-labels) · Assignment(s) and
   Instructions · Discussion Board Prompts · a **Checklist** row when the week
-  has one · and an **Other
+  has a D2L checklist tool payload or checklist page heading · and an **Other
   course sections** row when the week has pages/headings that don't map to a
-  standard bucket (each under its own "Page › Heading" label). Learning
+  standard bucket (each under its own "Page › Heading" label). D2L XML
+  checklists are the normal checklist source; HTML checklist pages/headings are
+  also preserved when present. Learning
   Objectives are split out only when the course used an objectives heading (see
   *Design philosophy* above). Numeric due dates aren't encoded (they're
   term-relative); the day-of-week cadence rides along in the extracted
-  assignment/discussion text.
-- In the DOCX, each weekly module is a full-width, single-column table.
-  Scaffold labels sit in shaded header rows above the extracted content, not in
-  a left column; bullets are native Word lists and links are clickable.
+  assignment/discussion/checklist text.
+- In the default DOCX, each weekly module is a full-width, single-column table.
+  Scaffold labels sit in shaded header rows above the extracted content. Use
+  `--docx-section-layout left` if you want the alternate full-width table with
+  shaded labels in a left column. Both DOCX layouts render from the same JSON
+  model; bullets are native Word lists and links are clickable.
 
 It is a **review surface**: extracted wording is source-derived, and anything not
 found is marked `Needs review` / `None found` rather than invented. See
@@ -114,6 +118,7 @@ heading-driven mirroring).
 | `--output-dir DIR`                              | Base output directory (default `output/`).            |
 | `--skip-qa`                                     | Skip the QA report pass.                              |
 | `--no-docx`                                     | Markdown + JSON only.                                 |
+| `--docx-section-layout top\|left`                | DOCX section-label layout; `top` is the default.      |
 | `--quiet`                                       | Suppress sub-script chatter.                          |
 
 Markdown is always produced. If `python-docx` is missing, DOCX is skipped with a

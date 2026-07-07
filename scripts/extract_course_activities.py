@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Extract dropbox folders, discussions, and grade items into review artifacts.
+"""Extract dropbox folders, discussions, checklists, and grade items into review artifacts.
 
 Reads an unpacked Brightspace export (or ZIP) and emits a reviewer workbook,
 canonical JSON, and a concise markdown note covering:
 
 - dropbox_d2l.xml assignment folders
 - discussion_d2l_*.xml forums and topics
+- checklist_d2l.xml checklist objects and items
 - grades_d2l.xml grade items and categories
 - the cross-file joins between them (activity -> grade item, activity ->
   rubric, activity -> condition set, manifest quicklink -> resource_code)
@@ -313,12 +314,85 @@ def extract_discussions(root: Path, diagnostics: list[str]) -> list[dict]:
     return rows
 
 
+def sort_order(elem: ET.Element) -> int:
+    try:
+        return int(elem.attrib.get("sort_order", "0"))
+    except ValueError:
+        return 0
+
+
+def _text_block(text: str, *, kind: str = "p", level: int = 0) -> dict | None:
+    text = clean(text)
+    if not text:
+        return None
+    return {"kind": kind, "level": level, "runs": [{"text": text, "href": ""}]}
+
+
+def _checklist_description_blocks(elem: ET.Element | None) -> list[dict]:
+    raw_html = deep_text(elem)
+    if not raw_html:
+        return []
+    blocks = html_fragment_to_blocks(raw_html)
+    if blocks:
+        return blocks
+    block = _text_block(html_to_text(raw_html))
+    return [block] if block else []
+
+
+def extract_checklists(root: Path, diagnostics: list[str], quicklinks: dict[str, int] | None = None) -> list[dict]:
+    checklist_path = root / "checklist_d2l.xml"
+    if not checklist_path.exists():
+        return []
+    checklist_root = parse_xml(checklist_path, diagnostics)
+    if checklist_root is None:
+        return []
+
+    linked_codes = set(quicklinks or {})
+    filter_to_linked = quicklinks is not None and bool(linked_codes)
+    rows: list[dict] = []
+    for checklist in checklist_root.iter():
+        if local_name(checklist.tag) != "checklist":
+            continue
+        resource_code = checklist.attrib.get("resource_code", "")
+        if filter_to_linked and resource_code not in linked_codes:
+            continue
+        blocks: list[dict] = []
+        for category in sorted(children_by_name(checklist, "category"), key=sort_order):
+            category_name = child_text(category, "name")
+            if category_name:
+                block = _text_block(f"{category_name}:", kind="label")
+                if block:
+                    blocks.append(block)
+            blocks.extend(_checklist_description_blocks(first_child(category, "description")))
+            for item in sorted(children_by_name(category, "item"), key=sort_order):
+                item_name = child_text(item, "name")
+                if item_name:
+                    block = _text_block(item_name, kind="li", level=1)
+                    if block:
+                        blocks.append(block)
+                blocks.extend(_checklist_description_blocks(first_child(item, "description")))
+
+        rows.append(
+            {
+                "id": checklist.attrib.get("id", ""),
+                "name": child_text(checklist, "name"),
+                "resource_code": resource_code,
+                "display_in_new_window": checklist.attrib.get("display_in_new_window", ""),
+                "blocks": blocks,
+                "item_count": sum(1 for item in checklist.iter() if local_name(item.tag) == "item"),
+                "quicklink_count": 0,
+            }
+        )
+    return rows
+
+
 # --- join resolution -----------------------------------------------------------
 
 
 def resolve_joins(
     folders: list[dict],
     discussion_rows: list[dict],
+    checklists: list[dict],
     grade_items: list[dict],
     grade_by_code: dict[str, dict],
     rubric_names: dict[str, str],
@@ -408,6 +482,20 @@ def resolve_joins(
             row["rubrics_resolved"] = ""
             row["quicklink_count"] = quicklinks.get(row["resource_code"], 0)
 
+    for checklist in checklists:
+        code = checklist.get("resource_code", "")
+        link_count = quicklinks.get(code, 0)
+        checklist["quicklink_count"] = link_count
+        if code:
+            add_join(
+                "checklist",
+                checklist.get("name", ""),
+                code,
+                "manifest_quicklink",
+                f"{link_count} link(s)",
+                "yes" if link_count else "none",
+            )
+
     for grade_item in grade_items:
         if not grade_item["linked_activities"] and grade_item["type_id"] not in ("9",):
             add_join(
@@ -424,7 +512,15 @@ def resolve_joins(
 # --- output ----------------------------------------------------------------------
 
 
-def write_workbook(path: Path, folders: list[dict], discussion_rows: list[dict], grade_items: list[dict], joins: list[dict], diagnostics: list[str]) -> None:
+def write_workbook(
+    path: Path,
+    folders: list[dict],
+    discussion_rows: list[dict],
+    checklists: list[dict],
+    grade_items: list[dict],
+    joins: list[dict],
+    diagnostics: list[str],
+) -> None:
     wb = Workbook()
 
     def add_sheet(title: str, headers: list[str], rows: list[list]) -> None:
@@ -492,6 +588,17 @@ def write_workbook(path: Path, folders: list[dict], discussion_rows: list[dict],
         ],
     )
     add_sheet(
+        "Checklists",
+        ["id", "name", "resource_code", "item_count", "quicklink_count"],
+        [
+            [
+                c["id"], c["name"], c["resource_code"], c["item_count"],
+                c.get("quicklink_count", 0),
+            ]
+            for c in checklists
+        ],
+    )
+    add_sheet(
         "Activity_Joins",
         ["source_kind", "source_name", "source_code", "join_type", "target", "resolved"],
         [[j["source_kind"], j["source_name"], j["source_code"], j["join_type"], j["target"], j["resolved"]] for j in joins],
@@ -500,7 +607,15 @@ def write_workbook(path: Path, folders: list[dict], discussion_rows: list[dict],
     wb.save(path)
 
 
-def render_markdown(label: str, folders: list[dict], discussion_rows: list[dict], grade_items: list[dict], joins: list[dict], diagnostics: list[str]) -> str:
+def render_markdown(
+    label: str,
+    folders: list[dict],
+    discussion_rows: list[dict],
+    checklists: list[dict],
+    grade_items: list[dict],
+    joins: list[dict],
+    diagnostics: list[str],
+) -> str:
     topics = [r for r in discussion_rows if r["kind"] == "topic"]
     forums = [r for r in discussion_rows if r["kind"] == "forum"]
     unresolved = [j for j in joins if j["resolved"] == "NO"]
@@ -511,6 +626,7 @@ def render_markdown(label: str, folders: list[dict], discussion_rows: list[dict]
         f"- Dropbox folders: {len(folders)} ({sum(1 for f in folders if f['grade_item_code'])} graded)",
         f"- Discussion forums: {len(forums)}; topics: {len(topics)} "
         f"({sum(1 for t in topics if t['grade_item_code'])} graded)",
+        f"- Checklists: {len(checklists)} ({sum(c.get('item_count', 0) for c in checklists)} items)",
         f"- Grade items: {len(grade_items)}",
         f"- Join edges traced: {len(joins)}; unresolved: {len(unresolved)}",
         f"- Grade items with no linked dropbox/discussion activity: {len(orphans)} "
@@ -556,8 +672,9 @@ def main(argv: list[str] | None = None) -> int:
     quicklinks = load_quicklink_codes(root, diagnostics)
     folders = extract_dropbox(root, diagnostics)
     discussion_rows = extract_discussions(root, diagnostics)
+    checklists = extract_checklists(root, diagnostics, quicklinks)
     joins = resolve_joins(
-        folders, discussion_rows, grade_items, grade_by_code,
+        folders, discussion_rows, checklists, grade_items, grade_by_code,
         rubric_names, condition_codes, quicklinks, diagnostics,
     )
 
@@ -568,7 +685,7 @@ def main(argv: list[str] | None = None) -> int:
     json_path = output_dir / f"{stem}.json"
     md_path = output_dir / f"{stem}.md"
 
-    write_workbook(xlsx_path, folders, discussion_rows, grade_items, joins, diagnostics)
+    write_workbook(xlsx_path, folders, discussion_rows, checklists, grade_items, joins, diagnostics)
     json_path.write_text(
         json.dumps(
             {
@@ -576,6 +693,7 @@ def main(argv: list[str] | None = None) -> int:
                 "label": label,
                 "dropbox_folders": folders,
                 "discussions": discussion_rows,
+                "checklists": checklists,
                 "grade_items": grade_items,
                 "joins": joins,
                 "diagnostics": diagnostics,
@@ -585,10 +703,14 @@ def main(argv: list[str] | None = None) -> int:
         + "\n",
         encoding="utf-8",
     )
-    md_path.write_text(render_markdown(label, folders, discussion_rows, grade_items, joins, diagnostics), encoding="utf-8")
+    md_path.write_text(
+        render_markdown(label, folders, discussion_rows, checklists, grade_items, joins, diagnostics),
+        encoding="utf-8",
+    )
 
     print(f"dropbox folders: {len(folders)}")
     print(f"discussion rows: {len(discussion_rows)}")
+    print(f"checklists: {len(checklists)}")
     print(f"grade items: {len(grade_items)}")
     print(f"diagnostics: {len(diagnostics)}")
     print(f"workbook: {xlsx_path}")

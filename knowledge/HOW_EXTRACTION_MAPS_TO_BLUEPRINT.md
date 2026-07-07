@@ -1,7 +1,8 @@
 # How the export maps to the blueprint
 
-This bundle turns a Brightspace/D2L **course export** into a flat-file
-**course blueprint** shaped after `reference/Course Blueprint Template 2020 CGPS.docx`.
+This workbench workflow turns a Brightspace/D2L **course export** into a
+flat-file **course blueprint** shaped after
+`workspace/reference/blueprints/templates/Course Blueprint Template 2020 CGPS.docx`.
 It is an *extraction + review* tool, not a generator: it surfaces what is in the
 package and marks what it cannot find. It never invents instructional content.
 
@@ -17,7 +18,7 @@ philosophy* section for the full rationale.
 
 ## Pipeline
 
-`build_blueprint_bundle.py` orchestrates the bundled scripts, then renders one
+`scripts/build_blueprint_bundle.py` orchestrates the extraction scripts, then renders one
 structured model to Markdown and DOCX:
 
 1. `export_inventory.py` — component counts, recognizable D2L XML, asset counts.
@@ -30,12 +31,14 @@ structured model to Markdown and DOCX:
    (`{kind, level, runs:[{text, href}]}`). Paragraphs, bullet lists, links, and
    video/iframe embeds survive; `<script>`/`<style>` and page-template artifacts
    (e.g. "Basic Page - No Banner") are dropped.
-4. `extract_course_activities.py` — dropbox folders, discussions, grade joins.
-   Assignment instructions and discussion descriptions are parsed into the same
-   blocks (`instructions_blocks` / `description_blocks`), so their formatting is
-   preserved too.
+4. `extract_course_activities.py` — dropbox folders, discussions, D2L
+   checklists, grade joins. Assignment instructions, discussion descriptions,
+   and checklist items are parsed into the same blocks (`instructions_blocks`,
+   `description_blocks`, checklist `blocks`), so their formatting is preserved
+   too.
 5. `course_qa_report.py` — severity-tiered export QA (optional, `--skip-qa`).
-6. **model build** → `<label>__blueprint.json` (see `schemas/blueprint_schema.json`).
+6. **model build** → `<label>__blueprint.json` (see
+   `workspace/reference/schemas/blueprint/blueprint_schema.json`).
 7. **render** → `<label>__blueprint.md` and `<label>__blueprint.docx`.
 
 ## How each week is assembled
@@ -50,7 +53,7 @@ Each detected week/module gathers its HTML topics, and every topic's
 | **Assigned Reading and Multimedia** (Resources) | headings matching `reading / resource / material / multimedia / media / video / watch / listen / textbook / reference / required / optional / explore` — each kept under its **own** course label (e.g. "Required Resources", "Multimedia") |
 | **Assignment(s) and Instructions** | dropbox folders joined to the module by `resource_code`; quiz quicklinks. Numeric due dates are NOT encoded (see below) |
 | **Discussion Board Prompts** | discussion topics joined by `resource_code` |
-| **Checklist** | headings matching `checklist` — weekly to-do lists get their own row. Only shown when present. |
+| **Checklist** | D2L checklist tool quicklinks joined to `checklist_d2l.xml` payloads by `resource_code`/`rCode`; HTML headings matching `checklist` are also preserved here. Only shown when present. |
 | **Other course sections** | any remaining page or heading (Next Steps, Case Study, Instructions…) preserved under its own **"Page › Heading" path label**, built from the page title plus the h1–h4 heading hierarchy, so sections from different pages never merge. Only shown when present. |
 
 Ordering matters in the alias table: **checklist is checked first**, then
@@ -95,10 +98,13 @@ matches; Description and Introduction match by topic title. Empty → `Needs rev
 
 ## Joins
 
-- **Module ↔ activity join is by `resource_code`.** Dropbox folders and
-  discussions are placed under the week whose manifest items share their resource
-  code. Anything not joined lands in an **Unplaced Activities** section so it is
-  visible rather than dropped silently.
+- **Module ↔ activity join is by `resource_code` / `rCode`.** Dropbox folders,
+  discussions, and D2L checklists are placed under the week whose manifest
+  quicklinks share their resource code. Assignments/discussions that are not
+  joined land in an **Unplaced Activities** section. For normal course exports,
+  checklist XML is filtered to manifest-linked checklists so stale payloads do
+  not flood the review artifacts; component-only packages with no manifest
+  quicklink evidence can still expose their checklist payloads.
 
 ## Known limitations (tell the reviewer)
 

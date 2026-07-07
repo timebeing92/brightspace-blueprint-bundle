@@ -1,8 +1,8 @@
 # Brightspace Package Structure and Import Notes
 
 This note is a durable repo reference for small Brightspace export / import packages.
-For this bundle's specific script pipeline, JSON model, XML evidence files, and
-join logic, read `SCRIPT_PIPELINE_AND_PACKAGE_CONTEXT.md` first.
+For the blueprint bundle's specific script pipeline, JSON model, XML evidence
+files, and join logic, read `SCRIPT_PIPELINE_AND_PACKAGE_CONTEXT.md` first.
 
 It is intentionally split into:
 
@@ -36,6 +36,8 @@ component payload XML
 
 - stores the actual checklist, rubric, quiz, discussion, assignment, or other object payloads
 - may be a single file or several related files depending on package type
+- for blueprint extraction, checklist payload XML is joined back to manifest
+  checklist quicklinks by `resource_code` / `rCode`
 
 ## Checklist Pattern We Can Reuse
 
@@ -51,6 +53,7 @@ Fields worth checking:
 - object `id`
 - object `resource_code`
 - schedule flags
+- category and item names
 - item sort order
 - due date fields
 

@@ -284,8 +284,9 @@ def main(argv: list[str] | None = None) -> int:
     quicklinks = activities_mod.load_quicklink_codes(root, diagnostics)
     folders = activities_mod.extract_dropbox(root, diagnostics)
     discussion_rows = activities_mod.extract_discussions(root, diagnostics)
+    checklists = activities_mod.extract_checklists(root, diagnostics, quicklinks)
     joins = activities_mod.resolve_joins(
-        folders, discussion_rows, grade_items, grade_by_code,
+        folders, discussion_rows, checklists, grade_items, grade_by_code,
         rubric_names, condition_codes, quicklinks, diagnostics,
     )
     for diagnostic in diagnostics:

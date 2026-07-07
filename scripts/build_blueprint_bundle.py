@@ -364,6 +364,24 @@ def format_discussion(topic: dict) -> dict:
     return {"label": label, "blocks": _activity_meta_blocks(details) + blocks}
 
 
+def format_checklist(checklist: dict | None, link_node: dict | None = None) -> dict:
+    """Return {label, blocks} for a D2L checklist tool payload or manifest link."""
+    link_title = clean_label((link_node or {}).get("title", ""))
+    label = clean_label((checklist or {}).get("name", "") or link_title or "Checklist")
+    blocks = list((checklist or {}).get("blocks", []))
+    if blocks:
+        return {"label": label, "blocks": blocks}
+
+    if checklist is None:
+        text = (
+            "Brightspace checklist tool link found in the module; item-level "
+            "checklist contents were not found in checklist_d2l.xml."
+        )
+    else:
+        text = "Brightspace checklist found, but no checklist items were extracted."
+    return {"label": label, "blocks": _plain_blocks(text)}
+
+
 # --------------------------------------------------------------------------- #
 # Course-level front matter (segment-aware)
 # --------------------------------------------------------------------------- #
@@ -414,6 +432,7 @@ def build_week_model(
     structure_topics: dict[str, dict],
     folders_by_code: dict[str, dict],
     discussions_by_code: dict[str, dict],
+    checklists_by_code: dict[str, dict],
 ) -> tuple[dict, set[str], set[str]]:
     nodes = flatten_nodes([module])
     module_rcodes = rcode_set(nodes)
@@ -421,6 +440,7 @@ def build_week_model(
     folders = [folders_by_code[code] for code in module_rcodes if code in folders_by_code]
     discussions = [discussions_by_code[code] for code in module_rcodes if code in discussions_by_code]
     quiz_links = [node for node in nodes if node.get("kind") == "quiz_link"]
+    checklist_links = [node for node in nodes if node.get("kind") == "checklist_link"]
 
     overview_blocks: list[dict] = []
     objective_blocks: list[dict] = []
@@ -468,6 +488,11 @@ def build_week_model(
         if node.get("title")
     )
     discussion_items = [format_discussion(topic) for topic in discussions]
+    checklist.extend(
+        format_checklist(checklists_by_code.get(node.get("rcode", "")), node)
+        for node in checklist_links
+        if node.get("title") or node.get("rcode")
+    )
 
     week = {
         "title": clean_text(module.get("title", "Course Module")) or "Course Module",
@@ -506,13 +531,18 @@ def build_blueprint_model(
         for topic in activities.get("discussions", [])
         if topic.get("kind") == "topic" and topic.get("resource_code")
     }
+    checklists_by_code = {
+        checklist.get("resource_code", ""): checklist
+        for checklist in activities.get("checklists", [])
+        if checklist.get("resource_code")
+    }
 
     weeks: list[dict] = []
     placed_folder_codes: set[str] = set()
     placed_discussion_codes: set[str] = set()
     for module in modules:
         week, folder_codes, discussion_codes = build_week_model(
-            module, topics, folders_by_code, discussions_by_code
+            module, topics, folders_by_code, discussions_by_code, checklists_by_code
         )
         weeks.append(week)
         placed_folder_codes.update(folder_codes)
@@ -535,7 +565,6 @@ def build_blueprint_model(
 
     diagnostics = [f"Structure: {clean_text(item)}" for item in structure.get("diagnostics", [])]
     diagnostics += [f"Activities: {clean_text(item)}" for item in activities.get("diagnostics", [])]
-
     return {
         "schema": "coursecraft.blueprint/3",
         "template_reference": template_reference,
@@ -791,6 +820,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--skip-qa", action="store_true", help="Do not run course_qa_report.py")
     parser.add_argument("--no-docx", action="store_true", help="Do not render the DOCX blueprint")
+    parser.add_argument(
+        "--docx-section-layout",
+        choices=("top", "left"),
+        default="top",
+        help="DOCX weekly section label layout: shaded top rows (default) or shaded left column.",
+    )
     parser.add_argument("--quiet", action="store_true", help="Suppress companion script stdout")
     args = parser.parse_args(argv)
 
@@ -835,7 +870,13 @@ def main(argv: list[str] | None = None) -> int:
 
     docx_written: Path | None = None
     if not args.no_docx:
-        docx_args = [str(blueprint_json), "--output", str(blueprint_docx)]
+        docx_args = [
+            str(blueprint_json),
+            "--output",
+            str(blueprint_docx),
+            "--section-layout",
+            args.docx_section_layout,
+        ]
         if TEMPLATE_DOCX.exists():
             docx_args += ["--template", str(TEMPLATE_DOCX)]
         result = subprocess.run(

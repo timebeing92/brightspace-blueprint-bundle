@@ -4,11 +4,11 @@ You are working inside a **self-contained bundle** that converts a Brightspace/D
 course export into a flat-file course blueprint (Markdown + DOCX) shaped after
 `reference/Course Blueprint Template 2020 CGPS.docx`.
 
-> **⏭ Read `CHANGELOG.md` first.** As of 2026-07-06 the SME-facing blueprint
-> architecture is: full-width stacked DOCX section headers, and weekly content
-> ordered Overview → Learning Objectives → Learning Materials/Resources →
-> Assignments → Discussions → Checklist → Other. Schema is
-> `coursecraft.blueprint/3`.
+> **⏭ Read `CHANGELOG.md` first.** The default SME-facing DOCX layout uses
+> full-width stacked section headers; `--docx-section-layout left` is also
+> supported for the alternate left-label table layout. Weekly content is ordered
+> Overview → Learning Objectives → Learning Materials/Resources → Assignments →
+> Discussions → Checklist → Other. Schema is `coursecraft.blueprint/3`.
 
 ## Operating mode
 
@@ -44,8 +44,8 @@ structure/activities/QA companions.
 ## Pipeline (what runs, in order)
 
 `export_inventory` → `manifest_probe` → `reconstruct_course_structure --extract-html`
-→ `extract_course_activities` → `course_qa_report` → build JSON model →
-render Markdown + DOCX. Both renderers consume one model
+→ `extract_course_activities` (assignments, discussions, XML checklists, joins)
+→ `course_qa_report` → build JSON model → render Markdown + DOCX. Both renderers consume one model
 (`schemas/blueprint_schema.json`); change the model shape in **both** the schema
 and `blueprint_to_docx.py` if you extend it.
 
@@ -74,13 +74,16 @@ and `blueprint_to_docx.py` if you extend it.
       `html_to_segments` / `html_fragment_to_blocks`. Enables the
       mirror-don't-reconstruct week model and preserves paragraphs/bullets/links.
     - `extract_course_activities.py` imports `html_fragment_to_blocks` and adds
-      `instructions_blocks` (dropbox folders) and `description_blocks`
-      (discussions) so activity content keeps its formatting too.
+      `instructions_blocks` (dropbox folders), `description_blocks`
+      (discussions), and D2L checklist `blocks` so activity content keeps its
+      formatting too.
 - DOCX section/field layout must keep matching the CGPS template. Markdown is the
   canonical flat file; DOCX is rendered to resemble the template, not byte-match
   its branding.
-- Do not revert the weekly DOCX layout to left-label tables. Section labels are
-  top header rows over full-width content rows.
+- Keep both DOCX section-label layouts aligned. The default is `top` (shaded
+  header rows over full-width content rows). The optional `left` layout must
+  remain a rendering-only variant over the same JSON model and use full-width
+  weekly tables.
 - Do not move Learning Materials/Resources below assessments. They belong
   immediately after Learning Objectives.
 

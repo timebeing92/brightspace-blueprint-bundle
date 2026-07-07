@@ -10,7 +10,8 @@ mirrors the section structure of the CGPS template stored in
 - course header line + course title
 - single-column front-matter tables (Description / Materials / Course Learning Outcomes)
 - "Course Introduction" heading + intro text + "Course Content:"
-- one full-width, single-column table per week:
+- one full-width table per week, using either section labels above content
+  rows (default) or section labels in a left column:
     Overview
     Learning Objectives
     Assigned Reading and Multimedia
@@ -19,7 +20,9 @@ mirrors the section structure of the CGPS template stored in
     Checklist                        (only when present)
     Other course sections            (only when present)
 
-Scaffold labels sit in shaded rows immediately above their extracted content.
+In the default layout, scaffold labels sit in shaded rows immediately above
+their extracted content. In the optional left-column layout, the same labels sit
+in shaded left cells and the content remains in full-page-width tables.
 Bullets use the document's native List Bullet styles (real hanging indents,
 nesting by level) when the style base defines them.
 
@@ -421,11 +424,8 @@ def add_front_matter_table(doc: "Document", label: str, blocks: list[dict]) -> N
     doc.add_paragraph()
 
 
-def add_week_table(doc: "Document", week: dict) -> None:
-    apply_heading(doc, doc.add_paragraph(week.get("title", "Course Module")), "Heading 2")
-
-    # (label, fill) section pairs; scaffold label sits in a shaded full-width
-    # row above the extracted content. Due day-of-week rides along in the
+def week_section_rows(week: dict):
+    # (label, fill) section pairs. Due day-of-week rides along in the
     # assignment text; coded numeric dates are term-relative and not encoded.
     rows = [
         (OVERVIEW_LABEL,
@@ -445,6 +445,11 @@ def add_week_table(doc: "Document", week: dict) -> None:
     if week.get("other_sections"):
         rows.append((OTHER_LABEL,
                      lambda cell: write_value_labeled(cell, week["other_sections"], missing=NOT_FOUND_LIST)))
+    return rows
+
+
+def add_week_table_top(doc: "Document", week: dict) -> None:
+    rows = week_section_rows(week)
 
     table = doc.add_table(rows=len(rows) * 2, cols=1)
     add_table_borders(table)
@@ -459,6 +464,33 @@ def add_week_table(doc: "Document", week: dict) -> None:
     doc.add_paragraph()
 
 
+def add_week_table_left(doc: "Document", week: dict) -> None:
+    rows = week_section_rows(week)
+    full_width = usable_width_inches(doc)
+    label_width = min(1.8, max(1.35, full_width * 0.28))
+    value_width = full_width - label_width
+
+    table = doc.add_table(rows=len(rows), cols=2)
+    add_table_borders(table)
+    set_column_widths(table, (label_width, value_width))
+    set_cell_margins(table)
+    for index, (label, fill) in enumerate(rows):
+        write_label(table.cell(index, 0), label)
+        value = table.cell(index, 1)
+        fill(value)
+        _trim_leading_empty(value)
+
+    doc.add_paragraph()
+
+
+def add_week_table(doc: "Document", week: dict, *, section_layout: str = "top") -> None:
+    apply_heading(doc, doc.add_paragraph(week.get("title", "Course Module")), "Heading 2")
+    if section_layout == "left":
+        add_week_table_left(doc, week)
+    else:
+        add_week_table_top(doc, week)
+
+
 def add_simple_section(doc: "Document", heading: str, items: list[str]) -> None:
     apply_heading(doc, doc.add_paragraph(heading), "Heading 2")
     if not items:
@@ -468,7 +500,7 @@ def add_simple_section(doc: "Document", heading: str, items: list[str]) -> None:
         _emit_block(doc, {"kind": "li", "level": 1, "runs": [{"text": item, "href": ""}]})
 
 
-def render(model: dict, doc: "Document") -> None:
+def render(model: dict, doc: "Document", *, section_layout: str = "top") -> None:
     clear_body(doc)
 
     header_course = model.get("course_number") or "Course #"
@@ -506,7 +538,7 @@ def render(model: dict, doc: "Document") -> None:
     doc.add_paragraph()
 
     for week in model.get("weeks", []):
-        add_week_table(doc, week)
+        add_week_table(doc, week, section_layout=section_layout)
 
     unplaced = model.get("unplaced_activities", {})
     if unplaced.get("assignments") or unplaced.get("discussions"):
@@ -535,6 +567,12 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="CGPS template .docx to use as the style base (optional)",
     )
+    parser.add_argument(
+        "--section-layout",
+        choices=("top", "left"),
+        default="top",
+        help="DOCX weekly section label layout: shaded top rows (default) or shaded left column.",
+    )
     args = parser.parse_args(argv)
 
     if not args.model.exists():
@@ -548,7 +586,7 @@ def main(argv: list[str] | None = None) -> int:
             sys.stderr.write(f"note: template not found ({args.template}); building DOCX from scratch.\n")
         doc = Document()
 
-    render(model, doc)
+    render(model, doc, section_layout=args.section_layout)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(args.output))
     print(f"docx: {args.output}")

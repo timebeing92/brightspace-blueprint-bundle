@@ -31,8 +31,8 @@ It asks:
 1. What files are in this export?
 2. What module/week structure does Brightspace report?
 3. What HTML pages belong under each module?
-4. What assignments and discussions exist, and where do they appear in the
-   course?
+4. What assignments, discussions, and checklists exist, and where do they
+   appear in the course?
 5. What text can be safely copied into a blueprint review surface?
 6. What is missing, ambiguous, or not joined cleanly?
 
@@ -72,7 +72,7 @@ order:
 | 1 | `export_inventory.py` | Classify package files and count D2L XML, HTML, documents, media, assets, and likely quiz files. | `*__inventory.json`, `*__inventory.md` |
 | 2 | `manifest_probe.py` | Read `imsmanifest.xml`, summarize organizations/items/resources, identifierref usage, likely quiz resources, and suspicious hrefs. | `*__manifest_probe.json`, `*__manifest_probe.md` |
 | 3 | `reconstruct_course_structure.py --extract-html` | Rebuild the module/topic tree, resolve manifest items to resources, read HTML pages, split page bodies by real headings, and preserve paragraphs/lists/links as blocks. | `<label>__course_structure.json`, `<label>__course_structure.md` |
-| 4 | `extract_course_activities.py` | Read assignment/dropbox, discussion, grade, rubric, condition, and quicklink evidence; resolve joins by `resource_code` where possible. | `<label>__course_activities.json`, `.md`, `.xlsx` |
+| 4 | `extract_course_activities.py` | Read assignment/dropbox, discussion, checklist, grade, rubric, condition, and quicklink evidence; resolve joins by `resource_code` where possible. | `<label>__course_activities.json`, `.md`, `.xlsx` |
 | 5 | `course_qa_report.py` | Run read-only integrity checks over joins, missing files, malformed XML, dated fields, image alt text, and other review risks. | `<label>__course_qa.json`, `<label>__course_qa.md` |
 | 6 | `build_blueprint_bundle.py` model builder | Combine course structure + activities into the blueprint model. | `<label>__blueprint.json` |
 | 7 | Markdown renderer + `blueprint_to_docx.py` | Render the model into human-readable review outputs. | `<label>__blueprint.md`, `<label>__blueprint.docx` |
@@ -141,7 +141,7 @@ Common export files the scripts know how to recognize include:
 | `rubrics_d2l.xml` | Rubric names/ids used to resolve rubric references on activities. |
 | `quiz_d2l_*.xml` | Quiz metadata, grade joins, and draw-count checks in QA. The blueprint currently surfaces quiz quicklinks more than full quiz contents. |
 | `questiondb.xml` | Question-library payload. Counted and checked as quiz evidence, but not fully converted into blueprint assessment content. |
-| `checklist_d2l.xml` | Checklist payload and dated checklist fields for QA; weekly checklist rows in the blueprint mostly come from page headings/content. |
+| `checklist_d2l.xml` | Checklist payload and dated checklist fields. Weekly checklist rows normally come from D2L checklist payloads joined to manifest checklist quicklinks by `resource_code`; HTML checklist headings are also preserved when present. |
 | `conditionalrelease_d2l.xml` | Condition sets that help resolve activity release-condition joins. |
 | `intelligentagents_d2l.xml` | Recognized as D2L XML evidence; not central to the blueprint render. |
 
@@ -167,8 +167,8 @@ The weekly blueprint placement depends mostly on the manifest tree and
 
 - modules/weeks come from `imsmanifest.xml` organizations/items
 - HTML topic pages are found through manifest resource `href` values
-- assignment and discussion objects are placed in the week whose manifest items
-  share the same `resource_code`
+- assignment, discussion, and checklist objects are placed in the week whose
+  manifest quicklinks share the same `resource_code`/`rCode`
 - activities that cannot be placed are kept under `Unplaced Activities`
 
 This is why the companion outputs matter. If something looks wrong in the DOCX,
@@ -177,8 +177,8 @@ check the evidence in this order:
 1. `*__manifest_probe.md` to see whether the manifest has the expected structure.
 2. `<label>__course_structure.md/json` to see which pages were attached to each
    module and how headings were split.
-3. `<label>__course_activities.xlsx/json` to see assignment/discussion/grade/
-   rubric joins.
+3. `<label>__course_activities.xlsx/json` to see assignment/discussion/
+   checklist/grade/rubric joins.
 4. `<label>__course_qa.md` to see unresolved references, missing files, malformed
    XML, or other integrity notes.
 
@@ -194,7 +194,8 @@ blueprint buckets:
 - readings/resources/materials/media/video/textbook/etc. -> Assigned Reading
   and Multimedia
 - overview/introduction/welcome/start here/orientation -> Overview
-- checklist -> Checklist
+- D2L checklist quicklinks + `checklist_d2l.xml` payloads -> Checklist
+- HTML headings matching checklist -> Checklist
 
 Everything else stays visible under `Other course sections` using a
 `Page > Heading` style provenance label. This keeps unusual course content from
