@@ -86,11 +86,29 @@ OUTCOMES_LABEL = "COURSE LEARNING OUTCOMES"
 # --------------------------------------------------------------------------- #
 def clean_label(value: str) -> str:
     """Normalize a display label before the renderer adds its own trailing colon."""
-    return " ".join(str(value or "").split()).rstrip(":").strip()
+    return clean_text(value).rstrip(":").strip()
 
 
 def clean_text(value: str) -> str:
-    return " ".join(str(value or "").split())
+    return " ".join(xml_safe_text(value).split())
+
+
+def xml_safe_text(value: str) -> str:
+    """Remove characters that cannot appear in WordprocessingML XML text."""
+    return "".join(
+        char if is_xml_compatible_char(char) else " "
+        for char in str(value or "")
+    )
+
+
+def is_xml_compatible_char(char: str) -> bool:
+    code = ord(char)
+    return (
+        code in (0x09, 0x0A, 0x0D)
+        or 0x20 <= code <= 0xD7FF
+        or 0xE000 <= code <= 0xFFFD
+        or 0x10000 <= code <= 0x10FFFF
+    )
 
 
 def style_or_none(doc: "Document", name: str):
@@ -267,7 +285,7 @@ def add_hyperlink(paragraph, url: str, text: str) -> None:
     run.append(rpr)
     text_el = OxmlElement("w:t")
     text_el.set(qn("xml:space"), "preserve")
-    text_el.text = text
+    text_el.text = xml_safe_text(text)
     run.append(text_el)
     hyperlink.append(run)
     paragraph._p.append(hyperlink)
@@ -275,10 +293,10 @@ def add_hyperlink(paragraph, url: str, text: str) -> None:
 
 def _emit_runs(paragraph, runs: list[dict]) -> None:
     for run in runs:
-        text = run.get("text", "")
+        text = xml_safe_text(run.get("text", ""))
         if not text:
             continue
-        href = (run.get("href") or "").strip()
+        href = xml_safe_text(run.get("href") or "").strip()
         if href.startswith(LIVE_SCHEMES):
             add_hyperlink(paragraph, href, text)
         elif href:

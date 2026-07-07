@@ -72,8 +72,32 @@ def safe_label(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("_") or "export"
 
 
+def is_xml_compatible_char(char: str) -> bool:
+    code = ord(char)
+    return (
+        code in (0x09, 0x0A, 0x0D)
+        or 0x20 <= code <= 0xD7FF
+        or 0xE000 <= code <= 0xFFFD
+        or 0x10000 <= code <= 0x10FFFF
+    )
+
+
+def xml_safe_text(value: str) -> str:
+    return "".join(char if is_xml_compatible_char(char) else " " for char in str(value or ""))
+
+
+def sanitize_json_strings(value):
+    if isinstance(value, dict):
+        return {key: sanitize_json_strings(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [sanitize_json_strings(item) for item in value]
+    if isinstance(value, str):
+        return xml_safe_text(value)
+    return value
+
+
 def read_json(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8"))
+    return sanitize_json_strings(json.loads(path.read_text(encoding="utf-8")))
 
 
 def write_text_if_changed(path: Path, content: str) -> None:
@@ -85,7 +109,7 @@ def write_text_if_changed(path: Path, content: str) -> None:
 
 def clean_text(value: str) -> str:
     """Collapse runs of whitespace; keep a single readable line of text."""
-    return re.sub(r"\s+", " ", value or "").strip()
+    return re.sub(r"\s+", " ", xml_safe_text(value)).strip()
 
 
 def clean_label(value: str) -> str:

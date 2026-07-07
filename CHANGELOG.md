@@ -5,6 +5,15 @@ changes** section at the bottom is the active to-do for the next session.
 
 ---
 
+## 2026-07-07 — XML-safe source text normalization (done)
+
+Stress-testing against the latest Downloads exports found two packages whose
+decoded page text included XML-invalid control characters/noncharacters. The
+blueprint model builder now filters source-derived strings to the
+XML-compatible character set, and the DOCX renderer applies the same guard when
+rendering older JSON models. Markdown/JSON/DOCX output now completes for those
+packages.
+
 ## 2026-07-07 — Page-aware Other section dividers (done)
 
 Markdown and DOCX blueprints now use `source_page` provenance when rendering

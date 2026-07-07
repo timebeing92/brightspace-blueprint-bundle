@@ -224,6 +224,11 @@ being lost or merged into generic rows. Because each section carries its
 when the next item comes from a different source page; adjacent headings from
 the same page stay visually grouped.
 
+Before the final blueprint model is written, source-derived strings are also
+filtered to the XML-compatible character set. This protects DOCX rendering from
+rare exports where binary-like content is decoded into text blocks with control
+characters or noncharacters.
+
 ## What This Pipeline Can and Cannot Promise
 
 Works well when:
