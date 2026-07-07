@@ -28,6 +28,7 @@ import tempfile
 import zipfile
 from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import unquote
 import xml.etree.ElementTree as ET
 
 from common_xml import clean, local_name
@@ -62,6 +63,181 @@ def html_to_text(raw: str) -> str:
     return _flatten_text(raw)
 
 
+PRACTICE_TYPE_LABELS = {
+    0: "Sorting",
+    1: "Sequencing",
+    2: "Hotspot",
+    3: "Quick quiz",
+    4: "Quick quiz - legacy dropdown",
+    5: "Quick quiz - single choice",
+    6: "Quick quiz - multi-select",
+    7: "Quick quiz - fill-in-the-blank",
+}
+
+
+def _clean_practice_text(value) -> str:
+    if value is None:
+        return ""
+    return html_to_text(str(value))
+
+
+def _practice_label_block(text: str, href: str = "") -> dict | None:
+    text = clean(text)
+    if not text:
+        return None
+    return {"kind": "label", "level": 0, "runs": [{"text": text, "href": href}]}
+
+
+def _practice_text_block(text: str, href: str = "") -> dict | None:
+    text = clean(text)
+    if not text:
+        return None
+    return {"kind": "p", "level": 0, "runs": [{"text": text, "href": href}]}
+
+
+def _format_practice_number(value) -> str:
+    if value is None or value == "":
+        return ""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return clean(str(value))
+    if number.is_integer():
+        return str(int(number))
+    return f"{number:g}"
+
+
+def _practice_type_label(payload: dict) -> str:
+    practice_type = payload.get("type")
+    if practice_type is None:
+        return "Quick quiz - legacy" if isinstance(payload.get("questions"), list) else "Creator+ practice"
+    return PRACTICE_TYPE_LABELS.get(practice_type, f"Creator+ type {practice_type}")
+
+
+def _resolve_package_path(ref: str, package_root: Path | None, html_dir: Path | None) -> Path | None:
+    ref = html.unescape(unquote(ref or "")).strip()
+    if not ref:
+        return None
+    target = ref.replace("\\", "/").split("?")[0].split("#")[0].lstrip("/")
+    if not target:
+        return None
+    for base in (html_dir, package_root):
+        if base is None:
+            continue
+        candidate = (base / target).resolve()
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _looks_like_creator_practice(data_file: str, src: str) -> bool:
+    data_file = (data_file or "").lower()
+    src = (src or "").lower()
+    return data_file.endswith(".practice.json") or "practices.lcs.brightspace.com" in src
+
+
+def _practice_source_label(path: Path | None, data_file: str, package_root: Path | None) -> str:
+    if data_file:
+        return data_file.replace("\\", "/")
+    if path and package_root:
+        try:
+            return path.relative_to(package_root).as_posix()
+        except ValueError:
+            pass
+    return path.name if path else ""
+
+
+def _creator_practice_blocks(
+    *,
+    data_file: str,
+    src: str,
+    package_root: Path | None,
+    html_dir: Path | None,
+    diagnostics: list[str] | None,
+) -> list[dict]:
+    path = _resolve_package_path(data_file, package_root, html_dir)
+    if path is None:
+        if diagnostics is not None and data_file:
+            diagnostics.append(f"Creator+ practice iframe: metadata file not found: {data_file}")
+        first = _practice_label_block("Creator+ practice: metadata not found", src)
+        source = _practice_label_block(f"Source file: {data_file}") if data_file else None
+        return [block for block in (first, source) if block]
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        if diagnostics is not None:
+            diagnostics.append(f"Creator+ practice iframe: unreadable metadata file {path.name}: {exc}")
+        first = _practice_label_block("Creator+ practice: metadata unreadable", src)
+        source = _practice_label_block(f"Source file: {_practice_source_label(path, data_file, package_root)}")
+        return [block for block in (first, source) if block]
+
+    title = _clean_practice_text(payload.get("title")) or "Untitled Creator+ practice"
+    blocks: list[dict] = []
+    first = _practice_label_block(f"Creator+ practice: {title}", src)
+    if first:
+        blocks.append(first)
+
+    details: list[tuple[str, str]] = []
+    details.append(("Practice type", _practice_type_label(payload)))
+    source_label = _practice_source_label(path, data_file, package_root)
+    if source_label:
+        details.append(("Source file", source_label))
+    if payload.get("id") not in (None, ""):
+        details.append(("Practice id", str(payload.get("id"))))
+
+    questions = payload.get("questions") if isinstance(payload.get("questions"), list) else []
+    sortable_items = payload.get("sortableItems") if isinstance(payload.get("sortableItems"), list) else []
+    categories = payload.get("categories") if isinstance(payload.get("categories"), list) else []
+    if questions:
+        details.append(("Questions", str(len(questions))))
+    if sortable_items:
+        details.append(("Items", str(len(sortable_items))))
+    if categories:
+        details.append(("Categories/slots", str(len(categories))))
+    if payload.get("hasScoring") is not None:
+        if payload.get("hasScoring"):
+            points = _format_practice_number(payload.get("scorePoints"))
+            details.append(("Scoring", f"{points} pts" if points else "Enabled"))
+        else:
+            details.append(("Scoring", "Not scored"))
+
+    for name, value in details:
+        block = _practice_label_block(f"{name}: {value}")
+        if block:
+            blocks.append(block)
+
+    seen_text: set[str] = set()
+    for label, text in (
+        ("Description", _clean_practice_text(payload.get("description"))),
+        ("Instructions", _clean_practice_text(payload.get("customInstructions"))),
+        ("Prompt", _clean_practice_text(payload.get("questionText"))),
+    ):
+        normalized = text.lower()
+        if text and normalized not in seen_text:
+            seen_text.add(normalized)
+            label_block = _practice_label_block(label)
+            text_block = _practice_text_block(text)
+            if label_block:
+                blocks.append(label_block)
+            if text_block:
+                blocks.append(text_block)
+
+    if questions:
+        first_question = questions[0] if isinstance(questions[0], dict) else {}
+        prompt = _clean_practice_text(first_question.get("text") or first_question.get("questionText"))
+        normalized = prompt.lower()
+        if prompt and normalized not in seen_text:
+            label_block = _practice_label_block("First prompt")
+            text_block = _practice_text_block(prompt)
+            if label_block:
+                blocks.append(label_block)
+            if text_block:
+                blocks.append(text_block)
+
+    return blocks
+
+
 # Formatting-preserving HTML extraction --------------------------------------
 # Rather than flattening pages to one line, we parse them into blocks so that
 # paragraphs, bullet lists, and links survive into the blueprint. Each block is
@@ -76,7 +252,13 @@ _LIVE_SCHEMES = ("http://", "https://", "mailto:")
 class _BlockExtractor(HTMLParser):
     """Walk an HTML fragment and emit paragraph/list blocks with link-aware runs."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        package_root: Path | None = None,
+        html_dir: Path | None = None,
+        diagnostics: list[str] | None = None,
+    ) -> None:
         super().__init__(convert_charrefs=True)
         self.blocks: list[dict] = []
         self._runs: list[dict] = []
@@ -85,6 +267,9 @@ class _BlockExtractor(HTMLParser):
         self._list_depth = 0
         self._href: list[str] = []
         self._skip = 0
+        self.package_root = package_root
+        self.html_dir = html_dir
+        self.diagnostics = diagnostics
 
     def _flush(self) -> None:
         runs = []
@@ -116,6 +301,18 @@ class _BlockExtractor(HTMLParser):
             src = attr_map.get("src", "")
             if src:
                 self._flush()
+                data_file = attr_map.get("data-file", "").strip()
+                if _looks_like_creator_practice(data_file, src):
+                    self.blocks.extend(
+                        _creator_practice_blocks(
+                            data_file=data_file,
+                            src=src,
+                            package_root=self.package_root,
+                            html_dir=self.html_dir,
+                            diagnostics=self.diagnostics,
+                        )
+                    )
+                    return
                 title = attr_map.get("title", "").strip() or "Embedded media"
                 self.blocks.append({"kind": "p", "level": 0, "runs": [{"text": title, "href": src}]})
             return
@@ -168,9 +365,15 @@ class _BlockExtractor(HTMLParser):
         self._flush()
 
 
-def html_fragment_to_blocks(raw: str) -> list[dict]:
+def html_fragment_to_blocks(
+    raw: str,
+    *,
+    package_root: Path | None = None,
+    html_dir: Path | None = None,
+    diagnostics: list[str] | None = None,
+) -> list[dict]:
     raw = re.sub(r"<(script|style)\b.*?</\1>", " ", raw, flags=re.IGNORECASE | re.DOTALL)
-    parser = _BlockExtractor()
+    parser = _BlockExtractor(package_root=package_root, html_dir=html_dir, diagnostics=diagnostics)
     try:
         parser.feed(raw)
         parser.close()
@@ -184,7 +387,13 @@ def blocks_to_text(blocks: list[dict]) -> str:
     return clean(" ".join(run["text"] for block in blocks for run in block["runs"]))
 
 
-def html_to_segments(raw: str) -> list[dict]:
+def html_to_segments(
+    raw: str,
+    *,
+    package_root: Path | None = None,
+    html_dir: Path | None = None,
+    diagnostics: list[str] | None = None,
+) -> list[dict]:
     """Split an HTML body into ``{heading, level, blocks, text}`` chunks by its own headings.
 
     Content before the first heading becomes an untitled intro segment
@@ -198,7 +407,12 @@ def html_to_segments(raw: str) -> list[dict]:
     matches = list(HEADING_TAG.finditer(raw))
 
     def make(heading: str, level: int, slice_raw: str) -> dict | None:
-        blocks = html_fragment_to_blocks(slice_raw)
+        blocks = html_fragment_to_blocks(
+            slice_raw,
+            package_root=package_root,
+            html_dir=html_dir,
+            diagnostics=diagnostics,
+        )
         if not blocks and not heading:
             return None
         return {"heading": heading, "level": level, "blocks": blocks, "text": blocks_to_text(blocks)}
@@ -370,7 +584,12 @@ def extract_html_topics(nodes: list[dict], package_root: Path, diagnostics: list
                         "html_title": html_to_text(title_match.group(1)) if title_match else "",
                         "href": node["href"],
                         "body_text": body_text,
-                        "body_segments": html_to_segments(raw),
+                        "body_segments": html_to_segments(
+                            raw,
+                            package_root=package_root,
+                            html_dir=page_path.parent,
+                            diagnostics=diagnostics,
+                        ),
                         "empty_page": len(body_text) == 0,
                         "missing_refs": sorted(set(missing_refs)),
                         "server_refs": sorted(set(server_refs)),

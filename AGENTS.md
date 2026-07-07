@@ -44,8 +44,10 @@ structure/activities/QA companions.
 ## Pipeline (what runs, in order)
 
 `export_inventory` → `manifest_probe` → `reconstruct_course_structure --extract-html`
-→ `extract_course_activities` (assignments, discussions, quiz-level instructions/settings, XML checklists, joins)
-→ `course_qa_report` → build JSON model → render Markdown + DOCX. Both renderers consume one model
+(HTML pages, heading blocks, Creator+ practice metadata when local `.practice.json`
+is referenced) → `extract_course_activities` (assignments, discussions, quiz-level
+instructions/settings, XML checklists, joins) → `course_qa_report` → build JSON
+model → render Markdown + DOCX. Both renderers consume one model
 (`schemas/blueprint_schema.json`); change the model shape in **both** the schema
 and `blueprint_to_docx.py` if you extend it.
 
@@ -73,6 +75,9 @@ and `blueprint_to_docx.py` if you extend it.
       (`{heading, level, blocks:[{kind, level, runs:[{text, href}]}], text}`) via
       `html_to_segments` / `html_fragment_to_blocks`. Enables the
       mirror-don't-reconstruct week model and preserves paragraphs/bullets/links.
+      Creator+ practice iframes with `data-file="practice/...practice.json"` are
+      expanded into lightweight practice metadata and authored instructions/prompts;
+      full answer/feedback review stays outside the blueprint.
     - `extract_course_activities.py` imports `html_fragment_to_blocks` and adds
       `instructions_blocks` (dropbox folders and quizzes),
       `description_blocks` (discussions), D2L checklist `blocks`, and a

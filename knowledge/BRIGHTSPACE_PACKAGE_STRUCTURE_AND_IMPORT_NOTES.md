@@ -40,6 +40,16 @@ component payload XML
   manifest quicklinks by `resource_code` / `rCode`; quiz joins surface
   quiz-level instructions/settings, not full question-bank review
 
+Creator+ practice JSON
+
+- commonly lives under `practice/` and is referenced from an HTML iframe through
+  `data-file="practice/...practice.json"`
+- travels with the HTML page as a local asset rather than as a separate
+  manifest activity in typical exports
+- for blueprint extraction, the iframe stays in the page section where it was
+  authored; the tool surfaces lightweight practice metadata and authored
+  prompts/instructions, not answer-key review
+
 ## Checklist Pattern We Can Reuse
 
 Observed small checklist packages commonly use:
@@ -97,6 +107,7 @@ Depending on package type, inspect these before editing:
 - `identifierref`
 - `resource_code`
 - `href`
+- `data-file` for Creator+ iframe-to-practice JSON references
 - relative file paths
 - Quicklink references where HTML content is involved
 

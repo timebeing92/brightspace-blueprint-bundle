@@ -24,6 +24,8 @@ A Brightspace export is a ZIP file full of course evidence. It usually contains:
 - course HTML pages and their assets
 - D2L XML files for assignments, discussions, grades, rubrics, quizzes,
   checklists, and related tools
+- local Creator+ practice JSON files when pages embed Brightspace Practice
+  activities
 
 The script pipeline treats that ZIP like evidence, not like a finished blueprint.
 It asks:
@@ -71,7 +73,7 @@ order:
 | --- | --- | --- | --- |
 | 1 | `export_inventory.py` | Classify package files and count D2L XML, HTML, documents, media, assets, and likely quiz files. | `*__inventory.json`, `*__inventory.md` |
 | 2 | `manifest_probe.py` | Read `imsmanifest.xml`, summarize organizations/items/resources, identifierref usage, likely quiz resources, and suspicious hrefs. | `*__manifest_probe.json`, `*__manifest_probe.md` |
-| 3 | `reconstruct_course_structure.py --extract-html` | Rebuild the module/topic tree, resolve manifest items to resources, read HTML pages, split page bodies by real headings, and preserve paragraphs/lists/links as blocks. | `<label>__course_structure.json`, `<label>__course_structure.md` |
+| 3 | `reconstruct_course_structure.py --extract-html` | Rebuild the module/topic tree, resolve manifest items to resources, read HTML pages, split page bodies by real headings, preserve paragraphs/lists/links as blocks, and expand Creator+ practice iframes from local `.practice.json` metadata when available. | `<label>__course_structure.json`, `<label>__course_structure.md` |
 | 4 | `extract_course_activities.py` | Read assignment/dropbox, discussion, quiz-level instructions/settings, checklist, grade, rubric, condition, and quicklink evidence; resolve joins by `resource_code` where possible. | `<label>__course_activities.json`, `.md`, `.xlsx` |
 | 5 | `course_qa_report.py` | Run read-only integrity checks over joins, missing files, malformed XML, dated fields, image alt text, and other review risks. | `<label>__course_qa.json`, `<label>__course_qa.md` |
 | 6 | `build_blueprint_bundle.py` model builder | Combine course structure + activities into the blueprint model. | `<label>__blueprint.json` |
@@ -135,6 +137,7 @@ Common export files the scripts know how to recognize include:
 | `imsmanifest.xml` | Course structure, organizations, items, resource references, quicklink placement, resource hrefs. |
 | `orgunitconfig/orgunitconfig.xml` | Course/package metadata context. Not usually where instructional content lives. |
 | HTML/HTM files | Student-facing content pages. These supply overview text, learning materials, objectives, checklists, and other sections. |
+| `practice/*.practice.json` or `*.practice.json` | Creator+ Practice payloads referenced by HTML iframe `data-file` attributes. The blueprint carries lightweight practice metadata and authored prompts/instructions, not full answer-key review. |
 | `dropbox_d2l.xml` | Assignment/dropbox folders, instructions, points, activity resource codes. |
 | `discussion_d2l_*.xml` | Discussion forums/topics, prompts/descriptions, points, activity resource codes. |
 | `grades_d2l.xml` | Grade items and grade joins for assignments, discussions, and quizzes. |
@@ -158,6 +161,7 @@ The most important Brightspace joins are:
 | `identifierref` | Manifest item points to a manifest resource. | `imsmanifest.xml` item -> resource |
 | `href` | Manifest resource points to a package file or a tool/quicklink target. | `imsmanifest.xml` resources |
 | `resource_code` / `rcode` / `rCode` | D2L object identity used to connect manifest placement and object XML records. | manifest items/quicklinks, dropbox, discussions, grades, conditions |
+| `data-file` | HTML iframe points to a local Creator+ practice JSON payload. | HTML pages -> `practice/*.practice.json` |
 | grade item code/reference | Assignment/discussion/quiz links to gradebook items. | activity XML and `grades_d2l.xml` |
 | rubric id/reference | Assignment/discussion links to rubric records. | activity XML and `rubrics_d2l.xml` |
 | relative asset reference | HTML page points to local images, PDFs, CSS, scripts, or other files. | HTML pages and package files |
@@ -169,6 +173,8 @@ The weekly blueprint placement depends mostly on the manifest tree and
 - HTML topic pages are found through manifest resource `href` values
 - assignment, discussion, quiz, and checklist objects are placed in the week whose
   manifest quicklinks share the same `resource_code`/`rCode`
+- Creator+ practice blocks stay inside the HTML page section where their iframe
+  appears; they are not separate manifest activities in typical exports
 - activities that cannot be placed are kept under `Unplaced Activities`
 
 This is why the companion outputs matter. If something looks wrong in the DOCX,
@@ -197,6 +203,8 @@ blueprint buckets:
 - quiz quicklinks + `quiz_d2l_*.xml` payloads -> Assignment(s) and Instructions
 - D2L checklist quicklinks + `checklist_d2l.xml` payloads -> Checklist
 - HTML headings matching checklist -> Checklist
+- Creator+ iframe `data-file` + local `.practice.json` payloads -> lightweight
+  practice metadata blocks inside the current page section
 
 Everything else stays visible under `Other course sections` using a
 `Page > Heading` style provenance label. This keeps unusual course content from
@@ -222,6 +230,9 @@ Known limits:
 - quiz-level instructions/settings are surfaced when linked, but full
   quiz/question-bank contents, answer keys, and pool-origin evidence are not
   translated into blueprint rows
+- Creator+ practices are surfaced only when an HTML iframe points to a readable
+  local `.practice.json`; the blueprint includes title/type/count/scoring/source
+  metadata and authored instructions/prompts, not full answer/feedback review
 - LTI/external-tool payloads are not deeply interpreted
 - missing learning-objective alignment is not inferred
 

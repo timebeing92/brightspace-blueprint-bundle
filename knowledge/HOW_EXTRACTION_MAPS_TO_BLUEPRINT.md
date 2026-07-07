@@ -29,7 +29,9 @@ structured model to Markdown and DOCX:
    `<h1>`–`<h4>` headings, and each segment is parsed into formatting-preserving
    **blocks** — paragraphs and list items with link-aware runs
    (`{kind, level, runs:[{text, href}]}`). Paragraphs, bullet lists, links, and
-   video/iframe embeds survive; `<script>`/`<style>` and page-template artifacts
+   video/iframe embeds survive; Creator+ practice iframes that reference a
+   local `.practice.json` via `data-file` are expanded into lightweight
+   practice metadata blocks. `<script>`/`<style>` and page-template artifacts
    (e.g. "Basic Page - No Banner") are dropped.
 4. `extract_course_activities.py` — dropbox folders, discussions, D2L
    checklists, quiz-level instructions/settings, and grade joins. Assignment
@@ -55,7 +57,7 @@ Each detected week/module gathers its HTML topics, and every topic's
 | **Assignment(s) and Instructions** | dropbox folders joined to the module by `resource_code`; quiz quicklinks joined to `quiz_d2l_*.xml` by rCode/resource code, with quiz-level instructions and settings when present. Numeric due dates are NOT encoded (see below) |
 | **Discussion Board Prompts** | discussion topics joined by `resource_code` |
 | **Checklist** | D2L checklist tool quicklinks joined to `checklist_d2l.xml` payloads by `resource_code`/`rCode`; HTML headings matching `checklist` are also preserved here. Only shown when present. |
-| **Other course sections** | any remaining page or heading (Next Steps, Case Study, Instructions…) preserved under its own **"Page › Heading" path label**, built from the page title plus the h1–h4 heading hierarchy, so sections from different pages never merge. Only shown when present. |
+| **Other course sections** | any remaining page or heading (Next Steps, Case Study, Instructions…) preserved under its own **"Page › Heading" path label**, built from the page title plus the h1–h4 heading hierarchy, so sections from different pages never merge. Lesson/practice pages usually live here; embedded Creator+ practices are shown inside the section where their iframe appears. Only shown when present. |
 
 Ordering matters in the alias table: **checklist is checked first**, then
 **objectives before resources** (so "Learning Objectives" doesn't match the
@@ -127,6 +129,11 @@ matches; Description and Introduction match by topic title. Empty → `Needs rev
   and section/question-count summaries. Full question text, answer keys,
   question-library matching, and pool-origin evidence belong in the dedicated
   quiz review extractor.
+- **Creator+ practice details are metadata-level only.** If an HTML iframe points
+  to a local `.practice.json`, the blueprint includes the practice title, type,
+  item/question/category counts, scoring status, source file, and authored
+  description/instructions/prompts. Full answer-key or feedback review belongs
+  in a dedicated Creator+ review pass, not the blueprint.
 - **Formatting is preserved, not reflowed.** Paragraphs, bullet lists, and links
   are carried through as authored (links render live in both Markdown and DOCX).
   Fine inline styling (bold/italic, fonts, colors) and images are not carried —

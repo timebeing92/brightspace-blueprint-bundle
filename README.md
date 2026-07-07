@@ -90,7 +90,10 @@ Follows the template's frame, populated from the export:
   also preserved when present. Linked `quiz_d2l_*.xml` payloads supply
   quiz-level instructions, gradebook/points joins, attempts/time-limit settings,
   and section/question-count summaries; full question-bank/pool review remains
-  outside this bundle. Learning
+  outside this bundle. Creator+ practice iframes that point to local
+  `.practice.json` files are expanded as lightweight title/type/count/scoring
+  metadata plus authored instructions/prompts, but not answer-key review.
+  Learning
   Objectives are split out only when the course used an objectives heading (see
   *Design philosophy* above). Numeric due dates aren't encoded (they're
   term-relative); the day-of-week cadence rides along in the extracted

@@ -5,6 +5,22 @@ changes** section at the bottom is the active to-do for the next session.
 
 ---
 
+## 2026-07-07 — Overview routing and Creator+ practice metadata cleanup (done)
+
+Fixed the BUMG/MGT 660 routing issue where week-level overview resources could
+be mistaken for global `TEXTBOOK/S OR REQUIRED MATERIALS` front matter. Weekly
+overview pages now keep their authored overview subsections inside the Overview
+row unless a heading clearly belongs to Learning Objectives, Resources, or
+Checklist. Lesson pages still flow to `Other course sections`, and separate
+Other entries now get visual dividers in Markdown and DOCX.
+
+Creator+ Practice iframes are no longer reduced to generic "Embedded media"
+when the HTML wrapper points to a local `.practice.json` file. The structure
+pass now resolves the practice metadata and surfaces a lightweight review
+summary in place: practice title, type, source file, id, question/item/category
+counts, scoring status, and authored description/instructions/prompts. Full
+answer-key and feedback review remain outside the blueprint bundle.
+
 ## 2026-07-07 — Quiz-level instructions/settings added to blueprints (done)
 
 Audited the BUMG/MGT 660 share-packet example and confirmed the previous gap:

@@ -228,6 +228,10 @@ def _page_default_bucket(page: str) -> str:
     return "other"
 
 
+def _is_week_scoped_title(value: str) -> bool:
+    return bool(WEEKISH.search(value or ""))
+
+
 def _path_label(page: str, path: list[str]) -> str:
     """Join page title + heading path into a provenance label ("Page › Heading").
 
@@ -297,8 +301,15 @@ def route_topic(topic: dict):
             stack.pop()
         stack.append((level, heading))
         bucket = classify_heading(heading)
-        label = heading if bucket else _path_label(page, [h for _, h in stack])
-        yield {"bucket": bucket or "other", "label": label, "blocks": blocks,
+        if page_bucket == "overview" and bucket not in ("objectives", "resources", "checklist"):
+            bucket = "overview"
+            label = heading
+        elif bucket:
+            label = heading
+        else:
+            bucket = page_bucket or _page_default_bucket(page)
+            label = heading if bucket != "other" else _path_label(page, [h for _, h in stack])
+        yield {"bucket": bucket, "label": label, "blocks": blocks,
                "source_page": page, "level": level}
 
 
@@ -436,26 +447,32 @@ def find_front_matter(structure: dict, category: str) -> list[dict]:
     """
     title_terms = {
         "description": ("course description", "catalog description", "description"),
-        "materials": ("textbook", "required materials", "materials", "readings"),
-        "outcomes": ("course learning outcomes", "learning outcomes", "course outcomes", "objectives"),
+        "materials": ("textbook", "required materials", "course materials", "materials for this course"),
+        "outcomes": ("course learning outcomes", "course outcomes"),
         "introduction": ("course introduction", "welcome", "start here", "course overview", "introduction"),
     }[category]
-    heading_bucket = {
-        "description": "overview",  # descriptions rarely have a dedicated heading
-        "materials": "resources",
-        "outcomes": "objectives",
-        "introduction": "overview",
+    heading_terms = {
+        "description": ("course description", "catalog description"),
+        "materials": ("textbook", "required materials", "course materials", "materials for this course"),
+        "outcomes": ("course learning outcomes", "course outcomes"),
+        "introduction": ("course introduction",),
     }[category]
 
     if category in ("materials", "outcomes"):
         for topic in structure.get("html_topics", []):
+            title = f"{topic.get('manifest_title', '')} {topic.get('html_title', '')}"
+            if _is_week_scoped_title(title):
+                continue
             for seg in topic.get("body_segments", []):
-                heading = seg.get("heading", "")
-                if heading and classify_heading(heading) == heading_bucket and seg.get("blocks"):
+                heading = seg.get("heading", "").lower()
+                if heading and any(term in heading for term in heading_terms) and seg.get("blocks"):
                     return seg["blocks"]
 
     for topic in structure.get("html_topics", []):
-        title = f"{topic.get('manifest_title', '')} {topic.get('html_title', '')}".lower()
+        title_raw = f"{topic.get('manifest_title', '')} {topic.get('html_title', '')}"
+        if category in ("materials", "outcomes") and _is_week_scoped_title(title_raw):
+            continue
+        title = title_raw.lower()
         if not any(term in title for term in title_terms):
             continue
         blocks = [block for seg in topic.get("body_segments", []) for block in seg.get("blocks", [])]
@@ -711,7 +728,7 @@ def md_field(blocks: list[dict]) -> str:
     return md_blocks(blocks, NOT_FOUND_FIELD)
 
 
-def md_labeled(sections: list[dict], fallback: str = NOT_FOUND_LIST) -> str:
+def md_labeled(sections: list[dict], fallback: str = NOT_FOUND_LIST, *, divider: bool = False) -> str:
     lines = []
     for sec in sections:
         body = md_blocks(sec.get("blocks", []), "")
@@ -722,7 +739,8 @@ def md_labeled(sections: list[dict], fallback: str = NOT_FOUND_LIST) -> str:
             lines.append(f"**{label}**")
         elif body:
             lines.append(body)
-    return "<br><br>".join(lines) if lines else fallback
+    joiner = "<br><br><hr><br>" if divider else "<br><br>"
+    return joiner.join(lines) if lines else fallback
 
 
 def render_markdown(model: dict) -> str:
@@ -780,7 +798,10 @@ def render_markdown(model: dict) -> str:
         if week["checklist"]:
             section_rows.append(("Checklist (mirrored from the export)", md_labeled(week["checklist"])))
         if week["other_sections"]:
-            section_rows.append(("Other course sections (mirrored from the export)", md_labeled(week["other_sections"])))
+            section_rows.append((
+                "Other course sections (mirrored from the export)",
+                md_labeled(week["other_sections"], divider=True),
+            ))
         rows = [f"### {md_escape(week['title'])}", "", "| Section |", "| --- |"]
         for label, body in section_rows:
             rows.append(f"| **{label}** |")

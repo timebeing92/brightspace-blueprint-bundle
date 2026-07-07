@@ -381,17 +381,33 @@ def write_blocks(container, blocks: list[dict], *, missing: str) -> None:
         previous_kind = block.get("kind", "")
 
 
-def write_value_labeled(container, sections: list[dict], *, missing: str) -> None:
+def _add_section_divider(container) -> None:
+    para = container.add_paragraph()
+    _space(para, before=6, after=6)
+    p_pr = para._p.get_or_add_pPr()
+    p_bdr = OxmlElement("w:pBdr")
+    bottom = OxmlElement("w:bottom")
+    bottom.set(qn("w:val"), "single")
+    bottom.set(qn("w:sz"), "6")
+    bottom.set(qn("w:space"), "1")
+    bottom.set(qn("w:color"), "D9D9D9")
+    p_bdr.append(bottom)
+    p_pr.append(p_bdr)
+
+
+def write_value_labeled(container, sections: list[dict], *, missing: str, divider: bool = False) -> None:
     """Write labeled sections: a bold label line, then its blocks (kind-aware).
     Sections after the first get breathing room so entries don't run together."""
     if not sections:
         _write_missing(container, missing)
         return
     for index, section in enumerate(sections):
+        if divider and index:
+            _add_section_divider(container)
         label = clean_label(section.get("label", ""))
         if label:
             para = container.add_paragraph()
-            _space(para, before=8 if index else 0, after=2)
+            _space(para, before=2 if divider and index else (8 if index else 0), after=2)
             para.add_run(f"{label}:").bold = True
         previous_kind = "section_label" if label else ""
         for block in section.get("blocks", []):
@@ -444,7 +460,12 @@ def week_section_rows(week: dict):
                      lambda cell: write_value_labeled(cell, week["checklist"], missing=NOT_FOUND_LIST)))
     if week.get("other_sections"):
         rows.append((OTHER_LABEL,
-                     lambda cell: write_value_labeled(cell, week["other_sections"], missing=NOT_FOUND_LIST)))
+                     lambda cell: write_value_labeled(
+                         cell,
+                         week["other_sections"],
+                         missing=NOT_FOUND_LIST,
+                         divider=True,
+                     )))
     return rows
 
 
