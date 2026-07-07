@@ -1,0 +1,6 @@
+{
+  "term_start": "2026-08-24",
+  "term_end": "2026-12-13",
+  "expected_total": 100,
+  "extra_placeholder_patterns": ["FIXME", "REPLACE_WITH"]
+}
