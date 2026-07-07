@@ -5,6 +5,13 @@ changes** section at the bottom is the active to-do for the next session.
 
 ---
 
+## 2026-07-07 — Page-aware Other section dividers (done)
+
+Markdown and DOCX blueprints now use `source_page` provenance when rendering
+weekly `Other course sections`. Horizontal dividers mark transitions between
+separate source pages, while multiple subsections from the same page stay
+grouped together without an extra rule between every heading.
+
 ## 2026-07-07 — Before-week grouping cleanup (done)
 
 Before-week material now renders as page groups instead of repeated full

@@ -58,7 +58,7 @@ Each detected week/module gathers its HTML topics, and every topic's
 | **Assignment(s) and Instructions** | dropbox folders joined to the module by `resource_code`; quiz quicklinks joined to `quiz_d2l_*.xml` by rCode/resource code, with quiz-level instructions and settings when present. Numeric due dates are NOT encoded (see below) |
 | **Discussion Board Prompts** | discussion topics joined by `resource_code` |
 | **Checklist** | D2L checklist tool quicklinks joined to `checklist_d2l.xml` payloads by `resource_code`/`rCode`; HTML headings matching `checklist` are also preserved here. Only shown when present. |
-| **Other course sections** | any remaining page or heading (Next Steps, Case Study, Instructions…) preserved under its own **"Page › Heading" path label**, built from the page title plus the h1–h4 heading hierarchy, so sections from different pages never merge. Lesson/practice pages usually live here; embedded Creator+ practices are shown inside the section where their iframe appears. Only shown when present. |
+| **Other course sections** | any remaining page or heading (Next Steps, Case Study, Instructions…) preserved under its own **"Page › Heading" path label**, built from the page title plus the h1–h4 heading hierarchy, so sections from different pages never merge. Markdown and DOCX add a horizontal divider between different source pages, while keeping multiple subsections from the same page grouped without extra rules. Lesson/practice pages usually live here; embedded Creator+ practices are shown inside the section where their iframe appears. Only shown when present. |
 
 Ordering matters in the alias table: **checklist is checked first**, then
 **objectives before resources** (so "Learning Objectives" doesn't match the

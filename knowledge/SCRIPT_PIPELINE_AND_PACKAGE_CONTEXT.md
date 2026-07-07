@@ -219,7 +219,10 @@ blueprint buckets:
 
 Everything else stays visible under `Other course sections` using a
 `Page > Heading` style provenance label. This keeps unusual course content from
-being lost or merged into generic rows.
+being lost or merged into generic rows. Because each section carries its
+`source_page`, the Markdown and DOCX renderers add a horizontal divider only
+when the next item comes from a different source page; adjacent headings from
+the same page stay visually grouped.
 
 ## What This Pipeline Can and Cannot Promise
 

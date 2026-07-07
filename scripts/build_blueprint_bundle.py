@@ -841,19 +841,36 @@ def md_field(blocks: list[dict]) -> str:
     return md_blocks(blocks, NOT_FOUND_FIELD)
 
 
-def md_labeled(sections: list[dict], fallback: str = NOT_FOUND_LIST, *, divider: bool = False) -> str:
-    lines = []
+def should_divide_labeled_sections(previous: dict | None, current: dict, divider: bool | str) -> bool:
+    if not previous or not divider:
+        return False
+    if divider == "page":
+        previous_page = clean_text(previous.get("source_page", ""))
+        current_page = clean_text(current.get("source_page", ""))
+        if previous_page and current_page:
+            return previous_page != current_page
+    return True
+
+
+def md_labeled(sections: list[dict], fallback: str = NOT_FOUND_LIST, *, divider: bool | str = False) -> str:
+    parts = []
+    previous: dict | None = None
     for sec in sections:
         body = md_blocks(sec.get("blocks", []), "")
         label = md_escape(clean_label(sec.get("label", "")))
         if label and body:
-            lines.append(f"**{label}:**<br>{body}")
+            line = f"**{label}:**<br>{body}"
         elif label:
-            lines.append(f"**{label}**")
+            line = f"**{label}**"
         elif body:
-            lines.append(body)
-    joiner = "<br><br><hr><br>" if divider else "<br><br>"
-    return joiner.join(lines) if lines else fallback
+            line = body
+        else:
+            continue
+        if parts:
+            parts.append("<br><br><hr><br>" if should_divide_labeled_sections(previous, sec, divider) else "<br><br>")
+        parts.append(line)
+        previous = sec
+    return "".join(parts) if parts else fallback
 
 
 def render_markdown(model: dict) -> str:
@@ -926,7 +943,7 @@ def render_markdown(model: dict) -> str:
         if week["other_sections"]:
             section_rows.append((
                 "Other course sections (mirrored from the export)",
-                md_labeled(week["other_sections"], divider=True),
+                md_labeled(week["other_sections"], divider="page"),
             ))
         rows = [f"### {md_escape(week['title'])}", "", "| Section |", "| --- |"]
         for label, body in section_rows:

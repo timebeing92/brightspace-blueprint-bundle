@@ -428,24 +428,38 @@ def _add_section_divider(container) -> None:
     _emit_divider(container)
 
 
-def write_value_labeled(container, sections: list[dict], *, missing: str, divider: bool = False) -> None:
+def should_divide_labeled_sections(previous: dict | None, current: dict, divider: bool | str) -> bool:
+    if not previous or not divider:
+        return False
+    if divider == "page":
+        previous_page = clean_text(previous.get("source_page", ""))
+        current_page = clean_text(current.get("source_page", ""))
+        if previous_page and current_page:
+            return previous_page != current_page
+    return True
+
+
+def write_value_labeled(container, sections: list[dict], *, missing: str, divider: bool | str = False) -> None:
     """Write labeled sections: a bold label line, then its blocks (kind-aware).
     Sections after the first get breathing room so entries don't run together."""
     if not sections:
         _write_missing(container, missing)
         return
+    previous_section: dict | None = None
     for index, section in enumerate(sections):
-        if divider and index:
+        has_divider = should_divide_labeled_sections(previous_section, section, divider)
+        if has_divider:
             _add_section_divider(container)
         label = clean_label(section.get("label", ""))
         if label:
             para = container.add_paragraph()
-            _space(para, before=2 if divider and index else (8 if index else 0), after=2)
+            _space(para, before=2 if has_divider else (8 if index else 0), after=2)
             para.add_run(f"{label}:").bold = True
         previous_kind = "section_label" if label else ""
         for block in section.get("blocks", []):
             _emit_block(container, block, previous_kind=previous_kind)
             previous_kind = block.get("kind", "")
+        previous_section = section
 
 
 # --------------------------------------------------------------------------- #
@@ -497,7 +511,7 @@ def week_section_rows(week: dict):
                          cell,
                          week["other_sections"],
                          missing=NOT_FOUND_LIST,
-                         divider=True,
+                         divider="page",
                      )))
     return rows
 

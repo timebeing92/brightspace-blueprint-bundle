@@ -91,12 +91,15 @@ Follows the template's frame, populated from the export:
   Instructions · Discussion Board Prompts · a **Checklist** row when the week
   has a D2L checklist tool payload or checklist page heading · and an **Other
   course sections** row when the week has pages/headings that don't map to a
-  standard bucket (each under its own "Page › Heading" label). D2L XML
-  checklists are the normal checklist source; HTML checklist pages/headings are
-  also preserved when present. Linked `quiz_d2l_*.xml` payloads supply
-  quiz-level instructions, gradebook/points joins, attempts/time-limit settings,
-  and section/question-count summaries; full question-bank/pool review remains
-  outside this bundle. Creator+ practice iframes that point to local
+  standard bucket (each under its own "Page › Heading" label). In Markdown and
+  DOCX, horizontal dividers in this row mark transitions between separate
+  source pages; multiple subsections from the same page stay grouped together.
+  D2L XML checklists are the normal checklist source; HTML checklist
+  pages/headings are also preserved when present. Linked `quiz_d2l_*.xml`
+  payloads supply quiz-level instructions, gradebook/points joins,
+  attempts/time-limit settings, and section/question-count summaries; full
+  question-bank/pool review remains outside this bundle. Creator+ practice
+  iframes that point to local
   `.practice.json` files are expanded as lightweight title/type/count/scoring
   metadata plus authored instructions/prompts, but not answer-key review.
   Source-page visual structure is carried as review cues when detected:
