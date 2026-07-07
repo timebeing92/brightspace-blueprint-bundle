@@ -45,6 +45,7 @@ WEEKISH = re.compile(r"\b(week|module|unit)\s*0*(\d{1,2})\b", re.IGNORECASE)
 
 NOT_FOUND_FIELD = "Needs review: not found in export extraction."
 NOT_FOUND_LIST = "None found in export extraction."
+BEFORE_WEEK_LABEL = "before week 1 - additional resources/ information"
 
 # Heading alias table — the ONLY course-content taxonomy the tool imposes.
 # Everything else is mirrored under the course's own heading text.
@@ -131,27 +132,47 @@ def node_sort_key(node: dict) -> tuple[int, str]:
     return (999, node.get("title", ""))
 
 
-def group_course_modules(tree: list[dict]) -> list[dict]:
-    """Return repeatable blueprint sections from the manifest tree.
+def split_course_modules(tree: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Return ``(before_week_1_modules, repeatable_week_modules)`` from the manifest tree.
 
     Prefer top-level week/module items. If an export has a single wrapper module
     containing week modules, use those children. If no obvious modules exist,
     fall back to the top-level manifest items so the blueprint still emits a
-    reviewable structure.
+    reviewable structure. Non-week modules before the first detected week are
+    preserved as course-level before-week material rather than forced into Week 1.
     """
     top_level = [node for node in tree if node.get("title")]
-    weekish_top = [node for node in top_level if WEEKISH.search(node.get("title", ""))]
+    weekish_top = [(index, node) for index, node in enumerate(top_level) if WEEKISH.search(node.get("title", ""))]
     if weekish_top:
-        return sorted(weekish_top, key=node_sort_key)
+        first_week_index = min(index for index, _ in weekish_top)
+        before_week = [
+            node
+            for index, node in enumerate(top_level)
+            if index < first_week_index and (node.get("children") or node.get("kind") == "module")
+        ]
+        return before_week, sorted([node for _, node in weekish_top], key=node_sort_key)
 
     if len(top_level) == 1:
         children = [node for node in top_level[0].get("children", []) if node.get("title")]
-        weekish_children = [node for node in children if WEEKISH.search(node.get("title", ""))]
+        weekish_children = [
+            (index, node) for index, node in enumerate(children) if WEEKISH.search(node.get("title", ""))
+        ]
         if weekish_children:
-            return sorted(weekish_children, key=node_sort_key)
+            first_week_index = min(index for index, _ in weekish_children)
+            before_week = [
+                node
+                for index, node in enumerate(children)
+                if index < first_week_index and (node.get("children") or node.get("kind") == "module")
+            ]
+            return before_week, sorted([node for _, node in weekish_children], key=node_sort_key)
 
     module_like = [node for node in top_level if node.get("children") or node.get("kind") == "module"]
-    return module_like or top_level
+    return [], module_like or top_level
+
+
+def group_course_modules(tree: list[dict]) -> list[dict]:
+    """Return repeatable blueprint sections from the manifest tree."""
+    return split_course_modules(tree)[1]
 
 
 # --------------------------------------------------------------------------- #
@@ -574,6 +595,42 @@ def build_week_model(
     return week, placed_folders, placed_discussions, placed_quizzes
 
 
+def build_before_week_sections(modules: list[dict], structure_topics: dict[str, dict]) -> list[dict]:
+    sections: list[dict] = []
+    seen_hrefs: set[str] = set()
+    for module in modules:
+        module_title = clean_text(module.get("title", ""))
+        for node in flatten_nodes([module]):
+            topic = topic_for_node(node, structure_topics)
+            if topic is None:
+                continue
+            href = topic.get("href", "")
+            if href and href in seen_hrefs:
+                continue
+            if href:
+                seen_hrefs.add(href)
+            for entry in route_topic(topic):
+                blocks = entry.get("blocks", [])
+                if not blocks:
+                    continue
+                label = _path_label(
+                    module_title,
+                    [
+                        entry.get("source_page", ""),
+                        entry.get("label", ""),
+                    ],
+                )
+                sections.append(
+                    {
+                        "label": label or entry.get("source_page") or topic_label(topic),
+                        "blocks": blocks,
+                        "source_page": entry.get("source_page", ""),
+                        "level": entry.get("level", 0),
+                    }
+                )
+    return [section for section in sections if section.get("blocks")]
+
+
 def build_blueprint_model(
     structure: dict,
     activities: dict,
@@ -584,7 +641,7 @@ def build_blueprint_model(
     term: str,
     template_reference: str,
 ) -> dict:
-    modules = group_course_modules(structure.get("tree", []))
+    before_week_modules, modules = split_course_modules(structure.get("tree", []))
     topics = topic_lookup(structure)
     folders_by_code = {
         folder.get("resource_code", ""): folder
@@ -645,7 +702,7 @@ def build_blueprint_model(
     diagnostics = [f"Structure: {clean_text(item)}" for item in structure.get("diagnostics", [])]
     diagnostics += [f"Activities: {clean_text(item)}" for item in activities.get("diagnostics", [])]
     return {
-        "schema": "coursecraft.blueprint/3",
+        "schema": "coursecraft.blueprint/4",
         "template_reference": template_reference,
         "course_number": clean_text(course_number),
         "course_title": clean_text(course_title) or clean_text(label.replace("_", " ")),
@@ -656,6 +713,7 @@ def build_blueprint_model(
             "course_learning_outcomes": find_front_matter(structure, "outcomes"),
             "course_introduction": find_front_matter(structure, "introduction"),
         },
+        "before_week_1": build_before_week_sections(before_week_modules, topics),
         "weeks": weeks,
         "unplaced_activities": {
             "assignments": [item for item in [*unplaced_folders, *unplaced_quizzes] if item],
@@ -700,14 +758,25 @@ def md_blocks(blocks: list[dict], fallback: str) -> str:
     """
     parts: list[tuple[str, str]] = []
     for block in blocks:
+        kind = block.get("kind")
+        if kind == "divider":
+            parts.append(("divider", "<hr>"))
+            continue
         inline = md_inline(block.get("runs", []))
         if not inline:
             continue
-        if block.get("kind") == "li":
+        if kind == "li":
             indent = "&nbsp;&nbsp;&nbsp;" * max(0, int(block.get("level") or 1) - 1)
             parts.append(("li", f"{indent}• {inline}"))
-        elif block.get("kind") == "label":
+        elif kind == "label":
             parts.append(("label", f"**{inline}**"))
+        elif kind == "visual":
+            parts.append(("visual", f"**Visual cue: {inline}**"))
+        elif kind == "dropdown":
+            parts.append(("dropdown", f"**Dropdown / expandable section: {inline}**"))
+        elif kind == "embed":
+            embed_type = clean_text(block.get("meta", {}).get("embed_type", "")) or "Embedded media"
+            parts.append(("embed", f"**{embed_type}:** {inline}"))
         else:
             parts.append(("p", inline))
     if not parts:
@@ -718,6 +787,7 @@ def md_blocks(blocks: list[dict], fallback: str) -> str:
             tight = (
                 (kind == "li" and parts[index - 1][0] == "li")
                 or (kind == "label" and parts[index - 1][0] == "label")
+                or (kind in {"visual", "dropdown", "embed"} and parts[index - 1][0] in {"visual", "dropdown", "embed"})
             )
             out.append("<br>" if tight else "<br><br>")
         out.append(text)
@@ -774,9 +844,20 @@ def render_markdown(model: dict) -> str:
         "",
         md_field(fm["course_introduction"]),
         "",
-        "Course Content:",
-        "",
     ]
+
+    before_week = model.get("before_week_1", [])
+    if before_week:
+        lines.extend(
+            [
+                f"### {BEFORE_WEEK_LABEL}",
+                "",
+                md_labeled(before_week, divider=True),
+                "",
+            ]
+        )
+
+    lines.extend(["Course Content:", ""])
 
     for week in model["weeks"]:
         section_rows = [

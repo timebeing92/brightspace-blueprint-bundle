@@ -71,6 +71,7 @@ DISCUSSIONS_LABEL = "Discussion Board Prompts:"
 READING_LABEL = "Assigned Reading and Multimedia: (add links, articles, textbook readings, videos). Include style-correct citations."
 CHECKLIST_LABEL = "Checklist (mirrored from the export)"
 OTHER_LABEL = "Other course sections (mirrored from the export)"
+BEFORE_WEEK_LABEL = "before week 1 - additional resources/ information"
 
 DESCRIPTION_LABEL = (
     "COURSE DESCRIPTION (keep in mind the Course Description must match the published catalog, "
@@ -202,6 +203,15 @@ def set_cell_background(cell, hex_color: str) -> None:
     shd.set(qn("w:color"), "auto")
     shd.set(qn("w:fill"), hex_color)
     tc_pr.append(shd)
+
+
+def set_paragraph_background(paragraph, hex_color: str) -> None:
+    p_pr = paragraph._p.get_or_add_pPr()
+    shd = OxmlElement("w:shd")
+    shd.set(qn("w:val"), "clear")
+    shd.set(qn("w:color"), "auto")
+    shd.set(qn("w:fill"), hex_color)
+    p_pr.append(shd)
 
 
 def add_table_borders(table) -> None:
@@ -336,16 +346,35 @@ def _apply_native_bullet(paragraph, num_id: str, level: int) -> None:
     ppr.insert(0, numpr)
 
 
+def _emit_divider(container, *, before: int = 6, after: int = 6) -> None:
+    para = container.add_paragraph()
+    _space(para, before=before, after=after)
+    p_pr = para._p.get_or_add_pPr()
+    p_bdr = OxmlElement("w:pBdr")
+    bottom = OxmlElement("w:bottom")
+    bottom.set(qn("w:val"), "single")
+    bottom.set(qn("w:sz"), "6")
+    bottom.set(qn("w:space"), "1")
+    bottom.set(qn("w:color"), "D9D9D9")
+    p_bdr.append(bottom)
+    p_pr.append(p_bdr)
+
+
 def _emit_block(container, block: dict, *, previous_kind: str = "") -> None:
     """Add one block as a paragraph; only list items get a bullet, paragraphs
     stay prose. Bullets become native Word lists: List Bullet styles when the
     style base defines them, else a numPr reference to the template's own
     bullet numbering, else a manual hanging-indent bullet."""
+    kind = block.get("kind")
+    if kind == "divider":
+        _emit_divider(container)
+        return
+
     runs = [r for r in block.get("runs", []) if r.get("text")]
     if not runs:
         return
     para = container.add_paragraph()
-    if block.get("kind") == "label":
+    if kind == "label":
         before = 2 if previous_kind in {"section_label", "label"} else 8
         _space(para, before=before, after=2)
         for run in runs:
@@ -353,7 +382,21 @@ def _emit_block(container, block: dict, *, previous_kind: str = "") -> None:
             if text:
                 para.add_run(text).bold = True
         return
-    if block.get("kind") == "li":
+    if kind in {"visual", "dropdown", "embed"}:
+        label = {
+            "visual": "Visual cue: ",
+            "dropdown": "Dropdown / expandable section: ",
+            "embed": f"{clean_text(block.get('meta', {}).get('embed_type', '')) or 'Embedded media'}: ",
+        }[kind]
+        _space(para, before=6, after=4)
+        set_paragraph_background(para, "F7F9FB")
+        prefix = para.add_run(label)
+        prefix.bold = True
+        prefix.font.size = Pt(9)
+        prefix.font.color.rgb = RGBColor(0x4D, 0x4D, 0x4D)
+        _emit_runs(para, runs)
+        return
+    if kind == "li":
         level = max(1, int(block.get("level") or 1))
         if not _apply_para_style(para, BULLET_STYLE_BY_LEVEL.get(min(level, 3), "List Bullet")):
             num_id = _bullet_num_id(para)
@@ -382,17 +425,7 @@ def write_blocks(container, blocks: list[dict], *, missing: str) -> None:
 
 
 def _add_section_divider(container) -> None:
-    para = container.add_paragraph()
-    _space(para, before=6, after=6)
-    p_pr = para._p.get_or_add_pPr()
-    p_bdr = OxmlElement("w:pBdr")
-    bottom = OxmlElement("w:bottom")
-    bottom.set(qn("w:val"), "single")
-    bottom.set(qn("w:sz"), "6")
-    bottom.set(qn("w:space"), "1")
-    bottom.set(qn("w:color"), "D9D9D9")
-    p_bdr.append(bottom)
-    p_pr.append(p_bdr)
+    _emit_divider(container)
 
 
 def write_value_labeled(container, sections: list[dict], *, missing: str, divider: bool = False) -> None:
@@ -554,6 +587,12 @@ def render(model: dict, doc: "Document", *, section_layout: str = "top") -> None
 
     apply_heading(doc, doc.add_paragraph("Course Introduction"), "Heading 2")
     write_blocks(doc, fm.get("course_introduction", []), missing=NOT_FOUND_FIELD)
+
+    before_week = model.get("before_week_1", [])
+    if before_week:
+        apply_heading(doc, doc.add_paragraph(BEFORE_WEEK_LABEL), "Heading 2")
+        write_value_labeled(doc, before_week, missing=NOT_FOUND_LIST, divider=True)
+
     content_para = doc.add_paragraph()
     content_para.add_run("Course Content:").bold = True
     doc.add_paragraph()

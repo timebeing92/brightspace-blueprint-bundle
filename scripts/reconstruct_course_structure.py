@@ -240,13 +240,129 @@ def _creator_practice_blocks(
 
 # Formatting-preserving HTML extraction --------------------------------------
 # Rather than flattening pages to one line, we parse them into blocks so that
-# paragraphs, bullet lists, and links survive into the blueprint. Each block is
-# {"kind": "p"|"li", "level": int, "runs": [{"text": str, "href": str}]}.
+# paragraphs, bullet lists, links, and useful visual structure survive into the
+# blueprint. Each block is {"kind": str, "level": int, "runs": [...]}, with
+# optional lightweight "meta" for visual/embedded blocks.
 _SKIP_TAGS = {"script", "style", "noscript"}
 _BLOCK_BREAK_TAGS = {"p", "div", "br", "h5", "h6", "blockquote", "figure",
                      "figcaption", "tr", "table", "section", "article"}
 _ARTIFACT_TEXTS = {"basic page - no banner", "basic page", "no banner", "banner"}
 _LIVE_SCHEMES = ("http://", "https://", "mailto:")
+_VIDEO_HOSTS = ("youtube.com", "youtu.be", "vimeo.com", "kaltura", "mediasite", "panopto")
+_VISUAL_CLASS_LABELS = (
+    ("project-callout", "Project callout"),
+    ("assessment-callout", "Assessment callout"),
+    ("discussion-note", "Discussion note"),
+    ("roleplay-callout", "Roleplay callout"),
+    ("survey-callout", "Survey callout"),
+    ("side-quest", "Side quest"),
+    ("next-step", "Next step"),
+    ("case-card", "Case card"),
+    ("info-card", "Information card"),
+    ("timeline-card", "Timeline card"),
+    ("timeline-item", "Timeline item"),
+    ("timeline", "Timeline"),
+    ("slide-card", "Slide card"),
+    ("launch-card", "Launch card"),
+    ("prototype-card", "Prototype card"),
+    ("resources-section", "Resources section"),
+    ("details-grid", "Details grid"),
+    ("callout", "Callout"),
+    ("note", "Note"),
+    ("panel", "Panel"),
+)
+_VISUAL_EXCLUDED_CLASSES = {
+    "mceNonEditable",
+    "placeholder",
+    "d2l-practice",
+    "practice-card",
+    "practice-item",
+    "practice-stage",
+    "practice-header",
+    "practice-meta",
+    "practice-shell",
+    "practice-cluster",
+    "practice-wrapper",
+    "practice-side-quest",
+    "side-quest-content",
+    "side-quest-practice-card",
+    "side-quest-practice-stack",
+    "video-wrap",
+    "video-shell",
+    "back-top",
+}
+_VISUAL_CONTAINER_TAGS = {"aside", "article", "blockquote", "details", "div", "figure", "section", "table"}
+
+
+def _block(kind: str, text: str = "", href: str = "", *, meta: dict | None = None) -> dict:
+    out = {"kind": kind, "level": 0, "runs": [{"text": text, "href": href}] if text or href else []}
+    if meta:
+        out["meta"] = {key: str(value) for key, value in meta.items() if value is not None and str(value)}
+    return out
+
+
+def _class_tokens(attr_map: dict) -> list[str]:
+    classes = attr_map.get("class", "")
+    return [token for token in re.split(r"\s+", classes.strip()) if token]
+
+
+def _visual_style_note(style: str) -> str:
+    style = (style or "").strip()
+    if not style:
+        return ""
+    notes = []
+    for css_name, label in (
+        ("background-color", "background"),
+        ("background", "background"),
+        ("border-color", "border"),
+        ("border", "border"),
+    ):
+        match = re.search(rf"{css_name}\s*:\s*([^;]+)", style, flags=re.IGNORECASE)
+        if match:
+            value = clean(match.group(1))
+            if value and not value.lower().startswith("url("):
+                notes.append(f"{label}: {value}")
+    return "; ".join(notes[:2])
+
+
+def _matches_visual_class(key: str, token: str) -> bool:
+    if key == "side-quest":
+        return token in {"side-quest", "side-quest-panel", "side-quest-header"}
+    if key == "callout":
+        return token == "callout" or token.endswith("-callout")
+    if key == "note":
+        return token == "note" or token.endswith("-note")
+    if key == "timeline":
+        return token == "timeline"
+    return key in token
+
+
+def _visual_block_for(tag: str, attr_map: dict) -> dict | None:
+    if tag not in _VISUAL_CONTAINER_TAGS:
+        return None
+    tokens = _class_tokens(attr_map)
+    lowered = [token.lower() for token in tokens]
+    for key, label in _VISUAL_CLASS_LABELS:
+        if (
+            any(_matches_visual_class(key, token) for token in lowered)
+            and not any(token.lower() in _VISUAL_EXCLUDED_CLASSES for token in tokens)
+        ):
+            return _block(
+                "visual",
+                label,
+                meta={"tag": tag, "classes": " ".join(tokens), "source_style": attr_map.get("style", "")},
+            )
+    style_note = _visual_style_note(attr_map.get("style", ""))
+    if style_note:
+        return _block("visual", f"Styled section ({style_note})", meta={"tag": tag, "classes": " ".join(tokens)})
+    return None
+
+
+def _embed_kind(src: str) -> str:
+    src_lower = (src or "").lower()
+    if any(host in src_lower for host in _VIDEO_HOSTS):
+        return "Video embed"
+    return "Embedded media"
 
 
 class _BlockExtractor(HTMLParser):
@@ -297,6 +413,10 @@ class _BlockExtractor(HTMLParser):
             return
         if self._skip:
             return
+        if tag == "hr":
+            self._flush()
+            self.blocks.append(_block("divider"))
+            return
         if tag == "iframe":
             src = attr_map.get("src", "")
             if src:
@@ -314,7 +434,12 @@ class _BlockExtractor(HTMLParser):
                     )
                     return
                 title = attr_map.get("title", "").strip() or "Embedded media"
-                self.blocks.append({"kind": "p", "level": 0, "runs": [{"text": title, "href": src}]})
+                kind = _embed_kind(src)
+                self.blocks.append(_block("embed", title, src, meta={"embed_type": kind}))
+            return
+        if tag == "summary":
+            self._flush()
+            self._kind = "dropdown"
             return
         if tag == "img":
             alt = (attr_map.get("alt") or "").strip()
@@ -323,6 +448,10 @@ class _BlockExtractor(HTMLParser):
                 href = src if src.startswith(_LIVE_SCHEMES) else ""
                 self._runs.append({"text": f"[image: {alt}]", "href": href})
             return
+        visual = _visual_block_for(tag, attr_map)
+        if visual:
+            self._flush()
+            self.blocks.append(visual)
         if tag in ("ul", "ol"):
             self._list_depth += 1
             return
@@ -343,6 +472,9 @@ class _BlockExtractor(HTMLParser):
                 self._skip -= 1
             return
         if self._skip:
+            return
+        if tag == "summary":
+            self._flush()
             return
         if tag in ("ul", "ol"):
             if self._list_depth:

@@ -57,7 +57,7 @@ Think of the pipeline as three passes:
 1. **Read the package.** Count and classify what Brightspace exported.
 2. **Build evidence tables.** Turn manifest items, HTML pages, and D2L object XML
    into inspectable JSON/Markdown/workbook artifacts.
-3. **Render one model.** Assemble a `coursecraft.blueprint/3` JSON model and
+3. **Render one model.** Assemble a `coursecraft.blueprint/4` JSON model and
    render both Markdown and DOCX from it.
 
 The blueprint is only one view of the extracted evidence. The companion files
@@ -73,7 +73,7 @@ order:
 | --- | --- | --- | --- |
 | 1 | `export_inventory.py` | Classify package files and count D2L XML, HTML, documents, media, assets, and likely quiz files. | `*__inventory.json`, `*__inventory.md` |
 | 2 | `manifest_probe.py` | Read `imsmanifest.xml`, summarize organizations/items/resources, identifierref usage, likely quiz resources, and suspicious hrefs. | `*__manifest_probe.json`, `*__manifest_probe.md` |
-| 3 | `reconstruct_course_structure.py --extract-html` | Rebuild the module/topic tree, resolve manifest items to resources, read HTML pages, split page bodies by real headings, preserve paragraphs/lists/links as blocks, and expand Creator+ practice iframes from local `.practice.json` metadata when available. | `<label>__course_structure.json`, `<label>__course_structure.md` |
+| 3 | `reconstruct_course_structure.py --extract-html` | Rebuild the module/topic tree, resolve manifest items to resources, read HTML pages, split page bodies by real headings, preserve paragraphs/lists/links plus lightweight visual cues as blocks, and expand Creator+ practice iframes from local `.practice.json` metadata when available. | `<label>__course_structure.json`, `<label>__course_structure.md` |
 | 4 | `extract_course_activities.py` | Read assignment/dropbox, discussion, quiz-level instructions/settings, checklist, grade, rubric, condition, and quicklink evidence; resolve joins by `resource_code` where possible. | `<label>__course_activities.json`, `.md`, `.xlsx` |
 | 5 | `course_qa_report.py` | Run read-only integrity checks over joins, missing files, malformed XML, dated fields, image alt text, and other review risks. | `<label>__course_qa.json`, `<label>__course_qa.md` |
 | 6 | `build_blueprint_bundle.py` model builder | Combine course structure + activities into the blueprint model. | `<label>__blueprint.json` |
@@ -88,7 +88,7 @@ truth.
 The stable contract is the JSON model:
 
 - file: `schemas/blueprint_schema.json`
-- current schema id: `coursecraft.blueprint/3`
+- current schema id: `coursecraft.blueprint/4`
 - producer: `scripts/build_blueprint_bundle.py`
 - consumers: Markdown renderer inside `build_blueprint_bundle.py` and
   `scripts/blueprint_to_docx.py`
@@ -97,6 +97,7 @@ The model contains:
 
 - course header fields: course number, course title, term, template reference
 - course-level front matter: description, materials, outcomes, introduction
+- `before_week_1`: top-level orientation/resource pages before the first week
 - `weeks`: one entry per detected week/module
 - week sections: overview, learning objectives, resources, assignments,
   discussions, checklist, other course sections
@@ -109,6 +110,8 @@ Text content is stored as formatting-preserving blocks:
 - `p` = paragraph
 - `li` = list item, with nesting level
 - `label` = internal subsection label used by the renderer
+- `visual`, `dropdown`, `embed`, `divider` = lightweight visual-structure cues
+  from the source HTML
 - each block contains link-aware text runs: `{text, href}`
 
 Labeled sections preserve provenance where the evidence comes from course pages:
@@ -126,7 +129,7 @@ evidence and parse the small set of fields needed for a review surface.
 Useful distinction:
 
 - **Blueprint schema:** the versioned JSON contract this bundle owns
-  (`coursecraft.blueprint/3`).
+  (`coursecraft.blueprint/4`).
 - **Brightspace package XML:** source files the bundle inspects. These are not
   treated as a stable public API.
 
@@ -170,6 +173,9 @@ The weekly blueprint placement depends mostly on the manifest tree and
 `resource_code` joins:
 
 - modules/weeks come from `imsmanifest.xml` organizations/items
+- top-level non-week modules before the first detected week become
+  `before_week_1`, rendered as `before week 1 - additional resources/
+  information`
 - HTML topic pages are found through manifest resource `href` values
 - assignment, discussion, quiz, and checklist objects are placed in the week whose
   manifest quicklinks share the same `resource_code`/`rCode`
@@ -205,6 +211,8 @@ blueprint buckets:
 - HTML headings matching checklist -> Checklist
 - Creator+ iframe `data-file` + local `.practice.json` payloads -> lightweight
   practice metadata blocks inside the current page section
+- selected source visual structure -> block cues (`visual`, `dropdown`,
+  `embed`, `divider`) rendered in Markdown and DOCX
 
 Everything else stays visible under `Other course sections` using a
 `Page > Heading` style provenance label. This keeps unusual course content from
@@ -233,6 +241,9 @@ Known limits:
 - Creator+ practices are surfaced only when an HTML iframe points to a readable
   local `.practice.json`; the blueprint includes title/type/count/scoring/source
   metadata and authored instructions/prompts, not full answer/feedback review
+- visual styling is translated into review cues, not exact CSS recreation;
+  source callouts, dropdowns, embeds, and separators are preserved when detected,
+  but decorative layout wrappers are intentionally ignored
 - LTI/external-tool payloads are not deeply interpreted
 - missing learning-objective alignment is not inferred
 

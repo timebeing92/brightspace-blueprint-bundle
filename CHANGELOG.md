@@ -5,6 +5,21 @@ changes** section at the bottom is the active to-do for the next session.
 
 ---
 
+## 2026-07-07 — Before-week pages and visual structure cues (done)
+
+Schema is now `coursecraft.blueprint/4`.
+
+Top-level orientation/resource modules that appear before the first detected
+week/module are preserved in `before_week_1` and rendered under:
+
+`before week 1 - additional resources/ information`
+
+The HTML structure pass now also keeps lightweight visual cues from source
+pages: callout/note/card-like containers, dropdown summaries, video/media
+embeds, and horizontal rules. Markdown renders these as explicit cue lines;
+DOCX renders them as shaded cue paragraphs or dividers. This is intentionally a
+review aid, not a pixel-level recreation of Brightspace CSS.
+
 ## 2026-07-07 — Overview routing and Creator+ practice metadata cleanup (done)
 
 Fixed the BUMG/MGT 660 routing issue where week-level overview resources could
@@ -56,19 +71,12 @@ Assignment and discussion entries now keep the activity title clean and render
 points, gradebook item, and rubric metadata as separate bold lines at the top of
 the section body. The Markdown and DOCX renderers also normalize trailing colons
 on section labels before adding their own colon, preventing labels such as
-`Learning Materials::`. Schema remains `coursecraft.blueprint/3`; this is a
-render/model-format cleanup within the existing block structure.
+`Learning Materials::`. This was a render/model-format cleanup within the
+existing block structure.
 
 Requirements documentation now also names the one-time dependencies explicitly:
 `openpyxl` for workbook output and `python-docx` for DOCX rendering. `bootstrap.sh`
 installs them into `.venv` once; later exports reuse that environment.
-
-## 2026-07-07 — Component database note kept upstream-only (done)
-
-Removed `knowledge/COMPONENT_DATABASE_DESIGN_NOTES.md` from the shareable
-bundle. The database idea is still preserved in the upstream workbench under
-`docs/project/blueprint-extraction/COMPONENT_DATABASE_DESIGN_NOTES.md`, but it is
-not part of this colleague-facing distribution.
 
 ## 2026-07-07 — Pipeline/package context guide (done)
 
@@ -79,7 +87,7 @@ guide covers:
 - what happens when a colleague runs the bundle
 - which scripts run in what order
 - which companion artifacts each script writes
-- the `coursecraft.blueprint/3` JSON schema contract
+- the `coursecraft.blueprint/4` JSON schema contract
 - the distinction between the owned blueprint schema and observed Brightspace
   package XML
 - common D2L export files, package structure, and joins (`identifierref`,
@@ -134,7 +142,7 @@ layer only — no extractor changes, so no new workbench divergences.
   classification (a "Learning Materials" intro joins resources, not Overview).
 - Removed dead `md_bullets` / unused `Iterable` import.
 
-**Schema (`blueprint_schema.json`):** `$id`/const → `coursecraft.blueprint/3`;
+**Schema (`blueprint_schema.json`):** expanded the schema contract so
 `labeled_section` gains optional `source_page` + `level`; week gains
 `checklist`; documented that labels/content are open, keys closed.
 

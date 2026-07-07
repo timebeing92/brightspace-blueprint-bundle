@@ -8,7 +8,9 @@ course export into a flat-file course blueprint (Markdown + DOCX) shaped after
 > full-width stacked section headers; `--docx-section-layout left` is also
 > supported for the alternate left-label table layout. Weekly content is ordered
 > Overview → Learning Objectives → Learning Materials/Resources → Assignments →
-> Discussions → Checklist → Other. Schema is `coursecraft.blueprint/3`.
+> Discussions → Checklist → Other. Top-level pre-week pages render under
+> `before week 1 - additional resources/ information`. Schema is
+> `coursecraft.blueprint/4`.
 
 ## Operating mode
 
@@ -44,10 +46,11 @@ structure/activities/QA companions.
 ## Pipeline (what runs, in order)
 
 `export_inventory` → `manifest_probe` → `reconstruct_course_structure --extract-html`
-(HTML pages, heading blocks, Creator+ practice metadata when local `.practice.json`
-is referenced) → `extract_course_activities` (assignments, discussions, quiz-level
-instructions/settings, XML checklists, joins) → `course_qa_report` → build JSON
-model → render Markdown + DOCX. Both renderers consume one model
+(HTML pages, heading blocks, visual cues, Creator+ practice metadata when local
+`.practice.json` is referenced) → `extract_course_activities` (assignments,
+discussions, quiz-level instructions/settings, XML checklists, joins) →
+`course_qa_report` → build JSON model → render Markdown + DOCX. Both renderers
+consume one model
 (`schemas/blueprint_schema.json`); change the model shape in **both** the schema
 and `blueprint_to_docx.py` if you extend it.
 
@@ -72,9 +75,11 @@ and `blueprint_to_docx.py` if you extend it.
   - **Known divergences (both additive; original fields unchanged):**
     - `reconstruct_course_structure.py` adds `body_segments` to each HTML topic —
       heading-split chunks parsed into formatting-preserving **blocks**
-      (`{heading, level, blocks:[{kind, level, runs:[{text, href}]}], text}`) via
-      `html_to_segments` / `html_fragment_to_blocks`. Enables the
-      mirror-don't-reconstruct week model and preserves paragraphs/bullets/links.
+      (`{heading, level, blocks:[{kind, level, runs:[{text, href}], meta?}], text}`)
+      via `html_to_segments` / `html_fragment_to_blocks`. Enables the
+      mirror-don't-reconstruct week model and preserves paragraphs/bullets/links,
+      horizontal rules, selected visual containers, dropdown summaries, and
+      video/media embeds as review cues.
       Creator+ practice iframes with `data-file="practice/...practice.json"` are
       expanded into lightweight practice metadata and authored instructions/prompts;
       full answer/feedback review stays outside the blueprint.

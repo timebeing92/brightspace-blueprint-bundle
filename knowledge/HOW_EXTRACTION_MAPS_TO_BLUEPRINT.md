@@ -28,11 +28,12 @@ structured model to Markdown and DOCX:
    HTML topic bodies as **`body_segments`**: each page is split by its own
    `<h1>`–`<h4>` headings, and each segment is parsed into formatting-preserving
    **blocks** — paragraphs and list items with link-aware runs
-   (`{kind, level, runs:[{text, href}]}`). Paragraphs, bullet lists, links, and
-   video/iframe embeds survive; Creator+ practice iframes that reference a
-   local `.practice.json` via `data-file` are expanded into lightweight
-   practice metadata blocks. `<script>`/`<style>` and page-template artifacts
-   (e.g. "Basic Page - No Banner") are dropped.
+   (`{kind, level, runs:[{text, href}], meta?}`). Paragraphs, bullet lists,
+   links, horizontal rules, dropdown summaries, selected callout/card visual
+   cues, and video/iframe embeds survive; Creator+ practice iframes that
+   reference a local `.practice.json` via `data-file` are expanded into
+   lightweight practice metadata blocks. `<script>`/`<style>` and page-template
+   artifacts (e.g. "Basic Page - No Banner") are dropped.
 4. `extract_course_activities.py` — dropbox folders, discussions, D2L
    checklists, quiz-level instructions/settings, and grade joins. Assignment
    instructions, discussion descriptions, quiz instructions, and checklist
@@ -69,6 +70,12 @@ Assignments → Discussions → Checklist → Other course sections**. Learning
 materials sit immediately after the LOs so a SME can review whether the selected
 resources actually support the stated outcomes before moving into assessment
 and discussion details.
+
+Top-level non-week modules/pages that appear before the first detected week are
+preserved in a separate **before week 1 - additional resources/ information**
+section between Course Introduction and Course Content. This keeps orientation,
+syllabus, project overview, roadmap, and other setup pages visible without
+forcing them into Week 1.
 
 Every section routed from a page also carries provenance in the JSON model:
 `source_page` (the page title) and `level` (the heading level, 0 for a whole
@@ -134,6 +141,11 @@ matches; Description and Introduction match by topic title. Empty → `Needs rev
   item/question/category counts, scoring status, source file, and authored
   description/instructions/prompts. Full answer-key or feedback review belongs
   in a dedicated Creator+ review pass, not the blueprint.
+- **Visual styling is translated into cues, not recreated.** The extractor
+  preserves semantic visual structure that helps a reviewer read long pages:
+  callouts/notes/card-like sections, dropdown summaries, video/media embeds,
+  and horizontal rules. It does not attempt to reproduce exact Brightspace CSS,
+  fonts, layout, or every decorative wrapper.
 - **Formatting is preserved, not reflowed.** Paragraphs, bullet lists, and links
   are carried through as authored (links render live in both Markdown and DOCX).
   Fine inline styling (bold/italic, fonts, colors) and images are not carried —

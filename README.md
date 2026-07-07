@@ -79,6 +79,9 @@ Follows the template's frame, populated from the export:
 - **Course Description**, **Textbooks / Required Materials**, **Course Learning
   Outcomes** (single-column tables)
 - **Course Introduction**
+- **before week 1 - additional resources/ information** when the export has
+  top-level orientation, syllabus, project overview, roadmap, or other setup
+  pages before the first detected week/module
 - One **table per week/module**:
   Overview · Learning Objectives · Assigned Reading and Multimedia (resources /
   learning materials, with the course's own sub-labels) · Assignment(s) and
@@ -93,9 +96,13 @@ Follows the template's frame, populated from the export:
   outside this bundle. Creator+ practice iframes that point to local
   `.practice.json` files are expanded as lightweight title/type/count/scoring
   metadata plus authored instructions/prompts, but not answer-key review.
-  Learning
-  Objectives are split out only when the course used an objectives heading (see
-  *Design philosophy* above). Numeric due dates aren't encoded (they're
+  Source-page visual structure is carried as review cues when detected:
+  callout/note/card-like containers, dropdown summaries, video/media embeds, and
+  horizontal rules. The bundle preserves those cues without trying to reproduce
+  Brightspace CSS pixel-for-pixel.
+  The underlying JSON model is `coursecraft.blueprint/4`.
+  Learning Objectives are split out only when the course used an objectives
+  heading (see *Design philosophy* above). Numeric due dates aren't encoded (they're
   term-relative); the day-of-week cadence rides along in the extracted
   assignment/discussion/quiz/checklist text.
 - In the default DOCX, each weekly module is a full-width, single-column table.
@@ -172,3 +179,5 @@ The pipeline scripts are copied from the `coursecraft_workbench` master and run
 unmodified here; `build_blueprint_bundle.py` and `blueprint_to_docx.py` are the
 blueprint-specific layer built for this flat-file workflow. The workbench is the
 upstream source of truth for the extractors.
+
+Current blueprint model schema: `coursecraft.blueprint/4`.
