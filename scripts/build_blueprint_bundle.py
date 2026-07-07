@@ -359,6 +359,13 @@ def _label_block(text: str) -> dict:
     return {"kind": "label", "level": 0, "runs": [{"text": clean_label(text), "href": ""}]}
 
 
+def _heading_label_block(text: str) -> dict | None:
+    label = clean_label(text)
+    if not label:
+        return None
+    return {"kind": "label", "level": 0, "runs": [{"text": f"{label}:", "href": ""}]}
+
+
 def _activity_meta_blocks(details: list[tuple[str, str]]) -> list[dict]:
     blocks = []
     for name, value in details:
@@ -595,37 +602,68 @@ def build_week_model(
     return week, placed_folders, placed_discussions, placed_quizzes
 
 
-def build_before_week_sections(modules: list[dict], structure_topics: dict[str, dict]) -> list[dict]:
+def _before_week_local_label(label: str, source_page: str) -> str:
+    label = clean_label(label)
+    source_page = clean_label(source_page)
+    if not label:
+        return ""
+    local = clean_label(label.split("›")[-1])
+    if source_page and local.lower() == source_page.lower():
+        return ""
+    return local
+
+
+def _is_course_introduction_topic(topic: dict) -> bool:
+    title = f"{topic.get('manifest_title', '')} {topic.get('html_title', '')}".lower()
+    if _is_week_scoped_title(title):
+        return False
+    return any(
+        term in title
+        for term in ("course introduction", "welcome", "start here", "course overview", "introduction")
+    )
+
+
+def build_before_week_sections(
+    modules: list[dict],
+    structure_topics: dict[str, dict],
+    *,
+    skip_course_introduction: bool = False,
+) -> list[dict]:
     sections: list[dict] = []
     seen_hrefs: set[str] = set()
     for module in modules:
-        module_title = clean_text(module.get("title", ""))
         for node in flatten_nodes([module]):
             topic = topic_for_node(node, structure_topics)
             if topic is None:
+                continue
+            if skip_course_introduction and _is_course_introduction_topic(topic):
                 continue
             href = topic.get("href", "")
             if href and href in seen_hrefs:
                 continue
             if href:
                 seen_hrefs.add(href)
+            source_page = topic_label(topic)
+            page_blocks: list[dict] = []
+            previous_label = ""
             for entry in route_topic(topic):
                 blocks = entry.get("blocks", [])
                 if not blocks:
                     continue
-                label = _path_label(
-                    module_title,
-                    [
-                        entry.get("source_page", ""),
-                        entry.get("label", ""),
-                    ],
-                )
+                local_label = _before_week_local_label(entry.get("label", ""), source_page)
+                if local_label and local_label.lower() != previous_label.lower():
+                    label_block = _heading_label_block(local_label)
+                    if label_block:
+                        page_blocks.append(label_block)
+                    previous_label = local_label
+                page_blocks.extend(blocks)
+            if page_blocks:
                 sections.append(
                     {
-                        "label": label or entry.get("source_page") or topic_label(topic),
-                        "blocks": blocks,
-                        "source_page": entry.get("source_page", ""),
-                        "level": entry.get("level", 0),
+                        "label": source_page or topic_label(topic),
+                        "blocks": page_blocks,
+                        "source_page": source_page,
+                        "level": 0,
                     }
                 )
     return [section for section in sections if section.get("blocks")]
@@ -699,6 +737,12 @@ def build_blueprint_model(
         if item.get("label") or item.get("blocks")
     ]
 
+    front_matter = {
+        "course_description": find_front_matter(structure, "description"),
+        "required_materials": find_front_matter(structure, "materials"),
+        "course_learning_outcomes": find_front_matter(structure, "outcomes"),
+        "course_introduction": find_front_matter(structure, "introduction"),
+    }
     diagnostics = [f"Structure: {clean_text(item)}" for item in structure.get("diagnostics", [])]
     diagnostics += [f"Activities: {clean_text(item)}" for item in activities.get("diagnostics", [])]
     return {
@@ -707,13 +751,12 @@ def build_blueprint_model(
         "course_number": clean_text(course_number),
         "course_title": clean_text(course_title) or clean_text(label.replace("_", " ")),
         "term": clean_text(term),
-        "front_matter": {
-            "course_description": find_front_matter(structure, "description"),
-            "required_materials": find_front_matter(structure, "materials"),
-            "course_learning_outcomes": find_front_matter(structure, "outcomes"),
-            "course_introduction": find_front_matter(structure, "introduction"),
-        },
-        "before_week_1": build_before_week_sections(before_week_modules, topics),
+        "front_matter": front_matter,
+        "before_week_1": build_before_week_sections(
+            before_week_modules,
+            topics,
+            skip_course_introduction=bool(front_matter["course_introduction"]),
+        ),
         "weeks": weeks,
         "unplaced_activities": {
             "assignments": [item for item in [*unplaced_folders, *unplaced_quizzes] if item],

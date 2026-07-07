@@ -5,6 +5,14 @@ changes** section at the bottom is the active to-do for the next session.
 
 ---
 
+## 2026-07-07 — Before-week grouping cleanup (done)
+
+Before-week material now renders as page groups instead of repeated full
+breadcrumb labels. A page such as `Project Overview and Roadmap` appears once,
+with internal headings rendered as local labels like `Course Project:` and
+`What the Project Entails:`. Course Introduction pages that already populate the
+global Course Introduction section are skipped in before-week material.
+
 ## 2026-07-07 — Before-week pages and visual structure cues (done)
 
 Schema is now `coursecraft.blueprint/4`.

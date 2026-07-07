@@ -75,7 +75,10 @@ Top-level non-week modules/pages that appear before the first detected week are
 preserved in a separate **before week 1 - additional resources/ information**
 section between Course Introduction and Course Content. This keeps orientation,
 syllabus, project overview, roadmap, and other setup pages visible without
-forcing them into Week 1.
+forcing them into Week 1. Before-week material is grouped by page: the page
+title is shown once, and the page's internal headings become local labels inside
+that page section. Course Introduction pages that already populate the global
+Course Introduction field are not repeated in the before-week section.
 
 Every section routed from a page also carries provenance in the JSON model:
 `source_page` (the page title) and `level` (the heading level, 0 for a whole

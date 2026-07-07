@@ -97,7 +97,8 @@ The model contains:
 
 - course header fields: course number, course title, term, template reference
 - course-level front matter: description, materials, outcomes, introduction
-- `before_week_1`: top-level orientation/resource pages before the first week
+- `before_week_1`: top-level orientation/resource pages before the first week,
+  grouped once per page with local subsection labels
 - `weeks`: one entry per detected week/module
 - week sections: overview, learning objectives, resources, assignments,
   discussions, checklist, other course sections
@@ -175,7 +176,9 @@ The weekly blueprint placement depends mostly on the manifest tree and
 - modules/weeks come from `imsmanifest.xml` organizations/items
 - top-level non-week modules before the first detected week become
   `before_week_1`, rendered as `before week 1 - additional resources/
-  information`
+  information`; page titles render once, internal headings render as local
+  subsection labels, and pages already used as global Course Introduction are
+  skipped here
 - HTML topic pages are found through manifest resource `href` values
 - assignment, discussion, quiz, and checklist objects are placed in the week whose
   manifest quicklinks share the same `resource_code`/`rCode`
