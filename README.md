@@ -16,8 +16,7 @@ The blueprint template encodes a backwards-design intent — LOs first, then
 assessments aligned to them, then resources chosen to support them. A built
 course is the forward artifact, and by the time it's in Brightspace that design
 logic is baked into pages, not labeled. Trying to reverse it back into the
-framework means the script has to infer instructional intent ("is this text an
-objective or an overview?"), and that's exactly the guessing that (a) needs the
+framework means the script has to infer instructional intent, and that's exactly the guessing that (a) needs the
 sprawling config logic you don't want, and (b) produces confident-looking but
 wrong output — the worst failure mode for a review surface.
 
@@ -108,14 +107,14 @@ heading-driven mirroring).
 
 `scripts/build_blueprint_bundle.py` (called by `run_blueprint.sh`):
 
-| Flag | Purpose |
-| --- | --- |
-| `--course-number` / `--course-title` / `--term` | Fill the header (not reliably in the package). |
-| `--label NAME` | Output filename stem (defaults from the export name). |
-| `--output-dir DIR` | Base output directory (default `output/`). |
-| `--skip-qa` | Skip the QA report pass. |
-| `--no-docx` | Markdown + JSON only. |
-| `--quiet` | Suppress sub-script chatter. |
+| Flag                                            | Purpose                                               |
+| ----------------------------------------------- | ----------------------------------------------------- |
+| `--course-number` / `--course-title` / `--term` | Fill the header (not reliably in the package).        |
+| `--label NAME`                                  | Output filename stem (defaults from the export name). |
+| `--output-dir DIR`                              | Base output directory (default `output/`).            |
+| `--skip-qa`                                     | Skip the QA report pass.                              |
+| `--no-docx`                                     | Markdown + JSON only.                                 |
+| `--quiet`                                       | Suppress sub-script chatter.                          |
 
 Markdown is always produced. If `python-docx` is missing, DOCX is skipped with a
 warning and everything else still works.
