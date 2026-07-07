@@ -71,7 +71,7 @@ DISCUSSIONS_LABEL = "Discussion Board Prompts:"
 READING_LABEL = "Assigned Reading and Multimedia: (add links, articles, textbook readings, videos). Include style-correct citations."
 CHECKLIST_LABEL = "Checklist (mirrored from the export)"
 OTHER_LABEL = "Other course sections (mirrored from the export)"
-BEFORE_WEEK_LABEL = "before week 1 - additional resources/ information"
+BEFORE_WEEK_LABEL = "Before Week 1: Additional Resources and Information"
 
 DESCRIPTION_LABEL = (
     "COURSE DESCRIPTION (keep in mind the Course Description must match the published catalog, "
@@ -545,6 +545,20 @@ def add_week_table(doc: "Document", week: dict, *, section_layout: str = "top") 
         add_week_table_top(doc, week)
 
 
+def add_before_week_table(doc: "Document", sections: list[dict]) -> None:
+    apply_heading(doc, doc.add_paragraph(BEFORE_WEEK_LABEL), "Heading 2")
+    table = doc.add_table(rows=len(sections) * 2, cols=1)
+    add_table_borders(table)
+    set_column_widths(table, (usable_width_inches(doc),))
+    set_cell_margins(table)
+    for index, section in enumerate(sections):
+        write_label(table.cell(index * 2, 0), clean_label(section.get("label", "")) or BEFORE_WEEK_LABEL)
+        value = table.cell(index * 2 + 1, 0)
+        write_blocks(value, section.get("blocks", []), missing=NOT_FOUND_LIST)
+        _trim_leading_empty(value)
+    doc.add_paragraph()
+
+
 def add_simple_section(doc: "Document", heading: str, items: list[str]) -> None:
     apply_heading(doc, doc.add_paragraph(heading), "Heading 2")
     if not items:
@@ -590,8 +604,7 @@ def render(model: dict, doc: "Document", *, section_layout: str = "top") -> None
 
     before_week = model.get("before_week_1", [])
     if before_week:
-        apply_heading(doc, doc.add_paragraph(BEFORE_WEEK_LABEL), "Heading 2")
-        write_value_labeled(doc, before_week, missing=NOT_FOUND_LIST, divider=True)
+        add_before_week_table(doc, before_week)
 
     content_para = doc.add_paragraph()
     content_para.add_run("Course Content:").bold = True

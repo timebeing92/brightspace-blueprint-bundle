@@ -79,11 +79,12 @@ Follows the template's frame, populated from the export:
 - **Course Description**, **Textbooks / Required Materials**, **Course Learning
   Outcomes** (single-column tables)
 - **Course Introduction**
-- **before week 1 - additional resources/ information** when the export has
+- **Before Week 1: Additional Resources and Information** when the export has
   top-level orientation, syllabus, project overview, roadmap, or other setup
   pages before the first detected week/module. These pages render once under
-  their page title, with local subsection labels inside the page; content
-  already used as the global Course Introduction is not repeated here.
+  their page title in the section table, with local subsection labels inside
+  the page; content already used as the global Course Introduction is not
+  repeated here.
 - One **table per week/module**:
   Overview · Learning Objectives · Assigned Reading and Multimedia (resources /
   learning materials, with the course's own sub-labels) · Assignment(s) and

@@ -175,10 +175,10 @@ The weekly blueprint placement depends mostly on the manifest tree and
 
 - modules/weeks come from `imsmanifest.xml` organizations/items
 - top-level non-week modules before the first detected week become
-  `before_week_1`, rendered as `before week 1 - additional resources/
-  information`; page titles render once, internal headings render as local
-  subsection labels, and pages already used as global Course Introduction are
-  skipped here
+  `before_week_1`, rendered as `Before Week 1: Additional Resources and
+  Information`; page titles render once inside a section table, internal
+  headings render as local subsection labels, and pages already used as global
+  Course Introduction are skipped here
 - HTML topic pages are found through manifest resource `href` values
 - assignment, discussion, quiz, and checklist objects are placed in the week whose
   manifest quicklinks share the same `resource_code`/`rCode`

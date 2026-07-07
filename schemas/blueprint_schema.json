@@ -90,7 +90,7 @@
     "before_week_1": {
       "type": "array",
       "items": {"$ref": "#/definitions/labeled_section"},
-      "description": "Top-level non-week pages that appear before the first detected week/module. Rendered under 'before week 1 - additional resources/ information'. Each item is one page-level section; internal page headings render as label blocks inside that section. Empty when the export has no before-week material."
+      "description": "Top-level non-week pages that appear before the first detected week/module. Rendered under 'Before Week 1: Additional Resources and Information'. Each item is one page-level section; internal page headings render as label blocks inside that section. Empty when the export has no before-week material."
     },
     "unplaced_activities": {
       "type": "object",

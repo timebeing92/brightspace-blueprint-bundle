@@ -9,8 +9,9 @@ course export into a flat-file course blueprint (Markdown + DOCX) shaped after
 > supported for the alternate left-label table layout. Weekly content is ordered
 > Overview → Learning Objectives → Learning Materials/Resources → Assignments →
 > Discussions → Checklist → Other. Top-level pre-week pages render under
-> `before week 1 - additional resources/ information`, grouped once per page
-> with local subsection labels. Schema is `coursecraft.blueprint/4`.
+> `Before Week 1: Additional Resources and Information`, grouped once per page
+> in a section table with local subsection labels. Schema is
+> `coursecraft.blueprint/4`.
 
 ## Operating mode
 

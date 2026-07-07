@@ -13,6 +13,10 @@ with internal headings rendered as local labels like `Course Project:` and
 `What the Project Entails:`. Course Introduction pages that already populate the
 global Course Introduction section are skipped in before-week material.
 
+The visible section title is now `Before Week 1: Additional Resources and
+Information`, and the page groups render inside a table to match the rest of the
+blueprint.
+
 ## 2026-07-07 — Before-week pages and visual structure cues (done)
 
 Schema is now `coursecraft.blueprint/4`.
@@ -20,7 +24,7 @@ Schema is now `coursecraft.blueprint/4`.
 Top-level orientation/resource modules that appear before the first detected
 week/module are preserved in `before_week_1` and rendered under:
 
-`before week 1 - additional resources/ information`
+`Before Week 1: Additional Resources and Information`
 
 The HTML structure pass now also keeps lightweight visual cues from source
 pages: callout/note/card-like containers, dropdown summaries, video/media

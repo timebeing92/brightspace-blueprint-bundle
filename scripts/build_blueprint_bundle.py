@@ -45,7 +45,7 @@ WEEKISH = re.compile(r"\b(week|module|unit)\s*0*(\d{1,2})\b", re.IGNORECASE)
 
 NOT_FOUND_FIELD = "Needs review: not found in export extraction."
 NOT_FOUND_LIST = "None found in export extraction."
-BEFORE_WEEK_LABEL = "before week 1 - additional resources/ information"
+BEFORE_WEEK_LABEL = "Before Week 1: Additional Resources and Information"
 
 # Heading alias table — the ONLY course-content taxonomy the tool imposes.
 # Everything else is mirrored under the course's own heading text.
@@ -895,7 +895,9 @@ def render_markdown(model: dict) -> str:
             [
                 f"### {BEFORE_WEEK_LABEL}",
                 "",
-                md_labeled(before_week, divider=True),
+                "| Section |",
+                "| --- |",
+                *[f"| {md_labeled([section])} |" for section in before_week],
                 "",
             ]
         )
