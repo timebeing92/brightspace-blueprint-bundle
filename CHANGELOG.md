@@ -5,6 +5,13 @@ changes** section at the bottom is the active to-do for the next session.
 
 ---
 
+## 2026-07-07 — Component database note kept upstream-only (done)
+
+Removed `knowledge/COMPONENT_DATABASE_DESIGN_NOTES.md` from the shareable
+bundle. The database idea is still preserved in the upstream workbench under
+`docs/project/blueprint-extraction/COMPONENT_DATABASE_DESIGN_NOTES.md`, but it is
+not part of this colleague-facing distribution.
+
 ## 2026-07-07 — Pipeline/package context guide (done)
 
 Added `knowledge/SCRIPT_PIPELINE_AND_PACKAGE_CONTEXT.md` so the shareable bundle
@@ -190,7 +197,3 @@ Once the output is approved:
    extractors are untouched, so the known divergences list is unchanged.
 4. Add schema → workbench schemas area, knowledge doc → knowledge base, a
    `VERIFIED_WORKFLOWS.md` entry, and a `logs/` worklog note in the workbench.
-
-Longer-term (separate spin-off project, not this bundle): the cross-course
-**component database** — see `knowledge/COMPONENT_DATABASE_DESIGN_NOTES.md` for
-what that project needs the extractors to guarantee.
