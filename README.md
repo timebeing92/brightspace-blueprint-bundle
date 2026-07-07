@@ -30,10 +30,13 @@ there and restructure deliberately.
 **In practice:** the course front matter and per-week frame come from the CGPS
 template, but each week's inner structure is taken from the *course's own page
 headings*. A small alias table pulls the few universal buckets (Learning
-Objectives, Resources) into consistent rows; every other heading is preserved
-under its own label in an "Other course sections" row. Learning Objectives are
-split into their own row only when the course actually uses an objectives
-heading — otherwise that text stays in Overview rather than being guessed at.
+Objectives, Resources, Checklist) into consistent rows; every other page or
+heading is preserved under its own label in an "Other course sections" row,
+labeled with its "Page › Heading" path so distinct pages stay distinct. Every
+extracted section also carries provenance (`source_page`, heading `level`) in
+the JSON model. Learning Objectives are split into their own row only when the
+course actually uses an objectives heading — otherwise that text stays in
+Overview rather than being guessed at.
 
 ---
 
@@ -73,13 +76,19 @@ Follows the template's frame, populated from the export:
   Outcomes** (single-column tables)
 - **Course Introduction**
 - One **table per week/module**:
-  Overview · Learning Objectives · Assignment(s) and Instructions · Discussion
-  Board Prompts · Assigned Reading and Multimedia (resources, with the course's
-  own sub-labels) · and an **Other course sections** row when the week has
-  headings that don't map to a standard bucket. Learning Objectives are split out
-  only when the course used an objectives heading (see *Design philosophy*
-  above). Numeric due dates aren't encoded (they're term-relative); the
-  day-of-week cadence rides along in the extracted assignment/discussion text.
+  Overview · Learning Objectives · Assigned Reading and Multimedia (resources /
+  learning materials, with the course's own sub-labels) · Assignment(s) and
+  Instructions · Discussion Board Prompts · a **Checklist** row when the week
+  has one · and an **Other
+  course sections** row when the week has pages/headings that don't map to a
+  standard bucket (each under its own "Page › Heading" label). Learning
+  Objectives are split out only when the course used an objectives heading (see
+  *Design philosophy* above). Numeric due dates aren't encoded (they're
+  term-relative); the day-of-week cadence rides along in the extracted
+  assignment/discussion text.
+- In the DOCX, each weekly module is a full-width, single-column table.
+  Scaffold labels sit in shaded header rows above the extracted content, not in
+  a left column; bullets are native Word lists and links are clickable.
 
 It is a **review surface**: extracted wording is source-derived, and anything not
 found is marked `Needs review` / `None found` rather than invented. See

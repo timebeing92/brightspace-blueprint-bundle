@@ -8,13 +8,18 @@ structure of ``reference/Course Blueprint Template 2020 CGPS.docx``:
 - course header line + course title
 - single-column front-matter tables (Description / Materials / Course Learning Outcomes)
 - "Course Introduction" heading + intro text + "Course Content:"
-- one 6-row table per week:
-    Overview                         (full-width)
-    Learning Objectives              (full-width)
-    Assignment(s) and Instructions | Due
-    Discussion Board Prompts        | Due
-    Lecture topics                   (full-width)
-    Assigned Reading and Multimedia  (full-width)
+- one full-width, single-column table per week:
+    Overview
+    Learning Objectives
+    Assigned Reading and Multimedia
+    Assignment(s) and Instructions
+    Discussion Board Prompts
+    Checklist                        (only when present)
+    Other course sections            (only when present)
+
+Scaffold labels sit in shaded rows immediately above their extracted content.
+Bullets use the document's native List Bullet styles (real hanging indents,
+nesting by level) when the style base defines them.
 
 When a template DOCX is supplied with ``--template``, it is opened as the style
 base so the output inherits the template's fonts (Open Sans), heading styles,
@@ -35,7 +40,7 @@ try:
     from docx.opc.constants import RELATIONSHIP_TYPE
     from docx.oxml import OxmlElement
     from docx.oxml.ns import qn
-    from docx.shared import Pt, RGBColor
+    from docx.shared import Inches, Pt, RGBColor
 except ImportError:  # pragma: no cover - exercised only without the dependency
     sys.stderr.write(
         "python-docx is not installed; cannot render DOCX.\n"
@@ -59,6 +64,7 @@ OBJECTIVES_LABEL = (
 ASSIGNMENTS_LABEL = "Assignment(s) and Instructions:"
 DISCUSSIONS_LABEL = "Discussion Board Prompts:"
 READING_LABEL = "Assigned Reading and Multimedia: (add links, articles, textbook readings, videos). Include style-correct citations."
+CHECKLIST_LABEL = "Checklist (mirrored from the export)"
 OTHER_LABEL = "Other course sections (mirrored from the export)"
 
 DESCRIPTION_LABEL = (
@@ -84,6 +90,95 @@ def apply_heading(doc: "Document", paragraph, level_name: str) -> None:
     style = style_or_none(doc, level_name)
     if style is not None:
         paragraph.style = style
+
+
+def _apply_para_style(paragraph, style_name: str) -> bool:
+    """Apply a named paragraph style if the document defines it; report success."""
+    try:
+        paragraph.style = style_name
+        return True
+    except KeyError:
+        return False
+
+
+def _space(paragraph, *, before: int | None = None, after: int | None = None) -> None:
+    """Set paragraph spacing in points (template Normal packs paragraphs tight)."""
+    fmt = paragraph.paragraph_format
+    if before is not None:
+        fmt.space_before = Pt(before)
+    if after is not None:
+        fmt.space_after = Pt(after)
+
+
+def _twips(inches: float) -> int:
+    return int(round(inches * 1440))
+
+
+def usable_width_inches(doc: "Document") -> float:
+    """Return the writable page width for the document's first section."""
+    section = doc.sections[0]
+    return section.page_width.inches - section.left_margin.inches - section.right_margin.inches
+
+
+def _replace_child(parent, tag: str, child) -> None:
+    for existing in parent.findall(qn(tag)):
+        parent.remove(existing)
+    parent.append(child)
+
+
+def set_column_widths(table, widths_inches: tuple[float, ...]) -> None:
+    """Fix table, grid, and cell widths so Word expands it to the writable page width."""
+    table.autofit = False
+    tbl_pr = table._tbl.tblPr
+    tbl_w = OxmlElement("w:tblW")
+    tbl_w.set(qn("w:w"), str(_twips(sum(widths_inches))))
+    tbl_w.set(qn("w:type"), "dxa")
+    _replace_child(tbl_pr, "w:tblW", tbl_w)
+    tbl_ind = OxmlElement("w:tblInd")
+    tbl_ind.set(qn("w:w"), "0")
+    tbl_ind.set(qn("w:type"), "dxa")
+    _replace_child(tbl_pr, "w:tblInd", tbl_ind)
+
+    grid = table._tbl.tblGrid
+    for child in list(grid):
+        grid.remove(child)
+    for width in widths_inches:
+        col = OxmlElement("w:gridCol")
+        col.set(qn("w:w"), str(_twips(width)))
+        grid.append(col)
+
+    for row in table.rows:
+        for cell, width in zip(row.cells, widths_inches):
+            cell.width = Inches(width)
+            tc_pr = cell._tc.get_or_add_tcPr()
+            tc_w = OxmlElement("w:tcW")
+            tc_w.set(qn("w:w"), str(_twips(width)))
+            tc_w.set(qn("w:type"), "dxa")
+            _replace_child(tc_pr, "w:tcW", tc_w)
+
+
+def set_cell_margins(table, *, top: int = 60, bottom: int = 60,
+                     start: int = 110, end: int = 110) -> None:
+    """Give every cell in the table a little padding (units: dxa, 20ths of a point)."""
+    tbl_pr = table._tbl.tblPr
+    margins = OxmlElement("w:tblCellMar")
+    for tag, value in (("top", top), ("start", start), ("bottom", bottom), ("end", end)):
+        el = OxmlElement(f"w:{tag}")
+        el.set(qn("w:w"), str(value))
+        el.set(qn("w:type"), "dxa")
+        margins.append(el)
+    tbl_pr.append(margins)
+
+
+def _trim_leading_empty(cell) -> None:
+    """Drop the cell's default empty first paragraph once content follows it."""
+    paragraphs = cell.paragraphs
+    if (
+        len(paragraphs) > 1
+        and not paragraphs[0].runs
+        and not paragraphs[0]._p.findall(qn("w:hyperlink"))
+    ):
+        paragraphs[0]._p.getparent().remove(paragraphs[0]._p)
 
 
 def set_cell_background(cell, hex_color: str) -> None:
@@ -118,35 +213,17 @@ def first_paragraph(cell):
 
 
 def write_label(cell, text: str) -> None:
-    """Write a bold label into the cell's first paragraph."""
+    """Write a template scaffold label into its own shaded cell, in smaller
+    bold type so the extracted content in the neighboring cell stands out."""
     para = first_paragraph(cell)
     for chunk in text.split("\n"):
         if para.runs:
             para = cell.add_paragraph()
+        _space(para, before=0, after=2)
         run = para.add_run(chunk)
         run.bold = True
-
-
-def write_value_block(cell, value: str, *, missing: str) -> None:
-    """Append a value paragraph beneath the label inside the same cell."""
-    para = cell.add_paragraph()
-    run = para.add_run(value if value else missing)
-    if not value:
-        run.italic = True
-        run.font.color.rgb = RGBColor(0x80, 0x80, 0x80)
-
-
-def write_value_bullets(cell, items: list[str], *, missing: str) -> None:
-    if not items:
-        para = cell.add_paragraph()
-        run = para.add_run(missing)
-        run.italic = True
-        run.font.color.rgb = RGBColor(0x80, 0x80, 0x80)
-        return
-    for item in items:
-        para = cell.add_paragraph()
-        para.paragraph_format.left_indent = Pt(12)
-        para.add_run(f"• {item}")
+        run.font.size = Pt(9)
+    set_cell_background(cell, "F2F2F2")
 
 
 def add_hyperlink(paragraph, url: str, text: str) -> None:
@@ -196,17 +273,85 @@ def _write_missing(container, missing: str) -> None:
     run.font.color.rgb = RGBColor(0x80, 0x80, 0x80)
 
 
+BULLET_STYLE_BY_LEVEL = {1: "List Bullet", 2: "List Bullet 2", 3: "List Bullet 3"}
+
+_BULLET_NUM_ID_CACHE: dict[int, str | None] = {}
+
+
+def _find_bullet_num_id(doc_part) -> str | None:
+    """Find a numbering definition whose first level is a bullet (the CGPS
+    template defines several); None when the document has no numbering part."""
+    try:
+        numbering = doc_part.part_related_by(RELATIONSHIP_TYPE.NUMBERING).element
+    except (KeyError, AttributeError):
+        return None
+    bullet_abstract_ids = set()
+    for abstract in numbering.findall(qn("w:abstractNum")):
+        lvl0 = next(
+            (lvl for lvl in abstract.findall(qn("w:lvl")) if lvl.get(qn("w:ilvl")) == "0"),
+            None,
+        )
+        fmt = lvl0.find(qn("w:numFmt")) if lvl0 is not None else None
+        if fmt is not None and fmt.get(qn("w:val")) == "bullet":
+            bullet_abstract_ids.add(abstract.get(qn("w:abstractNumId")))
+    for num in numbering.findall(qn("w:num")):
+        ref = num.find(qn("w:abstractNumId"))
+        if ref is not None and ref.get(qn("w:val")) in bullet_abstract_ids:
+            return num.get(qn("w:numId"))
+    return None
+
+
+def _bullet_num_id(paragraph) -> str | None:
+    """Memoized bullet numId lookup for the paragraph's document."""
+    key = id(paragraph.part)
+    if key not in _BULLET_NUM_ID_CACHE:
+        _BULLET_NUM_ID_CACHE[key] = _find_bullet_num_id(paragraph.part)
+    return _BULLET_NUM_ID_CACHE[key]
+
+
+def _apply_native_bullet(paragraph, num_id: str, level: int) -> None:
+    """Attach real Word list numbering (numPr) to a fresh paragraph."""
+    ppr = paragraph._p.get_or_add_pPr()
+    numpr = OxmlElement("w:numPr")
+    ilvl = OxmlElement("w:ilvl")
+    ilvl.set(qn("w:val"), str(min(level, 9) - 1))
+    numid = OxmlElement("w:numId")
+    numid.set(qn("w:val"), num_id)
+    numpr.append(ilvl)
+    numpr.append(numid)
+    ppr.insert(0, numpr)
+
+
 def _emit_block(container, block: dict) -> None:
-    """Add one block as a paragraph; only list items get a bullet, paragraphs stay prose."""
+    """Add one block as a paragraph; only list items get a bullet, paragraphs
+    stay prose. Bullets become native Word lists: List Bullet styles when the
+    style base defines them, else a numPr reference to the template's own
+    bullet numbering, else a manual hanging-indent bullet."""
     runs = [r for r in block.get("runs", []) if r.get("text")]
     if not runs:
         return
     para = container.add_paragraph()
+    if block.get("kind") == "label":
+        _space(para, before=8, after=2)
+        for run in runs:
+            text = run.get("text", "")
+            if text:
+                para.add_run(text).bold = True
+        return
     if block.get("kind") == "li":
-        para.paragraph_format.left_indent = Pt(12 * max(1, block.get("level", 1)))
-        para.add_run("• ")
+        level = max(1, int(block.get("level") or 1))
+        if not _apply_para_style(para, BULLET_STYLE_BY_LEVEL.get(min(level, 3), "List Bullet")):
+            num_id = _bullet_num_id(para)
+            if num_id is not None:
+                _apply_native_bullet(para, num_id, level)
+            else:
+                fmt = para.paragraph_format
+                fmt.left_indent = Pt(18 * level)
+                fmt.first_line_indent = Pt(-9)
+                para.add_run("• ")
+        _space(para, before=0, after=2)
     else:
-        para.paragraph_format.left_indent = Pt(6)
+        _space(para, before=0, after=6)
     _emit_runs(para, runs)
 
 
@@ -220,14 +365,16 @@ def write_blocks(container, blocks: list[dict], *, missing: str) -> None:
 
 
 def write_value_labeled(container, sections: list[dict], *, missing: str) -> None:
-    """Write labeled sections: a bold label line, then its blocks (kind-aware)."""
+    """Write labeled sections: a bold label line, then its blocks (kind-aware).
+    Sections after the first get breathing room so entries don't run together."""
     if not sections:
         _write_missing(container, missing)
         return
-    for section in sections:
+    for index, section in enumerate(sections):
         label = (section.get("label") or "").strip()
         if label:
             para = container.add_paragraph()
+            _space(para, before=8 if index else 0, after=2)
             para.add_run(f"{label}:").bold = True
         for block in section.get("blocks", []):
             _emit_block(container, block)
@@ -249,52 +396,49 @@ def clear_body(doc: "Document") -> None:
 def add_front_matter_table(doc: "Document", label: str, blocks: list[dict]) -> None:
     table = doc.add_table(rows=2, cols=1)
     add_table_borders(table)
-    header = table.cell(0, 0)
-    write_label(header, label)
-    set_cell_background(header, "F2F2F2")
-    write_blocks(table.cell(1, 0), blocks, missing=NOT_FOUND_FIELD)
+    set_column_widths(table, (usable_width_inches(doc),))
+    set_cell_margins(table)
+    write_label(table.cell(0, 0), label)
+    value = table.cell(1, 0)
+    write_blocks(value, blocks, missing=NOT_FOUND_FIELD)
+    _trim_leading_empty(value)
     doc.add_paragraph()
 
 
 def add_week_table(doc: "Document", week: dict) -> None:
     apply_heading(doc, doc.add_paragraph(week.get("title", "Course Module")), "Heading 2")
 
-    has_other = bool(week.get("other_sections"))
-    row_count = 6 if has_other else 5
-    table = doc.add_table(rows=row_count, cols=2)
-    add_table_borders(table)
-
-    # Row 0 - Overview (full width)
-    overview = table.cell(0, 0).merge(table.cell(0, 1))
-    write_label(overview, OVERVIEW_LABEL)
-    write_blocks(overview, week.get("overview", []), missing=NOT_FOUND_FIELD)
-
-    # Row 1 - Learning Objectives (full width)
-    objectives = table.cell(1, 0).merge(table.cell(1, 1))
-    write_label(objectives, OBJECTIVES_LABEL)
-    write_blocks(objectives, week.get("learning_objectives", []), missing=NOT_FOUND_FIELD)
-
-    # Row 2 - Assignments (full width). Due day-of-week rides along in the
+    # (label, fill) section pairs; scaffold label sits in a shaded full-width
+    # row above the extracted content. Due day-of-week rides along in the
     # assignment text; coded numeric dates are term-relative and not encoded.
-    assignments = table.cell(2, 0).merge(table.cell(2, 1))
-    write_label(assignments, ASSIGNMENTS_LABEL)
-    write_value_labeled(assignments, week.get("assignments", []), missing=NOT_FOUND_LIST)
+    rows = [
+        (OVERVIEW_LABEL,
+         lambda cell: write_blocks(cell, week.get("overview", []), missing=NOT_FOUND_FIELD)),
+        (OBJECTIVES_LABEL,
+         lambda cell: write_blocks(cell, week.get("learning_objectives", []), missing=NOT_FOUND_FIELD)),
+        (READING_LABEL,
+         lambda cell: write_value_labeled(cell, week.get("resources", []), missing=NOT_FOUND_LIST)),
+        (ASSIGNMENTS_LABEL,
+         lambda cell: write_value_labeled(cell, week.get("assignments", []), missing=NOT_FOUND_LIST)),
+        (DISCUSSIONS_LABEL,
+         lambda cell: write_value_labeled(cell, week.get("discussions", []), missing=NOT_FOUND_LIST)),
+    ]
+    if week.get("checklist"):
+        rows.append((CHECKLIST_LABEL,
+                     lambda cell: write_value_labeled(cell, week["checklist"], missing=NOT_FOUND_LIST)))
+    if week.get("other_sections"):
+        rows.append((OTHER_LABEL,
+                     lambda cell: write_value_labeled(cell, week["other_sections"], missing=NOT_FOUND_LIST)))
 
-    # Row 3 - Discussions (full width)
-    discussions = table.cell(3, 0).merge(table.cell(3, 1))
-    write_label(discussions, DISCUSSIONS_LABEL)
-    write_value_labeled(discussions, week.get("discussions", []), missing=NOT_FOUND_LIST)
-
-    # Row 4 - Assigned Reading and Multimedia (full width, labeled resources)
-    reading = table.cell(4, 0).merge(table.cell(4, 1))
-    write_label(reading, READING_LABEL)
-    write_value_labeled(reading, week.get("resources", []), missing=NOT_FOUND_LIST)
-
-    # Row 5 - Other course sections (full width, only when present)
-    if has_other:
-        other = table.cell(5, 0).merge(table.cell(5, 1))
-        write_label(other, OTHER_LABEL)
-        write_value_labeled(other, week.get("other_sections", []), missing=NOT_FOUND_LIST)
+    table = doc.add_table(rows=len(rows) * 2, cols=1)
+    add_table_borders(table)
+    set_column_widths(table, (usable_width_inches(doc),))
+    set_cell_margins(table)
+    for index, (label, fill) in enumerate(rows):
+        write_label(table.cell(index * 2, 0), label)
+        value = table.cell(index * 2 + 1, 0)
+        fill(value)
+        _trim_leading_empty(value)
 
     doc.add_paragraph()
 
@@ -305,9 +449,7 @@ def add_simple_section(doc: "Document", heading: str, items: list[str]) -> None:
         doc.add_paragraph("None.")
         return
     for item in items:
-        para = doc.add_paragraph()
-        para.paragraph_format.left_indent = Pt(12)
-        para.add_run(f"• {item}")
+        _emit_block(doc, {"kind": "li", "level": 1, "runs": [{"text": item, "href": ""}]})
 
 
 def render(model: dict, doc: "Document") -> None:

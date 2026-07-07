@@ -4,11 +4,11 @@ You are working inside a **self-contained bundle** that converts a Brightspace/D
 course export into a flat-file course blueprint (Markdown + DOCX) shaped after
 `reference/Course Blueprint Template 2020 CGPS.docx`.
 
-> **⏭ Active work in progress — read `CHANGELOG.md` first.** As of 2026-07-02 there
-> are four requested changes (DOCX polish; fidelity/labeling of "Other course
-> sections"; a dedicated Checklist section; a flexible allowance for uncodified
-> pages), plus a queued zip + workbench backport. Full detail, file/function
-> pointers, and test-export paths are in `CHANGELOG.md` → *Requested next changes*.
+> **⏭ Read `CHANGELOG.md` first.** As of 2026-07-06 the SME-facing blueprint
+> architecture is: full-width stacked DOCX section headers, and weekly content
+> ordered Overview → Learning Objectives → Learning Materials/Resources →
+> Assignments → Discussions → Checklist → Other. Schema is
+> `coursecraft.blueprint/3`.
 
 ## Operating mode
 
@@ -72,6 +72,10 @@ and `blueprint_to_docx.py` if you extend it.
 - DOCX section/field layout must keep matching the CGPS template. Markdown is the
   canonical flat file; DOCX is rendered to resemble the template, not byte-match
   its branding.
+- Do not revert the weekly DOCX layout to left-label tables. Section labels are
+  top header rows over full-width content rows.
+- Do not move Learning Materials/Resources below assessments. They belong
+  immediately after Learning Objectives.
 
 ## When unsure
 

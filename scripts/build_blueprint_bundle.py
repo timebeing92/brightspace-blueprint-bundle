@@ -13,9 +13,11 @@ Design stance: **mirror, don't reconstruct.** The blueprint frame (course front
 matter + per-week sections) comes from the CGPS template, but each week's inner
 structure is taken from the *course's own page headings* rather than forced into
 a fixed taxonomy. A small alias table pulls the few universal buckets (Learning
-Objectives, Resources) into consistent rows; every other heading is preserved
-under its own label. Learning Objectives are split out only when the course
-actually uses an objectives heading; otherwise that content stays in Overview.
+Objectives, Resources, Checklist) into consistent rows; every other heading is
+preserved under its own label with page provenance ("Page › Heading"), so
+distinct pages stay distinct. Learning Objectives are split out only when the
+course actually uses an objectives heading; otherwise that content stays in
+Overview.
 
 The blueprint is a *review surface*. It preserves extracted wording where the
 package has evidence and keeps missing fields visible ("Needs review") rather
@@ -34,7 +36,6 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Iterable
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_DIR = REPO_ROOT / "scripts"
@@ -53,7 +54,14 @@ RESOURCE_KEYS = ("reading", "resource", "material", "multimedia", "media",
                  "video", "watch", "listen", "textbook", "reference",
                  "required", "optional", "explore")
 OVERVIEW_KEYS = ("overview", "introduction", "welcome", "start here", "intro",
-                 "orientation")
+                 "orientation", "independent research")
+CHECKLIST_KEYS = ("checklist",)
+# Practice before assessments so "Self-Assessment" is practice, not assessment.
+PRACTICE_KEYS = ("practice", "self-assessment", "self assessment",
+                 "self-check", "self check")
+ASSESSMENT_KEYS = ("quiz", "midterm", "assessment", "cumulative")
+_EXAM_RE = re.compile(r"\bexam(s|ination|inations)?\b", re.IGNORECASE)  # not "example"
+LESSON_KEYS = ("lesson", "lecture")
 
 
 # --------------------------------------------------------------------------- #
@@ -156,21 +164,36 @@ def topic_for_node(node: dict, topics: dict[str, dict]) -> dict | None:
     return topics["href"].get(href) or topics["title"].get(title)
 
 
-def classify_heading(text: str) -> str | None:
-    """Map a heading (or topic title) to a blueprint bucket, or None if unknown.
+def classify_heading(text: str, *, page_title: bool = False) -> str | None:
+    """Map a heading (or, with page_title=True, a topic title) to a blueprint
+    bucket, or None if unknown.
 
-    Objectives is checked first so 'Learning Objectives' beats the 'material'
-    substring; Resources before Overview for the same reason.
+    Check order matters: checklist and practice first (so 'Self-Assessment'
+    beats 'assessment'), objectives before resources (so 'Learning Objectives'
+    beats the 'material' substring). For segment headings, resources beats
+    overview; for page titles the priority flips — a page titled 'Week 1
+    Overview and Learning Materials' is the week's overview page, and a
+    'Lesson N' title wins over its own 'intro'-ish words.
     """
     t = (text or "").strip().lower()
     if not t:
         return None
+    if any(key in t for key in CHECKLIST_KEYS):
+        return "checklist"
+    if any(key in t for key in PRACTICE_KEYS):
+        return "practice"
     if any(key in t for key in OBJECTIVE_KEYS):
         return "objectives"
-    if any(key in t for key in RESOURCE_KEYS):
-        return "resources"
-    if any(key in t for key in OVERVIEW_KEYS):
-        return "overview"
+    if any(key in t for key in ASSESSMENT_KEYS) or _EXAM_RE.search(t):
+        return "assessments"
+    ordered = (
+        (LESSON_KEYS, "lessons"), (OVERVIEW_KEYS, "overview"), (RESOURCE_KEYS, "resources"),
+    ) if page_title else (
+        (RESOURCE_KEYS, "resources"), (LESSON_KEYS, "lessons"), (OVERVIEW_KEYS, "overview"),
+    )
+    for keys, bucket in ordered:
+        if any(key in t for key in keys):
+            return bucket
     return None
 
 
@@ -183,20 +206,55 @@ def _plain_blocks(text: str) -> list[dict]:
     return [{"kind": "p", "level": 0, "runs": [{"text": text, "href": ""}]}] if text else []
 
 
+def _page_default_bucket(page: str) -> str:
+    """Bucket for a page classified only by its title: week-titled or untitled
+    pages read as the week's own narrative (overview); any other distinctly
+    titled page is preserved as its own labeled section rather than merged
+    anonymously into Overview."""
+    if not page or WEEKISH.search(page):
+        return "overview"
+    return "other"
+
+
+def _path_label(page: str, path: list[str]) -> str:
+    """Join page title + heading path into a provenance label ("Page › Heading").
+
+    Adjacent parts where one contains the other collapse to the longer part, so
+    'Lesson 1.1 The Anatomy of a Prediction › The Anatomy of a Prediction ›
+    Practice: X' reads as 'Lesson 1.1 The Anatomy of a Prediction › Practice: X'.
+    """
+    parts: list[str] = []
+    for part in [page, *path]:
+        part = clean_text(part)
+        if not part:
+            continue
+        if parts and (part.lower() in parts[-1].lower() or parts[-1].lower() in part.lower()):
+            if len(part) > len(parts[-1]):
+                parts[-1] = part
+            continue
+        parts.append(part)
+    return " › ".join(parts)
+
+
 def route_topic(topic: dict):
-    """Yield (bucket, label, blocks) triples for one HTML topic.
+    """Yield routing entries for one HTML topic:
+    ``{bucket, label, blocks, source_page, level}``.
 
     Uses the finest structural signal available: the topic's own segment
-    headings when present, else the topic title. Intro content (no heading) and
-    unknown-but-clearly-introductory content route to Overview; genuinely
-    unknown headings route to 'other' so nothing is forced or dropped. Blocks
-    preserve paragraph/list/link formatting from the source page.
+    headings when present, else the topic title. Every entry carries its source
+    page title so distinct pages stay distinct in the output. Headings that
+    match no alias go to 'other' under a "Page › Heading" path label built from
+    the h1–h4 hierarchy; nothing is forced or dropped. Blocks preserve
+    paragraph/list/link formatting from the source page.
     """
+    page = topic_label(topic)
+    page_bucket = classify_heading(page, page_title=True)
     segments = topic.get("body_segments")
     if not segments:
         blocks = _plain_blocks(topic.get("body_text", ""))
         if blocks:
-            yield "overview", "", blocks
+            yield {"bucket": page_bucket or _page_default_bucket(page),
+                   "label": page, "blocks": blocks, "source_page": page, "level": 0}
         return
 
     headed = [seg for seg in segments if seg.get("heading")]
@@ -204,20 +262,32 @@ def route_topic(topic: dict):
         blocks = [block for seg in segments for block in seg.get("blocks", [])]
         if not blocks:
             return
-        bucket = classify_heading(topic_label(topic)) or "overview"
-        yield bucket, topic_label(topic), blocks
+        yield {"bucket": page_bucket or _page_default_bucket(page),
+               "label": page, "blocks": blocks, "source_page": page, "level": 0}
         return
 
+    stack: list[tuple[int, str]] = []
     for seg in segments:
         heading = clean_text(seg.get("heading", ""))
         blocks = seg.get("blocks", [])
         if not heading and not blocks:
             continue
         if not heading:
-            yield "overview", "", blocks
+            # Intro content before the first heading follows the page's own
+            # classification (a "Learning Materials" page intro belongs with
+            # resources, not the week overview).
+            yield {"bucket": page_bucket or "overview",
+                   "label": page if page_bucket else "",
+                   "blocks": blocks, "source_page": page, "level": 0}
             continue
+        level = int(seg.get("level") or 0)
+        while stack and stack[-1][0] >= level:
+            stack.pop()
+        stack.append((level, heading))
         bucket = classify_heading(heading)
-        yield (bucket or "other"), heading, blocks
+        label = heading if bucket else _path_label(page, [h for _, h in stack])
+        yield {"bucket": bucket or "other", "label": label, "blocks": blocks,
+               "source_page": page, "level": level}
 
 
 # --------------------------------------------------------------------------- #
@@ -336,19 +406,41 @@ def build_week_model(
     overview_blocks: list[dict] = []
     objective_blocks: list[dict] = []
     resources: list[dict] = []
+    checklist: list[dict] = []
     other_sections: list[dict] = []
+
+    def extend_overview(entry: dict) -> None:
+        label = clean_text(entry.get("label", ""))
+        bare_label = label.rstrip(":").lower()
+        if label and bare_label not in {"overview", "introduction", "welcome", "start here"}:
+            overview_blocks.append(
+                {"kind": "label", "level": 0, "runs": [{"text": label.rstrip(":") + ":", "href": ""}]}
+            )
+        overview_blocks.extend(entry["blocks"])
+
     for topic in topics:
-        for bucket, label, blocks in route_topic(topic):
+        for entry in route_topic(topic):
+            blocks = entry["blocks"]
             if not blocks:
                 continue
+            bucket = entry["bucket"]
             if bucket == "overview":
-                overview_blocks.extend(blocks)
+                extend_overview(entry)
             elif bucket == "objectives":
                 objective_blocks.extend(blocks)
-            elif bucket == "resources":
-                resources.append({"label": label or topic_label(topic), "blocks": blocks})
             else:
-                other_sections.append({"label": label or topic_label(topic), "blocks": blocks})
+                section = {
+                    "label": entry["label"] or entry["source_page"],
+                    "blocks": blocks,
+                    "source_page": entry["source_page"],
+                    "level": entry["level"],
+                }
+                if bucket == "resources":
+                    resources.append(section)
+                elif bucket == "checklist":
+                    checklist.append(section)
+                else:
+                    other_sections.append(section)
 
     assignment_items = [format_folder(folder) for folder in folders]
     assignment_items.extend(
@@ -365,6 +457,7 @@ def build_week_model(
         "resources": [item for item in resources if item["blocks"]],
         "assignments": [item for item in assignment_items if item.get("label") or item.get("blocks")],
         "discussions": [item for item in discussion_items if item.get("label") or item.get("blocks")],
+        "checklist": [item for item in checklist if item["blocks"]],
         "other_sections": [item for item in other_sections if item["blocks"]],
     }
     placed_folders = {f["resource_code"] for f in folders if f.get("resource_code")}
@@ -425,7 +518,7 @@ def build_blueprint_model(
     diagnostics += [f"Activities: {clean_text(item)}" for item in activities.get("diagnostics", [])]
 
     return {
-        "schema": "coursecraft.blueprint/2",
+        "schema": "coursecraft.blueprint/3",
         "template_reference": template_reference,
         "course_number": clean_text(course_number),
         "course_title": clean_text(course_title) or clean_text(label.replace("_", " ")),
@@ -473,25 +566,36 @@ def md_inline(runs: list[dict]) -> str:
 
 
 def md_blocks(blocks: list[dict], fallback: str) -> str:
-    """Render a list of blocks into one Markdown table cell (lines joined by <br>)."""
-    lines = []
+    """Render a list of blocks into one Markdown table cell.
+
+    List items get bullets indented by nesting level; consecutive bullets stay
+    tight while paragraph boundaries get a blank line so prose keeps its shape.
+    """
+    parts: list[tuple[str, str]] = []
     for block in blocks:
         inline = md_inline(block.get("runs", []))
         if not inline:
             continue
-        lines.append(f"• {inline}" if block.get("kind") == "li" else inline)
-    return "<br>".join(lines) if lines else fallback
+        if block.get("kind") == "li":
+            indent = "&nbsp;&nbsp;&nbsp;" * max(0, int(block.get("level") or 1) - 1)
+            parts.append(("li", f"{indent}• {inline}"))
+        elif block.get("kind") == "label":
+            parts.append(("p", f"**{inline}**"))
+        else:
+            parts.append(("p", inline))
+    if not parts:
+        return fallback
+    out: list[str] = []
+    for index, (kind, text) in enumerate(parts):
+        if index:
+            tight = kind == "li" and parts[index - 1][0] == "li"
+            out.append("<br>" if tight else "<br><br>")
+        out.append(text)
+    return "".join(out)
 
 
 def md_field(blocks: list[dict]) -> str:
     return md_blocks(blocks, NOT_FOUND_FIELD)
-
-
-def md_bullets(items: Iterable[str], fallback: str = NOT_FOUND_LIST) -> str:
-    cleaned = [md_escape(item) for item in items if md_escape(item)]
-    if not cleaned:
-        return fallback
-    return "<br>".join(f"- {item}" for item in cleaned)
 
 
 def md_labeled(sections: list[dict], fallback: str = NOT_FOUND_LIST) -> str:
@@ -505,7 +609,7 @@ def md_labeled(sections: list[dict], fallback: str = NOT_FOUND_LIST) -> str:
             lines.append(f"**{label}**")
         elif body:
             lines.append(body)
-    return "<br>".join(lines) if lines else fallback
+    return "<br><br>".join(lines) if lines else fallback
 
 
 def render_markdown(model: dict) -> str:
@@ -544,22 +648,31 @@ def render_markdown(model: dict) -> str:
     ]
 
     for week in model["weeks"]:
-        rows = [
-            f"### {md_escape(week['title'])}",
-            "",
-            "| Overview: (add an introduction to the week's topic and activities here, "
-            f"with references as needed) | {md_field(week['overview'])} |",
-            "| --- | --- |",
-            "| Learning Objectives: Must follow the guidelines in this Learning Objectives Guide."
-            f"<br><br>Students will be able to: | {md_field(week['learning_objectives'])} |",
-            f"| Assignment(s) and Instructions: | {md_labeled(week['assignments'])} |",
-            f"| Discussion Board Prompts: | {md_labeled(week['discussions'])} |",
-            "| Assigned Reading and Multimedia: (add links, articles, textbook readings, videos). "
-            f"Include style-correct citations. | {md_labeled(week['resources'])} |",
+        section_rows = [
+            (
+                "Overview: (add an introduction to the week's topic and activities here, with references as needed)",
+                md_field(week["overview"]),
+            ),
+            (
+                "Learning Objectives: Must follow the guidelines in this Learning Objectives Guide.<br><br>Students will be able to:",
+                md_field(week["learning_objectives"]),
+            ),
+            (
+                "Assigned Reading and Multimedia: (add links, articles, textbook readings, videos). Include style-correct citations.",
+                md_labeled(week["resources"]),
+            ),
+            ("Assignment(s) and Instructions:", md_labeled(week["assignments"])),
+            ("Discussion Board Prompts:", md_labeled(week["discussions"])),
         ]
+        if week["checklist"]:
+            section_rows.append(("Checklist (mirrored from the export)", md_labeled(week["checklist"])))
         if week["other_sections"]:
-            rows.append(f"| Other course sections (mirrored from the export) | {md_labeled(week['other_sections'])} |")
-        rows.append("")
+            section_rows.append(("Other course sections (mirrored from the export)", md_labeled(week["other_sections"])))
+        rows = [f"### {md_escape(week['title'])}", "", "| Section |", "| --- |"]
+        for label, body in section_rows:
+            rows.append(f"| **{label}** |")
+            rows.append(f"| {body} |")
+        rows.extend(["", "---", ""])
         lines.extend(rows)
 
     unplaced = model["unplaced_activities"]

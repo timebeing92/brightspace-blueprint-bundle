@@ -50,11 +50,25 @@ Each detected week/module gathers its HTML topics, and every topic's
 | **Assigned Reading and Multimedia** (Resources) | headings matching `reading / resource / material / multimedia / media / video / watch / listen / textbook / reference / required / optional / explore` — each kept under its **own** course label (e.g. "Required Resources", "Multimedia") |
 | **Assignment(s) and Instructions** | dropbox folders joined to the module by `resource_code`; quiz quicklinks. Numeric due dates are NOT encoded (see below) |
 | **Discussion Board Prompts** | discussion topics joined by `resource_code` |
-| **Other course sections** | any remaining heading (Checklist, Next Steps, Case Study, Instructions…) preserved under its own label. Only shown when present. |
+| **Checklist** | headings matching `checklist` — weekly to-do lists get their own row. Only shown when present. |
+| **Other course sections** | any remaining page or heading (Next Steps, Case Study, Instructions…) preserved under its own **"Page › Heading" path label**, built from the page title plus the h1–h4 heading hierarchy, so sections from different pages never merge. Only shown when present. |
 
-Ordering matters in the alias table: **objectives is checked before resources**
-(so "Learning Objectives" doesn't match the `material` substring), and resources
-before overview.
+Ordering matters in the alias table: **checklist is checked first**, then
+**objectives before resources** (so "Learning Objectives" doesn't match the
+`material` substring), and resources before overview.
+
+Output order is a blueprint architecture choice: **Overview → Learning
+Objectives → Assigned Reading and Multimedia / Learning Materials →
+Assignments → Discussions → Checklist → Other course sections**. Learning
+materials sit immediately after the LOs so a SME can review whether the selected
+resources actually support the stated outcomes before moving into assessment
+and discussion details.
+
+Every section routed from a page also carries provenance in the JSON model:
+`source_page` (the page title) and `level` (the heading level, 0 for a whole
+page). Intro content that sits *before* a page's first heading follows the
+page's own classification (a "Learning Materials" page intro belongs with
+resources, not the week overview).
 
 ### The Learning Objectives fallback
 
@@ -66,8 +80,11 @@ heading, that block is split out cleanly into the LO row.
 ### Topics with no headings
 
 A page with no `<h1>`–`<h4>` headings is a single chunk. It is classified by the
-**topic title** (e.g. a "Learning Materials" page → Resources); if the title is
-uninformative it defaults to Overview. Content is never dropped.
+**topic title** (e.g. a "Learning Materials" page → Resources). A week-titled or
+untitled page reads as the week's own narrative (Overview); any other distinctly
+titled page is preserved as its **own labeled section** under "Other course
+sections" rather than merged anonymously into Overview. Content is never
+dropped.
 
 ## Course-level front matter
 

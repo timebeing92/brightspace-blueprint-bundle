@@ -5,6 +5,81 @@ changes** section at the bottom is the active to-do for the next session.
 
 ---
 
+## 2026-07-06 — SME blueprint layout/order decision (done)
+
+The architecture decision was made explicit after reviewing the EDU
+741 SME output:
+
+- Weekly DOCX module tables are **full-width, single-column stacked sections**.
+  Section scaffold labels sit in shaded header rows above the content, not in a
+  left label column.
+- Weekly section order is now:
+  **Overview → Learning Objectives → Assigned Reading and Multimedia / Learning
+  Materials → Assignment(s) and Instructions → Discussion Board Prompts →
+  Checklist → Other course sections**.
+- Rationale: learning materials should be reviewed immediately after LOs so the
+  SME can judge whether resources support the outcomes before reading
+  assessment/discussion detail.
+- `overview` blocks may include internal `label` blocks, used for source
+  subsections that belong in overview flow (for example, "Independent
+  Research:"). Schema allows `kind: "label"` as of this decision.
+
+Updated `build_blueprint_bundle.py`, `blueprint_to_docx.py`,
+`schemas/blueprint_schema.json`, `README.md`, and
+`knowledge/HOW_EXTRACTION_MAPS_TO_BLUEPRINT.md`. Regenerate any worked examples
+after this point before sharing them externally.
+
+## 2026-07-02 (later) — Section fidelity, checklist row, DOCX/MD styling (done)
+
+Implements the four requested changes below (schema bump `/2` → `/3`). Bundle
+layer only — no extractor changes, so no new workbench divergences.
+
+**Model / routing (`build_blueprint_bundle.py`):**
+
+- `route_topic` now yields `{bucket, label, blocks, source_page, level}`. Every
+  page-derived section carries provenance (source page title + heading level).
+- Unmapped headings get a **"Page › Heading" path label** built from the page
+  title plus the h1–h4 heading stack (`_path_label`), so sections from
+  different pages never merge into one "other" blob (the author's lumping symptom).
+- **Checklist is its own bucket** (`CHECKLIST_KEYS`, checked first in
+  `classify_heading`) and its own week row in both renderers, shown only when
+  present (placed after Reading, before Other).
+- Headless pages with a distinct title now become their own labeled "other"
+  section (`_page_default_bucket`); week-titled/untitled pages still read as
+  Overview. Intro content before a page's first heading follows the page's own
+  classification (a "Learning Materials" intro joins resources, not Overview).
+- Removed dead `md_bullets` / unused `Iterable` import.
+
+**Schema (`blueprint_schema.json`):** `$id`/const → `coursecraft.blueprint/3`;
+`labeled_section` gains optional `source_page` + `level`; week gains
+`checklist`; documented that labels/content are open, keys closed.
+
+**DOCX styling (`blueprint_to_docx.py`):**
+
+- Week tables are now **two-column: shaded 9pt scaffold-label cell | content
+  cell** (1.9in / 4.6in, fixed layout, cell margins) — extracted content stands
+  out from template scaffolding; matches the Markdown layout.
+- **Native Word bullets**: List Bullet styles when the style base defines them,
+  else a `numPr` reference to the template's own bullet numbering
+  (`_find_bullet_num_id` / `_apply_native_bullet` — the CGPS template has 5
+  bullet defs), else manual hanging-indent fallback. Real nesting by `level`.
+- Paragraph spacing (6pt after prose, 2pt after bullets, 8pt before each
+  labeled section after the first) so cells aren't cramped; leading empty cell
+  paragraphs trimmed (`_trim_leading_empty`).
+- Removed dead `write_value_block` / `write_value_bullets`.
+
+**Markdown styling:** paragraphs separated by blank lines inside cells while
+consecutive bullets stay tight; nested bullets indent by level; labeled
+sections separated by a blank line; `---` divider between weeks; Checklist row.
+
+**Verified:** chem-1020 (16 weeks) → 16/16 weeks with Checklist + LOs, 320 live
+hyperlinks, 773 native-numbered bullets, 0 literal-bullet fallbacks, path
+labels like "Week 4: Quiz › Conformation Analysis Quiz › Instructions";
+sandbox → LO fallback intact, "Reading Notes" page intro now correctly joins
+resources. Both models validate against the schema (jsonschema); both DOCX
+round-trip open. Example bundle regenerated; a chem review copy is in
+`output/chem-1020-review__blueprint_bundle/`.
+
 ## 2026-07-02 — Formatting fidelity rebuild (done)
 
 Extraction no longer flattens pages to one line. HTML is parsed into
@@ -78,75 +153,25 @@ knowledge/, schemas/, reference/ (CGPS template), examples/. Both DOCX + Markdow
 
 ---
 
-## Requested next changes (ACTIVE — for the Fable session, 2026-07-02)
+## Requested next changes (ACTIVE)
 
-the author reviewed the output and asked for these before we zip + backport. Order is
-roughly the suggested implementation order. Keep the design rules above.
+The four 2026-07-02 requested changes (DOCX polish; other-section fidelity;
+Checklist row; flexible uncodified pages) are **done** — see the entry at the
+top. **Awaiting the author's review** of the regenerated output before backporting:
+open `output/chem-1020-review__blueprint_bundle/chem-1020-review__blueprint.docx`
+(formatting-rich) and the regenerated `examples/sandbox_demo__blueprint_bundle/`.
 
-### 1. Polish the DOCX formatting
-The DOCX is correct but could look better. Candidate improvements (confirm which
-matter with the author):
-- Use Word's **native list styles** (`List Bullet` / numbering) instead of a
-  literal `"• "` text prefix in `_emit_block` — gives proper hanging indents and
-  real nesting by `level`.
-- Add paragraph **spacing** (space-after on paragraphs; tighter within bullet
-  lists) so cells aren't cramped; the current cells run paragraphs together.
-- Style the verbose **row-label cells** (e.g. "Overview: (add an introduction…)")
-  as distinct/shaded/smaller so extracted content stands out from scaffolding.
-- Set **table column widths** for the two-column rows; confirm merged full-width
-  rows read cleanly.
-- Confirm body runs inherit the template's **Open Sans** (Normal style); set
-  explicitly if not.
-- Nested lists: verify `Pt(12 * level)` indentation reads well, or switch to list
-  style levels.
-Files: `blueprint_to_docx.py` (`_emit_block`, `write_blocks`,
-`write_value_labeled`, `add_week_table`, `add_front_matter_table`, style helpers).
+Once the output is approved:
 
-### 2. Fidelity + flexible labeling of "Other course sections"
-Symptom the author saw: a **separate content/"learning materials" page gets lumped in
-with the Checklist** under one "Other course sections" blob. Goal: each distinct
-Brightspace page/section should be preserved as its **own clearly-labeled**
-section, faithful to the course structure.
-- Root cause to investigate in `build_blueprint_bundle.py`:
-  - `route_topic` yields per-segment `(bucket, label, blocks)`; segments from
-    *different topics/pages* all pour into one flat `other_sections` list. A page
-    with a generic/blank heading can visually merge with the next.
-  - Consider carrying **page/topic provenance** (the topic title) into segments so
-    "other" labels can be `Page Title › Heading` (or just the page title when a
-    page has no sub-headings). That keeps a standalone "Learning Materials" page
-    distinct from a "Checklist" section on another page.
-  - Respect `<h2>` vs `<h3>` **hierarchy** via `level`: a parent `h2`
-    ("Learning Materials") with child `h3`s ("Readings", "Multimedia") is
-    currently flattened to siblings — consider nesting/labeling by level.
-- Keep it heading/title-driven; no per-course config.
-
-### 3. Make Checklist its own section
-Add a dedicated `checklist` bucket rather than folding it into "other".
-- `build_blueprint_bundle.py`: add `CHECKLIST_KEYS = ("checklist",)`; in
-  `classify_heading` return `"checklist"` for it (check early — no collision with
-  resource keys). Accumulate a `checklist` list in `build_week_model`; add to the
-  week dict.
-- Schema: add `checklist` (array of `labeled_section`) to the week item.
-- Renderers: add a **Checklist row** to the week table (md + docx), rendered only
-  when present (like `other_sections`). Decide placement — likely after
-  Assignments/Discussions or right before "Other course sections".
-
-### 4. Flexible allowance for pages not codified in the schema
-Generalize so **arbitrary additional Brightspace pages/sections** are carried
-with fidelity, beyond the fixed template rows.
-- The existing `other_sections` (open-ended `[{label, blocks}]`) is the container;
-  strengthen it per #2 so each unmapped page is its own labeled section, and
-  document in the schema that labels/content are open (the course's own
-  structure), while keys stay closed (`additionalProperties: false`).
-- Optional: rename/reshape to make intent clear (e.g. `additional_sections` with
-  `{label, blocks, source_page, level}`), or keep `other_sections` and just add
-  provenance + nesting. Coordinate with #2 and #3.
-
-### Still queued AFTER the above (was paused mid-formatting review)
-5. Zip the bundle (exclude `.venv`, `output`; keep `reference/` template).
-6. Copy the zip into `../coursecraft_workbench/share_packets/`.
-7. Backport scripts to `../coursecraft_workbench/scripts/` (merge — keep workbench
-   paths; the extractor changes in #formatting are additive; note divergences).
-8. Add schema → workbench schemas area, knowledge doc → knowledge base, a
+1. Zip the bundle (exclude `.venv`, `output`; keep `reference/` template).
+2. Copy the zip into `../coursecraft_workbench/share_packets/`.
+3. Backport scripts to `../coursecraft_workbench/scripts/` (merge — keep
+   workbench paths). This session changed only the bundle layer
+   (`build_blueprint_bundle.py`, `blueprint_to_docx.py`, schema) — the
+   extractors are untouched, so the known divergences list is unchanged.
+4. Add schema → workbench schemas area, knowledge doc → knowledge base, a
    `VERIFIED_WORKFLOWS.md` entry, and a `logs/` worklog note in the workbench.
-   (Do these only once #1–#4 are approved — don't backport mid-change.)
+
+Longer-term (separate spin-off project, not this bundle): the cross-course
+**component database** — see `knowledge/COMPONENT_DATABASE_DESIGN_NOTES.md` for
+what that project needs the extractors to guarantee.

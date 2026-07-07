@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "coursecraft.blueprint/2",
+  "$id": "coursecraft.blueprint/3",
   "title": "Coursecraft Flat-File Course Blueprint",
-  "description": "Structured model emitted by build_blueprint_bundle.py from a Brightspace/D2L export. Both the Markdown and DOCX blueprints render from an instance of this schema. The blueprint frame follows the 2020 CGPS template, but each week's inner structure mirrors the course's own page headings, and content is carried as formatting-preserving blocks (paragraphs / bullets with link-aware runs) rather than flattened text.",
+  "description": "Structured model emitted by build_blueprint_bundle.py from a Brightspace/D2L export. Both the Markdown and DOCX blueprints render from an instance of this schema. The blueprint frame follows the 2020 CGPS template, but each week's inner structure mirrors the course's own page headings, and content is carried as formatting-preserving blocks (paragraphs / bullets with link-aware runs) rather than flattened text. Labeled sections carry provenance (source page title + heading level) so every extracted component can be traced to where it lives in the course; the keys of this schema are closed, but section labels and content are open — they come from the course's own structure.",
   "type": "object",
   "required": ["schema", "course_title", "front_matter", "weeks"],
   "additionalProperties": false,
@@ -19,12 +19,12 @@
     },
     "block": {
       "type": "object",
-      "description": "A paragraph ('p') or list item ('li') made of runs, preserving source formatting.",
+      "description": "A paragraph ('p'), list item ('li'), or internal subsection label ('label') made of runs, preserving source formatting and page structure.",
       "required": ["kind", "level", "runs"],
       "additionalProperties": false,
       "properties": {
-        "kind": {"type": "string", "enum": ["p", "li"]},
-        "level": {"type": "integer", "description": "List nesting depth for 'li' (1-based); 0 for paragraphs."},
+        "kind": {"type": "string", "enum": ["p", "li", "label"]},
+        "level": {"type": "integer", "description": "List nesting depth for 'li' (1-based); 0 for paragraphs and subsection labels."},
         "runs": {"type": "array", "items": {"$ref": "#/definitions/run"}}
       }
     },
@@ -34,17 +34,19 @@
     },
     "labeled_section": {
       "type": "object",
-      "description": "A course section kept under its own heading label, with formatting-preserving blocks.",
+      "description": "A course section kept under its own heading label, with formatting-preserving blocks. Sections extracted from course pages also carry provenance (source_page, level); activity-derived sections (assignments/discussions) omit it.",
       "required": ["label", "blocks"],
       "additionalProperties": false,
       "properties": {
-        "label": {"type": "string", "description": "The course's own heading (e.g. 'Required Resources', 'Multimedia', 'Checklist')."},
-        "blocks": {"$ref": "#/definitions/blocks"}
+        "label": {"type": "string", "description": "The course's own heading (e.g. 'Required Resources', 'Multimedia'). Unmapped sections use a 'Page › Heading' path label so distinct pages stay distinct."},
+        "blocks": {"$ref": "#/definitions/blocks"},
+        "source_page": {"type": "string", "description": "Provenance: title of the course page/topic this section was extracted from."},
+        "level": {"type": "integer", "description": "Provenance: heading level of the source section (1-4), or 0 when the section is a whole page."}
       }
     }
   },
   "properties": {
-    "schema": {"type": "string", "const": "coursecraft.blueprint/2"},
+    "schema": {"type": "string", "const": "coursecraft.blueprint/3"},
     "template_reference": {"type": "string"},
     "course_number": {"type": "string", "description": "Header course number. Empty renders as 'Course #'. Pass via --course-number."},
     "course_title": {"type": "string", "description": "Course title; falls back to the de-slugged label."},
@@ -72,10 +74,11 @@
           "title": {"type": "string", "description": "Section title (e.g. 'Week 1'), verbatim from the manifest."},
           "overview": {"$ref": "#/definitions/blocks", "description": "Intro plus any overview-headed segments. When a week has no objectives heading, its objectives text stays here (fallback)."},
           "learning_objectives": {"$ref": "#/definitions/blocks", "description": "Segments under an objectives/outcomes heading. Empty when the course used no such heading."},
-          "resources": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}, "description": "Readings/media/required/optional segments, each under its own course label."},
+          "resources": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}, "description": "Readings/media/required/optional learning-material segments, each under its own course label. Renderers place this immediately after Learning Objectives as a default blueprint architecture choice."},
           "assignments": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}, "description": "Dropbox folders / assessment quicklinks placed in this module: label = name + points/grade/rubric, blocks = instruction content. Due day-of-week rides along in the instructions; coded numeric dates are term-relative and deliberately not extracted."},
           "discussions": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}, "description": "Discussion topics placed in this module: label = title + points/grade/rubric, blocks = description content."},
-          "other_sections": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}, "description": "Any remaining course headings that don't map to a blueprint bucket (Checklist, Next Steps, Case Study, etc.), preserved under their own labels."}
+          "checklist": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}, "description": "Sections under a checklist heading (weekly to-do lists), kept as their own blueprint row."},
+          "other_sections": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}, "description": "Any remaining course pages/headings that don't map to a blueprint bucket (Next Steps, Case Study, a standalone content page, etc.). Each distinct page or heading is its own entry, labeled with its 'Page › Heading' path; labels are open (the course's own structure)."}
         }
       }
     },
