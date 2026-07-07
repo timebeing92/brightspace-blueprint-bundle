@@ -46,6 +46,8 @@ and `blueprint_to_docx.py` if you extend it.
 
 ## Where to look
 
+- `knowledge/SCRIPT_PIPELINE_AND_PACKAGE_CONTEXT.md` — plain-language pipeline
+  walkthrough plus technical dataflow, schema, package XML, and join context.
 - `knowledge/HOW_EXTRACTION_MAPS_TO_BLUEPRINT.md` — source→section mapping,
   join logic, and known limitations. **Read this before changing extraction.**
 - `knowledge/BRIGHTSPACE_PACKAGE_STRUCTURE_AND_IMPORT_NOTES.md` — package shape,

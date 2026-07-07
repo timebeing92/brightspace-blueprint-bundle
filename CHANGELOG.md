@@ -5,6 +5,25 @@ changes** section at the bottom is the active to-do for the next session.
 
 ---
 
+## 2026-07-07 — Pipeline/package context guide (done)
+
+Added `knowledge/SCRIPT_PIPELINE_AND_PACKAGE_CONTEXT.md` so the shareable bundle
+now explains the script pipeline in both layperson and technical layers. The new
+guide covers:
+
+- what happens when a colleague runs the bundle
+- which scripts run in what order
+- which companion artifacts each script writes
+- the `coursecraft.blueprint/3` JSON schema contract
+- the distinction between the owned blueprint schema and observed Brightspace
+  package XML
+- common D2L export files, package structure, and joins (`identifierref`,
+  `href`, `resource_code`, grade/rubric references, relative assets)
+- how to debug unexpected DOCX output by reading the manifest, structure,
+  activities, and QA artifacts
+
+Linked the guide from `README.md` and `AGENTS.md`.
+
 ## 2026-07-06 — SME blueprint layout/order decision (done)
 
 The architecture decision was made explicit after reviewing the EDU

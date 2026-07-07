@@ -62,6 +62,11 @@ Outputs land in `output/<label>__blueprint_bundle/`:
 A worked example is in `examples/` so you can see the output before running your
 own.
 
+New to the internals? Read
+`knowledge/SCRIPT_PIPELINE_AND_PACKAGE_CONTEXT.md` for a plain-language
+walkthrough of the pipeline, then a technical map of the scripts, JSON schema,
+D2L XML evidence files, package structure, and joins.
+
 > **Windows:** run `./bootstrap.ps1` in PowerShell, then
 > `./.venv/Scripts/python.exe scripts/build_blueprint_bundle.py C:\path\to\export.zip`.
 
@@ -92,8 +97,10 @@ Follows the template's frame, populated from the export:
 
 It is a **review surface**: extracted wording is source-derived, and anything not
 found is marked `Needs review` / `None found` rather than invented. See
-`knowledge/HOW_EXTRACTION_MAPS_TO_BLUEPRINT.md` for the full source→section map
-and the known limitations (headers, due dates, heading-driven mirroring).
+`knowledge/SCRIPT_PIPELINE_AND_PACKAGE_CONTEXT.md` for the layered pipeline and
+package explanation, and `knowledge/HOW_EXTRACTION_MAPS_TO_BLUEPRINT.md` for the
+full source→section map and known limitations (headers, due dates,
+heading-driven mirroring).
 
 ---
 
@@ -133,7 +140,7 @@ brightspace-blueprint-bundle/
 ├── bootstrap.sh / bootstrap.ps1
 ├── run_blueprint.sh
 ├── scripts/                   ← pipeline + renderers (self-contained)
-├── knowledge/                 ← package structure, export→blueprint mapping, triage skill
+├── knowledge/                 ← pipeline guide, package structure, export→blueprint mapping, triage skill
 ├── schemas/blueprint_schema.json
 ├── reference/                 ← Course Blueprint Template 2020 CGPS.docx (format anchor)
 ├── examples/                  ← a real export run, end-to-end

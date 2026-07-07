@@ -1,6 +1,8 @@
 # Brightspace Package Structure and Import Notes
 
 This note is a durable repo reference for small Brightspace export / import packages.
+For this bundle's specific script pipeline, JSON model, XML evidence files, and
+join logic, read `SCRIPT_PIPELINE_AND_PACKAGE_CONTEXT.md` first.
 
 It is intentionally split into:
 
