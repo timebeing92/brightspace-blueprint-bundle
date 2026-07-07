@@ -11,6 +11,11 @@ The short version: the bundle reads a Brightspace/D2L course export, inventories
 the package, reconstructs the course module/page/activity evidence, builds one
 schema-backed JSON model, and renders that same model to Markdown and DOCX.
 
+Runtime dependencies are intentionally small: `openpyxl` writes the
+course-activities workbook and `python-docx` renders DOCX blueprints. They are
+listed in `requirements.txt` and should be installed once into the local
+environment, not reinstalled for every export.
+
 ## Plain-Language Version
 
 A Brightspace export is a ZIP file full of course evidence. It usually contains:
@@ -219,4 +224,3 @@ Known limits:
 
 The intended result is a deterministic, auditable review surface. It is not a
 final instructional-design approval and not a full course rebuild.
-

@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Render a structured blueprint model (JSON) to a CGPS-styled DOCX.
 
-Input is the ``<label>__blueprint.json`` produced by build_blueprint_bundle.py
-(schema: schemas/blueprint_schema.json). The output mirrors the section
-structure of ``reference/Course Blueprint Template 2020 CGPS.docx``:
+Input is the ``<label>__blueprint.json`` produced by build_blueprint_bundle.py.
+The model contract is documented in
+``workspace/reference/schemas/blueprint/blueprint_schema.json``. The output
+mirrors the section structure of the CGPS template stored in
+``workspace/reference/blueprints/templates/``:
 
 - course header line + course title
 - single-column front-matter tables (Description / Materials / Course Learning Outcomes)
@@ -53,7 +55,7 @@ LIVE_SCHEMES = ("http://", "https://", "mailto:")
 
 NOT_FOUND_FIELD = "Needs review: not found in export extraction."
 NOT_FOUND_LIST = "None found in export extraction."
-LABEL_FALLBACK = "(blank in template — fill in during review)"
+LABEL_FALLBACK = "(blank in template - fill in during review)"
 
 # Verbatim row labels from the 2020 CGPS template.
 OVERVIEW_LABEL = "Overview: (add an introduction to the week's topic and activities here, with references as needed)"
@@ -78,6 +80,15 @@ OUTCOMES_LABEL = "COURSE LEARNING OUTCOMES"
 # --------------------------------------------------------------------------- #
 # Style helpers
 # --------------------------------------------------------------------------- #
+def clean_label(value: str) -> str:
+    """Normalize a display label before the renderer adds its own trailing colon."""
+    return " ".join(str(value or "").split()).rstrip(":").strip()
+
+
+def clean_text(value: str) -> str:
+    return " ".join(str(value or "").split())
+
+
 def style_or_none(doc: "Document", name: str):
     """Return a style by name if the document defines it, else None."""
     try:
@@ -322,7 +333,7 @@ def _apply_native_bullet(paragraph, num_id: str, level: int) -> None:
     ppr.insert(0, numpr)
 
 
-def _emit_block(container, block: dict) -> None:
+def _emit_block(container, block: dict, *, previous_kind: str = "") -> None:
     """Add one block as a paragraph; only list items get a bullet, paragraphs
     stay prose. Bullets become native Word lists: List Bullet styles when the
     style base defines them, else a numPr reference to the template's own
@@ -332,9 +343,10 @@ def _emit_block(container, block: dict) -> None:
         return
     para = container.add_paragraph()
     if block.get("kind") == "label":
-        _space(para, before=8, after=2)
+        before = 2 if previous_kind in {"section_label", "label"} else 8
+        _space(para, before=before, after=2)
         for run in runs:
-            text = run.get("text", "")
+            text = clean_text(run.get("text", ""))
             if text:
                 para.add_run(text).bold = True
         return
@@ -360,8 +372,10 @@ def write_blocks(container, blocks: list[dict], *, missing: str) -> None:
     if not blocks:
         _write_missing(container, missing)
         return
+    previous_kind = ""
     for block in blocks:
-        _emit_block(container, block)
+        _emit_block(container, block, previous_kind=previous_kind)
+        previous_kind = block.get("kind", "")
 
 
 def write_value_labeled(container, sections: list[dict], *, missing: str) -> None:
@@ -371,13 +385,15 @@ def write_value_labeled(container, sections: list[dict], *, missing: str) -> Non
         _write_missing(container, missing)
         return
     for index, section in enumerate(sections):
-        label = (section.get("label") or "").strip()
+        label = clean_label(section.get("label", ""))
         if label:
             para = container.add_paragraph()
             _space(para, before=8 if index else 0, after=2)
             para.add_run(f"{label}:").bold = True
+        previous_kind = "section_label" if label else ""
         for block in section.get("blocks", []):
-            _emit_block(container, block)
+            _emit_block(container, block, previous_kind=previous_kind)
+            previous_kind = block.get("kind", "")
 
 
 # --------------------------------------------------------------------------- #

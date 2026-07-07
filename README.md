@@ -125,8 +125,15 @@ warning and everything else still works.
 ## Requirements
 
 - Python **3.11+**
-- Dependencies (installed by bootstrap): `openpyxl`, `python-docx`
-  (see `requirements.txt`)
+- Python packages in `requirements.txt`:
+  - `openpyxl>=3.1,<4` for the course-activities workbook (`.xlsx`)
+  - `python-docx>=1.1,<2` for DOCX blueprint rendering
+
+Run `bash bootstrap.sh` once after unzipping the bundle. It creates the local
+`.venv` and installs those packages. After that, `bash run_blueprint.sh ...`
+reuses `.venv`; you do not need to reinstall dependencies for every export. If a
+first bootstrap was interrupted, rerun `bash bootstrap.sh` before running the
+pipeline again.
 
 ---
 

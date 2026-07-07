@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Build a flat-file course blueprint (Markdown + DOCX) from a Brightspace export.
 
-This is the standalone, colleague-shareable version of the workbench command.
-It runs the bundled export-triage and extraction scripts into one bundle folder,
-assembles a structured blueprint *model*, and renders that model to:
+This is the workbench-native export-to-blueprint command. It runs the standard
+export-triage and extraction scripts into one bundle folder, assembles a
+structured blueprint *model*, and renders that model to:
 
-- ``<label>__blueprint.json``  -- the structured model (schema: schemas/blueprint_schema.json)
+- ``<label>__blueprint.json``  -- the structured model
 - ``<label>__blueprint.md``    -- the flat Markdown blueprint
 - ``<label>__blueprint.docx``  -- a DOCX styled after the 2020 CGPS template
 
@@ -40,7 +40,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_DIR = REPO_ROOT / "scripts"
 DEFAULT_TEMPLATE_REFERENCE = "Course Blueprint Template 2020 CGPS.docx"
-TEMPLATE_DOCX = REPO_ROOT / "reference" / DEFAULT_TEMPLATE_REFERENCE
+TEMPLATE_DOCX = REPO_ROOT / "workspace" / "reference" / "blueprints" / "templates" / DEFAULT_TEMPLATE_REFERENCE
 WEEKISH = re.compile(r"\b(week|module|unit)\s*0*(\d{1,2})\b", re.IGNORECASE)
 
 NOT_FOUND_FIELD = "Needs review: not found in export extraction."
@@ -75,9 +75,21 @@ def read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def write_text_if_changed(path: Path, content: str) -> None:
+    """Avoid rewriting compatibility artifacts when content is unchanged."""
+    if path.exists() and path.read_text(encoding="utf-8") == content:
+        return
+    path.write_text(content, encoding="utf-8")
+
+
 def clean_text(value: str) -> str:
     """Collapse runs of whitespace; keep a single readable line of text."""
     return re.sub(r"\s+", " ", value or "").strip()
+
+
+def clean_label(value: str) -> str:
+    """Normalize a display label before renderers add their own trailing colon."""
+    return clean_text(value).rstrip(":").strip()
 
 
 def run_workbench_script(script_name: str, args: list[str], quiet: bool = False) -> None:
@@ -225,7 +237,7 @@ def _path_label(page: str, path: list[str]) -> str:
     """
     parts: list[str] = []
     for part in [page, *path]:
-        part = clean_text(part)
+        part = clean_label(part)
         if not part:
             continue
         if parts and (part.lower() in parts[-1].lower() or parts[-1].lower() in part.lower()):
@@ -311,38 +323,45 @@ def format_points(value) -> str:
     return f"{num:g}"
 
 
-def _meta_label(name: str, details: list[str]) -> str:
-    name = clean_text(name)
-    detail = "; ".join(d for d in details if d)
-    return f"{name} ({detail})" if detail else name
+def _label_block(text: str) -> dict:
+    return {"kind": "label", "level": 0, "runs": [{"text": clean_label(text), "href": ""}]}
+
+
+def _activity_meta_blocks(details: list[tuple[str, str]]) -> list[dict]:
+    blocks = []
+    for name, value in details:
+        value = clean_text(value)
+        if value:
+            blocks.append(_label_block(f"{name}: {value}"))
+    return blocks
 
 
 def format_folder(folder: dict) -> dict:
-    """Return {label, blocks}: name + points/grade/rubric meta, and instruction blocks."""
-    details = []
+    """Return {label, blocks}: name plus styled metadata and instruction blocks."""
+    details: list[tuple[str, str]] = []
     if folder.get("out_of"):
-        details.append(f"{format_points(folder['out_of'])} pts")
+        details.append(("Points", f"{format_points(folder['out_of'])} pts"))
     if folder.get("grade_item_name") and folder.get("grade_item_name") != folder.get("name"):
-        details.append(f"grade item: {folder['grade_item_name']}")
+        details.append(("Gradebook item", folder["grade_item_name"]))
     if folder.get("rubrics_resolved"):
-        details.append(f"rubric: {folder['rubrics_resolved']}")
-    label = _meta_label(folder.get("name", "") or "Assignment", details)
+        details.append(("Rubric", folder["rubrics_resolved"]))
+    label = clean_label(folder.get("name", "") or "Assignment")
     blocks = folder.get("instructions_blocks") or _plain_blocks(folder.get("instructions_text", ""))
-    return {"label": label, "blocks": blocks}
+    return {"label": label, "blocks": _activity_meta_blocks(details) + blocks}
 
 
 def format_discussion(topic: dict) -> dict:
-    """Return {label, blocks}: title + points/grade/rubric meta, and description blocks."""
-    details = []
+    """Return {label, blocks}: title plus styled metadata and description blocks."""
+    details: list[tuple[str, str]] = []
     if topic.get("score_out_of"):
-        details.append(f"{format_points(topic['score_out_of'])} pts")
+        details.append(("Points", f"{format_points(topic['score_out_of'])} pts"))
     if topic.get("grade_item_name") and topic.get("grade_item_name") != topic.get("title"):
-        details.append(f"grade item: {topic['grade_item_name']}")
+        details.append(("Gradebook item", topic["grade_item_name"]))
     if topic.get("rubrics_resolved"):
-        details.append(f"rubric: {topic['rubrics_resolved']}")
-    label = _meta_label(topic.get("title", "") or "Discussion", details)
+        details.append(("Rubric", topic["rubrics_resolved"]))
+    label = clean_label(topic.get("title", "") or "Discussion")
     blocks = topic.get("description_blocks") or _plain_blocks(topic.get("description_text", ""))
-    return {"label": label, "blocks": blocks}
+    return {"label": label, "blocks": _activity_meta_blocks(details) + blocks}
 
 
 # --------------------------------------------------------------------------- #
@@ -410,11 +429,11 @@ def build_week_model(
     other_sections: list[dict] = []
 
     def extend_overview(entry: dict) -> None:
-        label = clean_text(entry.get("label", ""))
-        bare_label = label.rstrip(":").lower()
+        label = clean_label(entry.get("label", ""))
+        bare_label = label.lower()
         if label and bare_label not in {"overview", "introduction", "welcome", "start here"}:
             overview_blocks.append(
-                {"kind": "label", "level": 0, "runs": [{"text": label.rstrip(":") + ":", "href": ""}]}
+                {"kind": "label", "level": 0, "runs": [{"text": f"{label}:", "href": ""}]}
             )
         overview_blocks.extend(entry["blocks"])
 
@@ -580,7 +599,7 @@ def md_blocks(blocks: list[dict], fallback: str) -> str:
             indent = "&nbsp;&nbsp;&nbsp;" * max(0, int(block.get("level") or 1) - 1)
             parts.append(("li", f"{indent}• {inline}"))
         elif block.get("kind") == "label":
-            parts.append(("p", f"**{inline}**"))
+            parts.append(("label", f"**{inline}**"))
         else:
             parts.append(("p", inline))
     if not parts:
@@ -588,7 +607,10 @@ def md_blocks(blocks: list[dict], fallback: str) -> str:
     out: list[str] = []
     for index, (kind, text) in enumerate(parts):
         if index:
-            tight = kind == "li" and parts[index - 1][0] == "li"
+            tight = (
+                (kind == "li" and parts[index - 1][0] == "li")
+                or (kind == "label" and parts[index - 1][0] == "label")
+            )
             out.append("<br>" if tight else "<br><br>")
         out.append(text)
     return "".join(out)
@@ -602,7 +624,7 @@ def md_labeled(sections: list[dict], fallback: str = NOT_FOUND_LIST) -> str:
     lines = []
     for sec in sections:
         body = md_blocks(sec.get("blocks", []), "")
-        label = md_escape(sec.get("label", ""))
+        label = md_escape(clean_label(sec.get("label", "")))
         if label and body:
             lines.append(f"**{label}:**<br>{body}")
         elif label:
@@ -758,7 +780,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=REPO_ROOT / "output",
+        default=REPO_ROOT / "workspace" / "review",
         help="Base output directory; a <label>__blueprint_bundle folder is created inside it",
     )
     parser.add_argument("--bundle-dir", type=Path, default=None, help="Exact bundle directory to write")
@@ -803,10 +825,13 @@ def main(argv: list[str] | None = None) -> int:
 
     blueprint_json = bundle_dir / f"{stem}__blueprint.json"
     blueprint_md = bundle_dir / f"{stem}__blueprint.md"
+    legacy_blueprint_md = bundle_dir / f"{stem}__cps_blueprint.md"
     blueprint_docx = bundle_dir / f"{stem}__blueprint.docx"
 
     blueprint_json.write_text(json.dumps(model, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    blueprint_md.write_text(render_markdown(model), encoding="utf-8")
+    rendered_markdown = render_markdown(model)
+    write_text_if_changed(blueprint_md, rendered_markdown)
+    write_text_if_changed(legacy_blueprint_md, rendered_markdown)
 
     docx_written: Path | None = None
     if not args.no_docx:
@@ -844,6 +869,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"bundle: {bundle_dir}")
     print(f"blueprint (markdown): {blueprint_md}")
+    print(f"blueprint (legacy markdown alias): {legacy_blueprint_md}")
     print(f"blueprint (json):     {blueprint_json}")
     if docx_written:
         print(f"blueprint (docx):     {docx_written}")

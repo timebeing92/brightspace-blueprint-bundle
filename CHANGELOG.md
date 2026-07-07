@@ -5,6 +5,19 @@ changes** section at the bottom is the active to-do for the next session.
 
 ---
 
+## 2026-07-07 — Activity metadata rendering cleanup (done)
+
+Assignment and discussion entries now keep the activity title clean and render
+points, gradebook item, and rubric metadata as separate bold lines at the top of
+the section body. The Markdown and DOCX renderers also normalize trailing colons
+on section labels before adding their own colon, preventing labels such as
+`Learning Materials::`. Schema remains `coursecraft.blueprint/3`; this is a
+render/model-format cleanup within the existing block structure.
+
+Requirements documentation now also names the one-time dependencies explicitly:
+`openpyxl` for workbook output and `python-docx` for DOCX rendering. `bootstrap.sh`
+installs them into `.venv` once; later exports reuse that environment.
+
 ## 2026-07-07 — Component database note kept upstream-only (done)
 
 Removed `knowledge/COMPONENT_DATABASE_DESIGN_NOTES.md` from the shareable

@@ -27,6 +27,11 @@ bash bootstrap.sh                       # once: create .venv, install deps
 bash run_blueprint.sh <export.zip|dir> [--course-number .. --course-title .. --term ..]
 ```
 
+`bootstrap.sh` is a one-time dependency install into the bundle-local `.venv`
+(`openpyxl` for `.xlsx`, `python-docx` for DOCX). If `.venv` already exists and
+has those packages, reuse it. If a bootstrap was interrupted, rerun
+`bash bootstrap.sh` before running exports.
+
 Direct equivalent (after bootstrap):
 ```bash
 .venv/bin/python scripts/build_blueprint_bundle.py <export> --label NAME
