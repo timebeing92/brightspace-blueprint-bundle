@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Extract dropbox folders, discussions, checklists, and grade items into review artifacts.
+"""Extract dropbox folders, discussions, quizzes, checklists, and grade items into review artifacts.
 
 Reads an unpacked Brightspace export (or ZIP) and emits a reviewer workbook,
 canonical JSON, and a concise markdown note covering:
 
 - dropbox_d2l.xml assignment folders
 - discussion_d2l_*.xml forums and topics
+- quiz_d2l_*.xml quiz instructions and settings
 - checklist_d2l.xml checklist objects and items
 - grades_d2l.xml grade items and categories
 - the cross-file joins between them (activity -> grade item, activity ->
@@ -33,6 +34,7 @@ import re
 import sys
 import tempfile
 import zipfile
+from collections import Counter
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
@@ -78,6 +80,13 @@ def deep_text(elem: ET.Element | None) -> str:
     if elem is None:
         return ""
     return clean("".join(elem.itertext()))
+
+
+def attr_by_local(elem: ET.Element, name: str) -> str:
+    for key, value in elem.attrib.items():
+        if local_name(key) == name:
+            return clean(value)
+    return ""
 
 
 def parse_xml(path: Path, diagnostics: list[str]) -> ET.Element | None:
@@ -386,6 +395,151 @@ def extract_checklists(root: Path, diagnostics: list[str], quicklinks: dict[str,
     return rows
 
 
+def _first_assessment(root: ET.Element) -> ET.Element | None:
+    for elem in root.iter():
+        if local_name(elem.tag) == "assessment":
+            return elem
+    return None
+
+
+def _qti_metadata(elem: ET.Element) -> dict[str, str]:
+    metadata: dict[str, str] = {}
+    for field in elem.iter():
+        if local_name(field.tag) != "qti_metadatafield":
+            continue
+        label = ""
+        entry = ""
+        for child in field:
+            if local_name(child.tag) == "fieldlabel":
+                label = clean(child.text)
+            elif local_name(child.tag) == "fieldentry":
+                entry = clean(child.text)
+        if label:
+            metadata[label] = entry
+    return metadata
+
+
+def _quiz_instruction_html(assessment: ET.Element, proc: ET.Element | None) -> str:
+    rubric = first_child(assessment, "rubric")
+    if rubric is not None:
+        for mattext in rubric.iter():
+            if local_name(mattext.tag) == "mattext":
+                raw_html = deep_text(mattext)
+                # Some exported HTML carries browser-extension wrappers that are
+                # not course content and render poorly in reviewer artifacts.
+                return re.sub(
+                    r"<scribe-shadow\b.*?</scribe-shadow>",
+                    "",
+                    raw_html,
+                    flags=re.IGNORECASE | re.DOTALL,
+                )
+    return deep_text(first_child(proc, "intro_message")) if proc is not None else ""
+
+
+def _quiz_grade_item_code(proc: ET.Element | None) -> str:
+    if proc is None:
+        return ""
+    grade_item = first_child(proc, "grade_item")
+    if grade_item is None:
+        return ""
+    return attr_by_local(grade_item, "resource_code") or clean(grade_item.text)
+
+
+def _quiz_sections(assessment: ET.Element) -> tuple[list[dict], Counter]:
+    sections: list[dict] = []
+    question_types: Counter = Counter()
+    for section in assessment.iter():
+        if local_name(section.tag) != "section":
+            continue
+        metadata = _qti_metadata(section)
+        direct_items = [child for child in section if local_name(child.tag) in ("item", "itemref")]
+        title = clean(section.attrib.get("title", ""))
+        if not title and not direct_items:
+            continue
+        for item in direct_items:
+            if local_name(item.tag) != "item":
+                continue
+            item_metadata = _qti_metadata(item)
+            question_type = clean(item_metadata.get("qmd_questiontype", ""))
+            if question_type:
+                question_types[question_type] += 1
+        sections.append(
+            {
+                "title": title,
+                "draw_count": clean(metadata.get("qmd_numberofitems", "")),
+                "candidate_count": len(direct_items),
+                "points_per_question": clean(metadata.get("qmd_weighting", "")),
+            }
+        )
+    return sections, question_types
+
+
+def _draw_count_total(sections: list[dict]) -> int:
+    total = 0
+    for section in sections:
+        raw = section.get("draw_count", "")
+        if not raw:
+            continue
+        try:
+            total += int(float(raw))
+        except ValueError:
+            continue
+    return total
+
+
+def extract_quizzes(root: Path, diagnostics: list[str], quicklinks: dict[str, int] | None = None) -> list[dict]:
+    rows: list[dict] = []
+    for quiz_path in sorted(root.glob("quiz_d2l_*.xml")):
+        quiz_root = parse_xml(quiz_path, diagnostics)
+        if quiz_root is None:
+            continue
+        assessment = _first_assessment(quiz_root)
+        if assessment is None:
+            diagnostics.append(f"{quiz_path.name}: no assessment element found")
+            continue
+        proc = first_child(assessment, "assess_procextension")
+        instructions_html = _quiz_instruction_html(assessment, proc)
+        sections, question_types = _quiz_sections(assessment)
+        resource_code = attr_by_local(assessment, "resource_code")
+        rows.append(
+            {
+                "source_file": quiz_path.name,
+                "id": assessment.attrib.get("id", ""),
+                "ident": assessment.attrib.get("ident", ""),
+                "title": clean(assessment.attrib.get("title", "")),
+                "resource_code": resource_code,
+                "grade_item_code": _quiz_grade_item_code(proc),
+                "is_active": child_text(proc, "is_active") if proc is not None else "",
+                "attempts_allowed": child_text(proc, "attempts_allowed") if proc is not None else "",
+                "time_limit_minutes": child_text(proc, "time_limit") if proc is not None else "",
+                "show_clock": child_text(proc, "show_clock") if proc is not None else "",
+                "enforce_time_limit": child_text(proc, "enforce_time_limit") if proc is not None else "",
+                "mark_calculation_type": child_text(proc, "mark_calculation_type") if proc is not None else "",
+                "date_due": child_text(proc, "date_due") if proc is not None else "",
+                "section_count": len(sections),
+                "candidate_question_count": sum(int(section.get("candidate_count", 0)) for section in sections),
+                "draw_count_total": _draw_count_total(sections),
+                "question_type_summary": "; ".join(
+                    f"{name}: {count}" for name, count in sorted(question_types.items())
+                ),
+                "sections": sections,
+                "instructions_text": html_to_text(instructions_html),
+                "instructions_blocks": html_fragment_to_blocks(instructions_html),
+                "instructions_html": instructions_html,
+                "images_missing_alt": images_missing_alt(instructions_html),
+                "quicklink_count": 0,
+                "rubric_ids": [],
+            }
+        )
+
+    if not rows:
+        return rows
+    linked_codes = set(quicklinks or {})
+    if quicklinks is not None and any(row.get("resource_code") in linked_codes for row in rows):
+        return [row for row in rows if row.get("resource_code") in linked_codes]
+    return rows
+
+
 # --- join resolution -----------------------------------------------------------
 
 
@@ -393,6 +547,7 @@ def resolve_joins(
     folders: list[dict],
     discussion_rows: list[dict],
     checklists: list[dict],
+    quizzes: list[dict],
     grade_items: list[dict],
     grade_by_code: dict[str, dict],
     rubric_names: dict[str, str],
@@ -496,6 +651,9 @@ def resolve_joins(
                 "yes" if link_count else "none",
             )
 
+    for quiz in quizzes:
+        resolve_activity("quiz", quiz, quiz["title"])
+
     for grade_item in grade_items:
         if not grade_item["linked_activities"] and grade_item["type_id"] not in ("9",):
             add_join(
@@ -503,7 +661,7 @@ def resolve_joins(
                 grade_item["name"],
                 grade_item["resource_code"],
                 "linked_activity",
-                "(none found in dropbox/discussions)",
+                "(none found in dropbox/discussions/quizzes)",
                 "none",
             )
     return joins
@@ -517,6 +675,7 @@ def write_workbook(
     folders: list[dict],
     discussion_rows: list[dict],
     checklists: list[dict],
+    quizzes: list[dict],
     grade_items: list[dict],
     joins: list[dict],
     diagnostics: list[str],
@@ -599,6 +758,29 @@ def write_workbook(
         ],
     )
     add_sheet(
+        "Quizzes",
+        [
+            "source_file", "id", "ident", "title", "resource_code", "grade_item_code",
+            "grade_item_name", "grade_item_out_of", "is_active", "attempts_allowed",
+            "time_limit_minutes", "show_clock", "enforce_time_limit", "mark_calculation_type",
+            "date_due", "section_count", "candidate_question_count", "draw_count_total",
+            "question_type_summary", "quicklink_count", "images_missing_alt", "instructions_text",
+            "instructions_html",
+        ],
+        [
+            [
+                q["source_file"], q["id"], q["ident"], q["title"], q["resource_code"],
+                q["grade_item_code"], q.get("grade_item_name", ""), q.get("grade_item_out_of", ""),
+                q["is_active"], q["attempts_allowed"], q["time_limit_minutes"], q["show_clock"],
+                q["enforce_time_limit"], q["mark_calculation_type"], q["date_due"], q["section_count"],
+                q["candidate_question_count"], q["draw_count_total"], q["question_type_summary"],
+                q.get("quicklink_count", 0), q["images_missing_alt"], q["instructions_text"],
+                q["instructions_html"],
+            ]
+            for q in quizzes
+        ],
+    )
+    add_sheet(
         "Activity_Joins",
         ["source_kind", "source_name", "source_code", "join_type", "target", "resolved"],
         [[j["source_kind"], j["source_name"], j["source_code"], j["join_type"], j["target"], j["resolved"]] for j in joins],
@@ -612,6 +794,7 @@ def render_markdown(
     folders: list[dict],
     discussion_rows: list[dict],
     checklists: list[dict],
+    quizzes: list[dict],
     grade_items: list[dict],
     joins: list[dict],
     diagnostics: list[str],
@@ -627,12 +810,13 @@ def render_markdown(
         f"- Discussion forums: {len(forums)}; topics: {len(topics)} "
         f"({sum(1 for t in topics if t['grade_item_code'])} graded)",
         f"- Checklists: {len(checklists)} ({sum(c.get('item_count', 0) for c in checklists)} items)",
+        f"- Quizzes: {len(quizzes)} ({sum(1 for q in quizzes if q['grade_item_code'])} graded; "
+        f"{sum(int(q.get('draw_count_total') or 0) for q in quizzes)} drawn questions)",
         f"- Grade items: {len(grade_items)}",
         f"- Join edges traced: {len(joins)}; unresolved: {len(unresolved)}",
-        f"- Grade items with no linked dropbox/discussion activity: {len(orphans)} "
-        "(quiz-linked grade items are expected here until quiz links are traced)",
+        f"- Grade items with no linked activity: {len(orphans)}",
         f"- Images missing alt text: "
-        f"{sum(f['images_missing_alt'] for f in folders) + sum(r['images_missing_alt'] for r in discussion_rows)}",
+        f"{sum(f['images_missing_alt'] for f in folders) + sum(r['images_missing_alt'] for r in discussion_rows) + sum(q['images_missing_alt'] for q in quizzes)}",
         "",
         "Embedded HTML is preserved verbatim in the workbook's `*_html` columns;",
         "`*_text` columns are readable derivations, not replacements.",
@@ -673,8 +857,9 @@ def main(argv: list[str] | None = None) -> int:
     folders = extract_dropbox(root, diagnostics)
     discussion_rows = extract_discussions(root, diagnostics)
     checklists = extract_checklists(root, diagnostics, quicklinks)
+    quizzes = extract_quizzes(root, diagnostics, quicklinks)
     joins = resolve_joins(
-        folders, discussion_rows, checklists, grade_items, grade_by_code,
+        folders, discussion_rows, checklists, quizzes, grade_items, grade_by_code,
         rubric_names, condition_codes, quicklinks, diagnostics,
     )
 
@@ -685,7 +870,7 @@ def main(argv: list[str] | None = None) -> int:
     json_path = output_dir / f"{stem}.json"
     md_path = output_dir / f"{stem}.md"
 
-    write_workbook(xlsx_path, folders, discussion_rows, checklists, grade_items, joins, diagnostics)
+    write_workbook(xlsx_path, folders, discussion_rows, checklists, quizzes, grade_items, joins, diagnostics)
     json_path.write_text(
         json.dumps(
             {
@@ -694,6 +879,7 @@ def main(argv: list[str] | None = None) -> int:
                 "dropbox_folders": folders,
                 "discussions": discussion_rows,
                 "checklists": checklists,
+                "quizzes": quizzes,
                 "grade_items": grade_items,
                 "joins": joins,
                 "diagnostics": diagnostics,
@@ -704,13 +890,14 @@ def main(argv: list[str] | None = None) -> int:
         encoding="utf-8",
     )
     md_path.write_text(
-        render_markdown(label, folders, discussion_rows, checklists, grade_items, joins, diagnostics),
+        render_markdown(label, folders, discussion_rows, checklists, quizzes, grade_items, joins, diagnostics),
         encoding="utf-8",
     )
 
     print(f"dropbox folders: {len(folders)}")
     print(f"discussion rows: {len(discussion_rows)}")
     print(f"checklists: {len(checklists)}")
+    print(f"quizzes: {len(quizzes)}")
     print(f"grade items: {len(grade_items)}")
     print(f"diagnostics: {len(diagnostics)}")
     print(f"workbook: {xlsx_path}")

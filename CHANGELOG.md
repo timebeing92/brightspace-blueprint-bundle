@@ -5,6 +5,20 @@ changes** section at the bottom is the active to-do for the next session.
 
 ---
 
+## 2026-07-07 — Quiz-level instructions/settings added to blueprints (done)
+
+Audited the BUMG/MGT 660 share-packet example and confirmed the previous gap:
+module quiz quicklinks were present, but quiz instructions from `quiz_d2l_*.xml`
+were not carried into the blueprint. The activity pass now extracts
+manifest-linked quiz payloads and joins them by `resource_code`/`rCode`.
+
+Blueprint assignment rows can now include quiz-level instructions, gradebook
+points/joins, attempts allowed, time-limit/enforcement settings, section counts,
+drawn-question/candidate-question counts, and question-type summaries. Full
+question text, answer keys, question-library matching, and pool-origin review
+remain intentionally outside the blueprint bundle; use the dedicated quiz
+review extractor for that reviewer-facing layer.
+
 ## 2026-07-07 — DOCX layout option and XML checklist extraction (done)
 
 Added `--docx-section-layout top|left` to the normal bundle command. `top`

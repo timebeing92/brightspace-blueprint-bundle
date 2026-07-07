@@ -36,8 +36,9 @@ component payload XML
 
 - stores the actual checklist, rubric, quiz, discussion, assignment, or other object payloads
 - may be a single file or several related files depending on package type
-- for blueprint extraction, checklist payload XML is joined back to manifest
-  checklist quicklinks by `resource_code` / `rCode`
+- for blueprint extraction, checklist and quiz payload XML are joined back to
+  manifest quicklinks by `resource_code` / `rCode`; quiz joins surface
+  quiz-level instructions/settings, not full question-bank review
 
 ## Checklist Pattern We Can Reuse
 

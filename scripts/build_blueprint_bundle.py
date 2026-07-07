@@ -382,6 +382,48 @@ def format_checklist(checklist: dict | None, link_node: dict | None = None) -> d
     return {"label": label, "blocks": _plain_blocks(text)}
 
 
+def format_quiz(quiz: dict | None, link_node: dict | None = None) -> dict:
+    """Return {label, blocks} for a D2L quiz payload or manifest quicklink."""
+    link_title = clean_label((link_node or {}).get("title", ""))
+    label = clean_label((quiz or {}).get("title", "") or link_title or "Quiz")
+    if quiz is None:
+        text = (
+            "Brightspace quiz link found in the module; quiz instructions and settings "
+            "were not found in quiz_d2l XML."
+        )
+        return {"label": clean_label(f"Quiz: {label}"), "blocks": _plain_blocks(text)}
+
+    details: list[tuple[str, str]] = []
+    if quiz.get("grade_item_out_of"):
+        details.append(("Points", f"{format_points(quiz['grade_item_out_of'])} pts"))
+    if quiz.get("grade_item_name"):
+        details.append(("Gradebook item", quiz["grade_item_name"]))
+    if quiz.get("attempts_allowed"):
+        details.append(("Attempts allowed", quiz["attempts_allowed"]))
+    time_limit = clean_text(quiz.get("time_limit_minutes", ""))
+    if time_limit:
+        rendered_limit = "No time limit" if time_limit in {"0", "0.0"} else f"{format_points(time_limit)} minutes"
+        details.append(("Time limit", rendered_limit))
+    if quiz.get("enforce_time_limit") and quiz.get("enforce_time_limit") != "no":
+        details.append(("Time limit enforced", quiz["enforce_time_limit"]))
+    if quiz.get("draw_count_total"):
+        questions = f"{quiz['draw_count_total']} drawn"
+        if quiz.get("candidate_question_count"):
+            questions += f" from {quiz['candidate_question_count']} candidates"
+        details.append(("Questions", questions))
+    if quiz.get("section_count"):
+        details.append(("Sections", str(quiz["section_count"])))
+    if quiz.get("question_type_summary"):
+        details.append(("Question types", quiz["question_type_summary"]))
+    if quiz.get("is_active") and quiz.get("is_active") != "yes":
+        details.append(("Active", quiz["is_active"]))
+
+    blocks = quiz.get("instructions_blocks") or _plain_blocks(quiz.get("instructions_text", ""))
+    if not blocks:
+        blocks = _plain_blocks("Brightspace quiz found, but no quiz-level instructions were extracted.")
+    return {"label": clean_label(f"Quiz: {label}"), "blocks": _activity_meta_blocks(details) + blocks}
+
+
 # --------------------------------------------------------------------------- #
 # Course-level front matter (segment-aware)
 # --------------------------------------------------------------------------- #
@@ -433,7 +475,8 @@ def build_week_model(
     folders_by_code: dict[str, dict],
     discussions_by_code: dict[str, dict],
     checklists_by_code: dict[str, dict],
-) -> tuple[dict, set[str], set[str]]:
+    quizzes_by_code: dict[str, dict],
+) -> tuple[dict, set[str], set[str], set[str]]:
     nodes = flatten_nodes([module])
     module_rcodes = rcode_set(nodes)
     topics = [topic for node in nodes if (topic := topic_for_node(node, structure_topics))]
@@ -483,9 +526,9 @@ def build_week_model(
 
     assignment_items = [format_folder(folder) for folder in folders]
     assignment_items.extend(
-        {"label": clean_text(f"Quiz/assessment link: {node.get('title', '')}"), "blocks": []}
+        format_quiz(quizzes_by_code.get(node.get("rcode", "")), node)
         for node in quiz_links
-        if node.get("title")
+        if node.get("title") or node.get("rcode")
     )
     discussion_items = [format_discussion(topic) for topic in discussions]
     checklist.extend(
@@ -506,7 +549,12 @@ def build_week_model(
     }
     placed_folders = {f["resource_code"] for f in folders if f.get("resource_code")}
     placed_discussions = {d["resource_code"] for d in discussions if d.get("resource_code")}
-    return week, placed_folders, placed_discussions
+    placed_quizzes = {
+        node.get("rcode", "")
+        for node in quiz_links
+        if node.get("rcode", "") in quizzes_by_code
+    }
+    return week, placed_folders, placed_discussions, placed_quizzes
 
 
 def build_blueprint_model(
@@ -536,17 +584,24 @@ def build_blueprint_model(
         for checklist in activities.get("checklists", [])
         if checklist.get("resource_code")
     }
+    quizzes_by_code = {
+        quiz.get("resource_code", ""): quiz
+        for quiz in activities.get("quizzes", [])
+        if quiz.get("resource_code")
+    }
 
     weeks: list[dict] = []
     placed_folder_codes: set[str] = set()
     placed_discussion_codes: set[str] = set()
+    placed_quiz_codes: set[str] = set()
     for module in modules:
-        week, folder_codes, discussion_codes = build_week_model(
-            module, topics, folders_by_code, discussions_by_code, checklists_by_code
+        week, folder_codes, discussion_codes, quiz_codes = build_week_model(
+            module, topics, folders_by_code, discussions_by_code, checklists_by_code, quizzes_by_code
         )
         weeks.append(week)
         placed_folder_codes.update(folder_codes)
         placed_discussion_codes.update(discussion_codes)
+        placed_quiz_codes.update(quiz_codes)
 
     unplaced_folders = [
         item
@@ -560,6 +615,13 @@ def build_blueprint_model(
         for topic in activities.get("discussions", [])
         if topic.get("kind") == "topic" and topic.get("resource_code") not in placed_discussion_codes
         for item in [format_discussion(topic)]
+        if item.get("label") or item.get("blocks")
+    ]
+    unplaced_quizzes = [
+        item
+        for quiz in activities.get("quizzes", [])
+        if quiz.get("resource_code") not in placed_quiz_codes
+        for item in [format_quiz(quiz)]
         if item.get("label") or item.get("blocks")
     ]
 
@@ -579,7 +641,7 @@ def build_blueprint_model(
         },
         "weeks": weeks,
         "unplaced_activities": {
-            "assignments": [item for item in unplaced_folders if item],
+            "assignments": [item for item in [*unplaced_folders, *unplaced_quizzes] if item],
             "discussions": [item for item in unplaced_discussions if item],
         },
         "diagnostics": diagnostics,

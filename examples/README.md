@@ -42,6 +42,9 @@ The sandbox export is deliberately small but exercises the main joins:
 - a graded discussion (`RTv1 Week 1 Discussion`),
 - an **ungraded** discussion that isn't joined to the module, which lands in the
   **Unplaced Activities** section rather than being dropped,
+- a D2L checklist tool payload joined to the module by `resource_code`,
+- an inactive quiz payload that has no quiz-level instructions, showing the
+  visible fallback note plus attempts/time-limit/draw-count metadata,
 - the reading topic mirrored into **Resources** under its own label
   (`Reading Notes`).
 

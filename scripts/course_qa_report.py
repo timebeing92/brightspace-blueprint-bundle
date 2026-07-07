@@ -285,8 +285,9 @@ def main(argv: list[str] | None = None) -> int:
     folders = activities_mod.extract_dropbox(root, diagnostics)
     discussion_rows = activities_mod.extract_discussions(root, diagnostics)
     checklists = activities_mod.extract_checklists(root, diagnostics, quicklinks)
+    quizzes = activities_mod.extract_quizzes(root, diagnostics, quicklinks)
     joins = activities_mod.resolve_joins(
-        folders, discussion_rows, checklists, grade_items, grade_by_code,
+        folders, discussion_rows, checklists, quizzes, grade_items, grade_by_code,
         rubric_names, condition_codes, quicklinks, diagnostics,
     )
     for diagnostic in diagnostics:
@@ -362,12 +363,14 @@ def main(argv: list[str] | None = None) -> int:
         for r in discussion_rows
         if r["kind"] == "topic"
     )
+    text_sources.extend((f"quiz {q['title']!r} instructions", q["instructions_html"]) for q in quizzes)
     text_sources.extend((f"html topic {t['manifest_title']!r}", t["body_text"]) for t in topics)
     patterns = PLACEHOLDER_PATTERNS + config.get("extra_placeholder_patterns", [])
     check_placeholders(text_sources, patterns, report)
 
     missing_alt = sum(f["images_missing_alt"] for f in folders)
     missing_alt += sum(r["images_missing_alt"] for r in discussion_rows)
+    missing_alt += sum(q["images_missing_alt"] for q in quizzes)
     missing_alt += sum(t["images_missing_alt"] for t in topics)
     if missing_alt:
         report.add("warnings", f"images missing alt text across activities and pages: {missing_alt}")
@@ -378,6 +381,7 @@ def main(argv: list[str] | None = None) -> int:
     summary = {
         "dropbox_folders": len(folders),
         "discussion_topics": sum(1 for r in discussion_rows if r["kind"] == "topic"),
+        "quizzes": len(quizzes),
         "grade_items": len(grade_items),
         "manifest_items": sum(structure_mod.count_kinds(tree).values()),
         "html_topics": len(topics),

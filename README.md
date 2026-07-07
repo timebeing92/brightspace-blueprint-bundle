@@ -87,11 +87,14 @@ Follows the template's frame, populated from the export:
   course sections** row when the week has pages/headings that don't map to a
   standard bucket (each under its own "Page › Heading" label). D2L XML
   checklists are the normal checklist source; HTML checklist pages/headings are
-  also preserved when present. Learning
+  also preserved when present. Linked `quiz_d2l_*.xml` payloads supply
+  quiz-level instructions, gradebook/points joins, attempts/time-limit settings,
+  and section/question-count summaries; full question-bank/pool review remains
+  outside this bundle. Learning
   Objectives are split out only when the course used an objectives heading (see
   *Design philosophy* above). Numeric due dates aren't encoded (they're
   term-relative); the day-of-week cadence rides along in the extracted
-  assignment/discussion/checklist text.
+  assignment/discussion/quiz/checklist text.
 - In the default DOCX, each weekly module is a full-width, single-column table.
   Scaffold labels sit in shaded header rows above the extracted content. Use
   `--docx-section-layout left` if you want the alternate full-width table with

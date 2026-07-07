@@ -32,10 +32,11 @@ structured model to Markdown and DOCX:
    video/iframe embeds survive; `<script>`/`<style>` and page-template artifacts
    (e.g. "Basic Page - No Banner") are dropped.
 4. `extract_course_activities.py` — dropbox folders, discussions, D2L
-   checklists, grade joins. Assignment instructions, discussion descriptions,
-   and checklist items are parsed into the same blocks (`instructions_blocks`,
-   `description_blocks`, checklist `blocks`), so their formatting is preserved
-   too.
+   checklists, quiz-level instructions/settings, and grade joins. Assignment
+   instructions, discussion descriptions, quiz instructions, and checklist
+   items are parsed into the same blocks (`instructions_blocks`,
+   `description_blocks`, quiz `instructions_blocks`, checklist `blocks`), so
+   their formatting is preserved too.
 5. `course_qa_report.py` — severity-tiered export QA (optional, `--skip-qa`).
 6. **model build** → `<label>__blueprint.json` (see
    `workspace/reference/schemas/blueprint/blueprint_schema.json`).
@@ -51,7 +52,7 @@ Each detected week/module gathers its HTML topics, and every topic's
 | **Overview** | intro text before the first heading + headings matching `overview / introduction / welcome / start here / intro / orientation` |
 | **Learning Objectives** | headings matching `objective / outcome(s) / goals / competenc / students will be able / swbat` |
 | **Assigned Reading and Multimedia** (Resources) | headings matching `reading / resource / material / multimedia / media / video / watch / listen / textbook / reference / required / optional / explore` — each kept under its **own** course label (e.g. "Required Resources", "Multimedia") |
-| **Assignment(s) and Instructions** | dropbox folders joined to the module by `resource_code`; quiz quicklinks. Numeric due dates are NOT encoded (see below) |
+| **Assignment(s) and Instructions** | dropbox folders joined to the module by `resource_code`; quiz quicklinks joined to `quiz_d2l_*.xml` by rCode/resource code, with quiz-level instructions and settings when present. Numeric due dates are NOT encoded (see below) |
 | **Discussion Board Prompts** | discussion topics joined by `resource_code` |
 | **Checklist** | D2L checklist tool quicklinks joined to `checklist_d2l.xml` payloads by `resource_code`/`rCode`; HTML headings matching `checklist` are also preserved here. Only shown when present. |
 | **Other course sections** | any remaining page or heading (Next Steps, Case Study, Instructions…) preserved under its own **"Page › Heading" path label**, built from the page title plus the h1–h4 heading hierarchy, so sections from different pages never merge. Only shown when present. |
@@ -99,12 +100,13 @@ matches; Description and Introduction match by topic title. Empty → `Needs rev
 ## Joins
 
 - **Module ↔ activity join is by `resource_code` / `rCode`.** Dropbox folders,
-  discussions, and D2L checklists are placed under the week whose manifest
-  quicklinks share their resource code. Assignments/discussions that are not
-  joined land in an **Unplaced Activities** section. For normal course exports,
-  checklist XML is filtered to manifest-linked checklists so stale payloads do
-  not flood the review artifacts; component-only packages with no manifest
-  quicklink evidence can still expose their checklist payloads.
+  discussions, quizzes, and D2L checklists are placed under the week whose
+  manifest quicklinks share their resource code. Assignments and discussions
+  that are not joined land in an **Unplaced Activities** section. For normal
+  course exports, checklist and quiz XML are filtered to manifest-linked
+  payloads so stale objects do not flood the review artifacts; component-only
+  packages with no manifest quicklink evidence can still expose their payloads,
+  and any included-but-unplaced activity remains visible for review.
 
 ## Known limitations (tell the reviewer)
 
@@ -115,11 +117,16 @@ matches; Description and Introduction match by topic title. Empty → `Needs rev
 - **Numeric due dates are deliberately not encoded.** The coded date fields in
   the XML are term-relative (they shift every time the course is offered), so
   encoding them would be misleading. The day-of-week cadence that assignments,
-  discussions, and checklists actually communicate is written into the page /
-  instructions HTML, so it is already carried in the extracted assignment,
-  discussion, and overview text. (The UTC-timestamp caveat in
+  discussions, quizzes, and checklists actually communicate is written into the
+  page / instructions HTML, so it is already carried in the extracted
+  assignment, discussion, quiz, and overview text. (The UTC-timestamp caveat in
   `BRIGHTSPACE_PACKAGE_STRUCTURE_AND_IMPORT_NOTES.md` is why those coded fields
   are not trustworthy to surface directly.)
+- **Question-bank contents are not blueprint content.** The blueprint includes
+  quiz-level instructions, gradebook/points joins, attempts/time-limit settings,
+  and section/question-count summaries. Full question text, answer keys,
+  question-library matching, and pool-origin evidence belong in the dedicated
+  quiz review extractor.
 - **Formatting is preserved, not reflowed.** Paragraphs, bullet lists, and links
   are carried through as authored (links render live in both Markdown and DOCX).
   Fine inline styling (bold/italic, fonts, colors) and images are not carried —

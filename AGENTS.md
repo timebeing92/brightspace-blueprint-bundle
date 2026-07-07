@@ -44,7 +44,7 @@ structure/activities/QA companions.
 ## Pipeline (what runs, in order)
 
 `export_inventory` → `manifest_probe` → `reconstruct_course_structure --extract-html`
-→ `extract_course_activities` (assignments, discussions, XML checklists, joins)
+→ `extract_course_activities` (assignments, discussions, quiz-level instructions/settings, XML checklists, joins)
 → `course_qa_report` → build JSON model → render Markdown + DOCX. Both renderers consume one model
 (`schemas/blueprint_schema.json`); change the model shape in **both** the schema
 and `blueprint_to_docx.py` if you extend it.
@@ -74,9 +74,11 @@ and `blueprint_to_docx.py` if you extend it.
       `html_to_segments` / `html_fragment_to_blocks`. Enables the
       mirror-don't-reconstruct week model and preserves paragraphs/bullets/links.
     - `extract_course_activities.py` imports `html_fragment_to_blocks` and adds
-      `instructions_blocks` (dropbox folders), `description_blocks`
-      (discussions), and D2L checklist `blocks` so activity content keeps its
-      formatting too.
+      `instructions_blocks` (dropbox folders and quizzes),
+      `description_blocks` (discussions), D2L checklist `blocks`, and a
+      `quizzes` activity collection so activity content keeps its formatting
+      too. Quiz extraction is intentionally quiz-level only: instructions,
+      grade joins, attempts/time settings, and section/question-count summaries.
 - DOCX section/field layout must keep matching the CGPS template. Markdown is the
   canonical flat file; DOCX is rendered to resemble the template, not byte-match
   its branding.
