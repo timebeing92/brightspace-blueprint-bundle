@@ -37,6 +37,21 @@ the JSON model. Learning Objectives are split into their own row only when the
 course actually uses an objectives heading — otherwise that text stays in
 Overview rather than being guessed at.
 
+When a pre-week course-level page is linked or copied again inside a weekly
+module, the blueprint keeps the course-level copy and suppresses the weekly
+duplicate with a diagnostic. This prevents global roadmap/setup pages from also
+appearing as Week 1 "Other course sections."
+
+Binary/course-file assets stay as references. If a manifest `content` item
+points to a Word/PDF/spreadsheet/presentation file, the blueprint renders an
+attached-file placeholder instead of decoding the payload. Images embedded in
+HTML pages render as image placeholders with alt text when available, or a
+no-alt placeholder plus the source path; the tool does not parse or OCR images.
+Hidden manifest items remain visible as short hidden-item placeholders that name
+the object and type, but their page/file/activity bodies are not unpacked.
+Extraction notes also summarize hidden manifest-linked files and package files
+not directly linked from the visible manifest by size and type.
+
 ---
 
 ## Quickstart
@@ -106,6 +121,16 @@ Follows the template's frame, populated from the export:
   callout/note/card-like containers, dropdown summaries, video/media embeds, and
   horizontal rules. The bundle preserves those cues without trying to reproduce
   Brightspace CSS pixel-for-pixel.
+  Separate D2L activity objects inside Assignment(s) and Discussion Board rows
+  are divided visually, so multiple assignments, quizzes, or discussion topics
+  remain distinct. This divider rule is object-based; it does not split
+  inferred subsections inside one content page.
+  When a module has separate sibling pages for overview and learning materials
+  (for example, `Week 1 Overview` plus `Week 1 Learning Materials and
+  Resources`), resource-like headings inside the explicit overview page stay in
+  the Overview row. Combined pages such as `Week 1 Overview and Learning
+  Materials` still split their internal resources into Assigned Reading and
+  Multimedia.
   The underlying JSON model is `coursecraft.blueprint/4`.
   Learning Objectives are split out only when the course used an objectives
   heading (see *Design philosophy* above). Numeric due dates aren't encoded (they're

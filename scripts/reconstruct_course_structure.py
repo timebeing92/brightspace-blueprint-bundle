@@ -6,10 +6,12 @@ resource (type, d2l material_type, href), classifies items (module, HTML topic,
 quicklink by target type, tool payload, LTI link — typed but not parsed), and
 flags hidden items, unresolved identifierrefs, and missing hrefs.
 
-With --extract-html, also pulls each HTML content topic's title and body text
-verbatim into the JSON payload and checks that relative asset/link references
-inside each page resolve within the package (extraction mode: no editorial
-changes, readable text is derived alongside the raw page, never replacing it).
+With --extract-html, also pulls each extractable HTML content topic's title and
+body text verbatim into the JSON payload and checks that relative asset/link
+references inside each page resolve within the package (extraction mode: no
+editorial changes, readable text is derived alongside the raw page, never
+replacing it). Non-HTML course files are preserved as linked references instead
+of being decoded as page text.
 
 Outputs a markdown tree and canonical JSON to workspace/review/.
 
@@ -26,6 +28,7 @@ import re
 import sys
 import tempfile
 import zipfile
+from collections import Counter
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote
@@ -40,6 +43,56 @@ REF_ATTR = re.compile(r"""(?:src|href)\s*=\s*["']([^"']+)["']""", re.IGNORECASE)
 IMG_TAG = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
 ALT_ATTR = re.compile(r"""\balt\s*=\s*("[^"]*[^"\s][^"]*"|'[^']*[^'\s][^']*')""", re.IGNORECASE)
 TITLE_TAG = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+HTML_TOPIC_SUFFIXES = {".html", ".htm", ".xhtml"}
+TEXT_TOPIC_SUFFIXES = {".txt", ".md", ".markdown"}
+CONTENT_FILE_KIND = "content_file"
+_TEXT_CONTROL_BYTES = set(range(0, 9)) | set(range(14, 32)) | {127}
+CORE_PACKAGE_FILES = {
+    "imsmanifest.xml",
+    "grades_d2l.xml",
+    "rubrics_d2l.xml",
+    "dropbox_d2l.xml",
+    "checklist_d2l.xml",
+    "questiondb.xml",
+}
+
+
+def _href_path_part(href: str) -> str:
+    return html.unescape(unquote(href or "")).replace("\\", "/").split("?")[0].split("#")[0].lstrip("/")
+
+
+def _is_local_href(href: str) -> bool:
+    href = (href or "").strip()
+    return bool(href) and not href.lower().startswith(URL_SCHEMES)
+
+
+def _href_suffix(href: str) -> str:
+    target = _href_path_part(href)
+    return Path(target).suffix.lower() if target else ""
+
+
+def _is_content_file_href(href: str) -> bool:
+    suffix = _href_suffix(href)
+    if not suffix:
+        return False
+    return suffix not in HTML_TOPIC_SUFFIXES and suffix not in TEXT_TOPIC_SUFFIXES
+
+
+def _looks_like_binary_payload(data: bytes) -> bool:
+    sample = data[:8192]
+    if not sample:
+        return False
+    lower_sample = sample[:1024].lower().lstrip()
+    if lower_sample.startswith((b"<!doctype", b"<html", b"<body", b"<h1", b"<h2", b"<p")) or b"<html" in lower_sample:
+        return False
+    if sample.startswith((b"PK\x03\x04", b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", b"%PDF-")):
+        return True
+    if b"[Content_Types].xml" in sample or b"word/document.xml" in sample:
+        return True
+    if sample.count(b"\x00") / len(sample) > 0.01:
+        return True
+    control_count = sum(1 for byte in sample if byte in _TEXT_CONTROL_BYTES)
+    return control_count / len(sample) > 0.20
 
 
 def attr(elem: ET.Element, name: str) -> str:
@@ -365,6 +418,26 @@ def _embed_kind(src: str) -> str:
     return "Embedded media"
 
 
+def _safe_media_href(src: str) -> str:
+    src = (src or "").strip()
+    if not src or src.lower().startswith("data:"):
+        return ""
+    return src
+
+
+def _image_placeholder_block(attr_map: dict) -> dict | None:
+    src = (attr_map.get("src") or "").strip()
+    alt = clean(attr_map.get("alt") or "")
+    label = alt or "No alt text"
+    href = _safe_media_href(src)
+    meta = {"alt": alt, "src": href}
+    if src.lower().startswith("data:"):
+        meta["src"] = "inline data URI"
+    if not alt:
+        meta["missing_alt"] = "true"
+    return _block("image", label, href, meta=meta)
+
+
 class _BlockExtractor(HTMLParser):
     """Walk an HTML fragment and emit paragraph/list blocks with link-aware runs."""
 
@@ -442,11 +515,10 @@ class _BlockExtractor(HTMLParser):
             self._kind = "dropdown"
             return
         if tag == "img":
-            alt = (attr_map.get("alt") or "").strip()
-            src = attr_map.get("src", "")
-            if alt:
-                href = src if src.startswith(_LIVE_SCHEMES) else ""
-                self._runs.append({"text": f"[image: {alt}]", "href": href})
+            image_block = _image_placeholder_block(attr_map)
+            if image_block:
+                self._flush()
+                self.blocks.append(image_block)
             return
         visual = _visual_block_for(tag, attr_map)
         if visual:
@@ -517,6 +589,78 @@ def html_fragment_to_blocks(
 
 def blocks_to_text(blocks: list[dict]) -> str:
     return clean(" ".join(run["text"] for block in blocks for run in block["runs"]))
+
+
+def _content_file_display_name(href: str, title: str) -> str:
+    target = _href_path_part(href)
+    file_name = clean(Path(target).name) if target else ""
+    return file_name or clean(title) or clean(href)
+
+
+def _content_file_topic(node: dict, *, reason: str) -> dict:
+    href = node.get("href", "")
+    title = clean(node.get("title", ""))
+    file_name = _content_file_display_name(href, title)
+    text = file_name or title or clean(href) or "course file"
+    blocks = [_block("file", text, href, meta={"file_name": file_name, "extraction": reason})]
+    return {
+        "manifest_title": title,
+        "html_title": "",
+        "href": href,
+        "body_text": blocks_to_text(blocks),
+        "body_segments": [{"heading": "", "level": 0, "blocks": blocks, "text": blocks_to_text(blocks)}],
+        "empty_page": False,
+        "missing_refs": [],
+        "server_refs": [],
+        "images_missing_alt": 0,
+        "skipped_body_extraction": True,
+        "extraction_note": reason,
+    }
+
+
+def _hidden_item_type_label(node: dict) -> str:
+    kind = node.get("kind", "")
+    href = node.get("href", "")
+    if kind == "html_topic":
+        return "HTML content page"
+    if kind == CONTENT_FILE_KIND:
+        suffix = _href_suffix(href).lstrip(".").upper()
+        return f"{suffix} course file" if suffix else "course file"
+    return kind.replace("_", " ") or "manifest item"
+
+
+def _hidden_manifest_topic(node: dict) -> dict:
+    href = node.get("href", "")
+    title = clean(node.get("title", ""))
+    item_type = _hidden_item_type_label(node)
+    text = f"{item_type}; hidden in the Brightspace manifest, so body extraction was skipped"
+    blocks = [
+        _block(
+            "hidden",
+            text,
+            href,
+            meta={
+                "item_type": item_type,
+                "manifest_kind": node.get("kind", ""),
+                "extraction": "hidden manifest item",
+            },
+        )
+    ]
+    body_text = blocks_to_text(blocks)
+    return {
+        "manifest_title": title,
+        "html_title": "",
+        "href": href,
+        "body_text": body_text,
+        "body_segments": [{"heading": "", "level": 0, "blocks": blocks, "text": body_text}],
+        "empty_page": False,
+        "missing_refs": [],
+        "server_refs": [],
+        "images_missing_alt": 0,
+        "skipped_body_extraction": True,
+        "hidden_manifest_item": True,
+        "extraction_note": "hidden manifest item",
+    }
 
 
 def html_to_segments(
@@ -606,6 +750,8 @@ def classify(item: ET.Element, resource: dict | None, has_children: bool) -> str
     if material == "contentmodule":
         return "module"
     if material == "content":
+        if _is_content_file_href(resource.get("href", "")):
+            return CONTENT_FILE_KIND
         return "html_topic"
     if material == "contentlink":
         href = resource["href"]
@@ -635,6 +781,7 @@ def walk_items(
     package_root: Path,
     diagnostics: list[str],
     depth: int = 0,
+    parent_hidden: bool = False,
 ) -> list[dict]:
     nodes = []
     for item in parent:
@@ -647,7 +794,8 @@ def walk_items(
                 break
         identifierref = item.attrib.get("identifierref", "")
         resource = resources.get(identifierref) if identifierref else None
-        children = walk_items(item, resources, package_root, diagnostics, depth + 1)
+        item_hidden = parent_hidden or attr(item, "isvisible").lower() == "false"
+        children = walk_items(item, resources, package_root, diagnostics, depth + 1, item_hidden)
         kind = classify(item, resource, bool(children))
         href = resource["href"] if resource else ""
         rcode_match = URL_RCODE.search(href) if href else None
@@ -658,7 +806,7 @@ def walk_items(
             "kind": kind,
             "href": href,
             "rcode": rcode_match.group(1) if rcode_match else "",
-            "is_hidden": attr(item, "isvisible").lower() == "false",
+            "is_hidden": item_hidden,
             "resource_code": attr(item, "resource_code"),
             "description": item.attrib.get("description", ""),
             "flags": [],
@@ -667,13 +815,18 @@ def walk_items(
         if identifierref and resource is None:
             node["flags"].append("identifierref does not resolve to a resource")
             diagnostics.append(f"item {title!r}: identifierref {identifierref} unresolved")
-        if kind == "html_topic" and href:
+        if kind in {"html_topic", CONTENT_FILE_KIND} and href:
             normalized = href.replace("\\", "/").split("?")[0]
             if not (package_root / normalized).exists():
                 node["flags"].append("href missing from package")
-                diagnostics.append(f"html topic {title!r}: href missing from package: {href}")
+                label = "content file" if kind == CONTENT_FILE_KIND else "html topic"
+                diagnostics.append(f"{label} {title!r}: href missing from package: {href}")
         nodes.append(node)
     return nodes
+
+
+def descendant_count(node: dict) -> int:
+    return sum(1 + descendant_count(child) for child in node.get("children", []))
 
 
 def extract_html_topics(nodes: list[dict], package_root: Path, diagnostics: list[str]) -> list[dict]:
@@ -681,15 +834,43 @@ def extract_html_topics(nodes: list[dict], package_root: Path, diagnostics: list
 
     def visit(node_list: list[dict]) -> None:
         for node in node_list:
-            if node["kind"] == "html_topic" and node["href"] and "href missing from package" not in node["flags"]:
+            if node.get("is_hidden"):
+                if node["kind"] == "module":
+                    topics.append(_hidden_manifest_topic(node))
+                if node["kind"] in {"html_topic", CONTENT_FILE_KIND} and node.get("href"):
+                    topics.append(_hidden_manifest_topic(node))
+                    diagnostics.append(
+                        f"hidden content {node['title']!r}: body extraction skipped: {node['href']}"
+                    )
+                elif node.get("children"):
+                    diagnostics.append(
+                        f"hidden module {node['title']!r}: body extraction skipped for "
+                        f"{descendant_count(node)} descendant item(s)"
+                    )
+                visit(node["children"])
+                continue
+            if node["kind"] == CONTENT_FILE_KIND and node["href"]:
+                topics.append(_content_file_topic(node, reason="non-HTML course file"))
+                diagnostics.append(
+                    f"content file {node['title']!r}: body extraction skipped for non-HTML file: {node['href']}"
+                )
+            elif node["kind"] == "html_topic" and node["href"] and "href missing from package" not in node["flags"]:
                 rel = node["href"].replace("\\", "/").split("?")[0]
                 page_path = package_root / rel
                 try:
-                    raw = page_path.read_text(encoding="utf-8", errors="replace")
+                    payload = page_path.read_bytes()
                 except OSError as exc:
                     diagnostics.append(f"html topic {node['title']!r}: unreadable: {exc}")
                     visit(node["children"])
                     continue
+                if _looks_like_binary_payload(payload):
+                    topics.append(_content_file_topic(node, reason="binary-like payload"))
+                    diagnostics.append(
+                        f"html topic {node['title']!r}: body extraction skipped for binary-like payload: {node['href']}"
+                    )
+                    visit(node["children"])
+                    continue
+                raw = payload.decode("utf-8", errors="replace")
                 missing_refs = []
                 server_refs = []
                 for ref in REF_ATTR.findall(raw):
@@ -738,6 +919,120 @@ def extract_html_topics(nodes: list[dict], package_root: Path, diagnostics: list
     return topics
 
 
+def package_file_category(rel_path: str) -> str:
+    lower = rel_path.lower()
+    name = Path(rel_path).name.lower()
+    if name in CORE_PACKAGE_FILES or name.startswith("quiz_d2l_") or name.startswith("discussion_d2l"):
+        return "d2l_xml"
+    if lower.endswith(".xml"):
+        return "xml"
+    if lower.endswith((".html", ".htm", ".xhtml")):
+        return "html"
+    if lower.endswith((".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".bmp")):
+        return "image"
+    if lower.endswith((".mp4", ".mov", ".avi", ".m4v", ".webm", ".mp3", ".wav")):
+        return "media"
+    if lower.endswith((".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".csv", ".txt", ".qmd", ".rmd")):
+        return "document"
+    if lower.endswith((".css", ".js", ".json")):
+        return "frontend_support"
+    return "other"
+
+
+def format_bytes(size: int) -> str:
+    value = float(size)
+    for unit in ("B", "KB", "MB", "GB"):
+        if value < 1024 or unit == "GB":
+            return f"{value:.1f} {unit}" if unit != "B" else f"{int(value)} B"
+        value /= 1024
+    return f"{value:.1f} GB"
+
+
+def package_files(package_root: Path) -> dict[str, int]:
+    files: dict[str, int] = {}
+    for path in package_root.rglob("*"):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(package_root).as_posix()
+        if any(part in {"__MACOSX", ".git", ".github", ".pytest_cache", "__pycache__"} for part in Path(rel).parts):
+            continue
+        if Path(rel).name == ".DS_Store" or Path(rel).name.startswith("._"):
+            continue
+        try:
+            files[rel] = path.stat().st_size
+        except OSError:
+            files[rel] = 0
+    return files
+
+
+def manifest_linked_paths(nodes: list[dict]) -> tuple[set[str], set[str]]:
+    visible: set[str] = set()
+    hidden: set[str] = set()
+
+    def visit(node_list: list[dict]) -> None:
+        for node in node_list:
+            href = node.get("href", "")
+            if _is_local_href(href):
+                target = _href_path_part(href)
+                if target:
+                    (hidden if node.get("is_hidden") else visible).add(target)
+            visit(node.get("children", []))
+
+    visit(nodes)
+    return visible, hidden
+
+
+def file_scope_summary(label: str, paths: set[str], size_by_path: dict[str, int], *, limit: int = 8) -> str | None:
+    existing = [(path, size_by_path[path]) for path in paths if path in size_by_path]
+    if not existing:
+        return None
+    total = sum(size for _, size in existing)
+    by_type: Counter[str] = Counter()
+    by_type_size: Counter[str] = Counter()
+    for path, size in existing:
+        category = package_file_category(path)
+        by_type[category] += 1
+        by_type_size[category] += size
+    type_summary = ", ".join(
+        f"{category}: {by_type[category]} / {format_bytes(by_type_size[category])}"
+        for category in sorted(by_type_size, key=lambda key: (-by_type_size[key], key))[:6]
+    )
+    largest = ", ".join(
+        f"{path} ({format_bytes(size)})"
+        for path, size in sorted(existing, key=lambda item: item[1], reverse=True)[:limit]
+    )
+    return (
+        f"Package scope: {label}: {len(existing)} file(s), {format_bytes(total)} total"
+        f"; by type: {type_summary}; largest: {largest}"
+    )
+
+
+def package_scope_diagnostics(nodes: list[dict], package_root: Path) -> list[str]:
+    size_by_path = package_files(package_root)
+    visible_paths, hidden_paths = manifest_linked_paths(nodes)
+    core_paths = {
+        path
+        for path in size_by_path
+        if package_file_category(path) == "d2l_xml" or Path(path).name.lower() in CORE_PACKAGE_FILES
+    }
+    unlinked_paths = set(size_by_path) - visible_paths - hidden_paths - core_paths
+    diagnostics: list[str] = []
+    hidden_summary = file_scope_summary("hidden manifest-linked files skipped from blueprint body extraction", hidden_paths, size_by_path)
+    if hidden_summary:
+        diagnostics.append(hidden_summary)
+    unlinked_summary = file_scope_summary(
+        "files not directly linked from the visible manifest",
+        unlinked_paths,
+        size_by_path,
+    )
+    if unlinked_summary:
+        diagnostics.append(
+            unlinked_summary
+            + " (may include support assets referenced inside HTML pages)"
+        )
+    return diagnostics
+
+
 def count_kinds(nodes: list[dict]) -> dict[str, int]:
     counts: dict[str, int] = {}
 
@@ -781,9 +1076,11 @@ def render_markdown(label: str, tree: list[dict], topics: list[dict], diagnostic
         lines.extend(
             [
                 "",
-                "## HTML topics",
+                "## Extracted content topics",
                 "",
                 f"- Topics extracted: {len(topics)}",
+                f"- Non-HTML course files preserved as references: "
+                f"{sum(1 for t in topics if t.get('skipped_body_extraction'))}",
                 f"- Pages with broken relative references: {len(broken)}",
                 f"- Empty pages: {len(empty)}",
                 f"- Images missing alt text: {sum(t['images_missing_alt'] for t in topics)}",
@@ -791,7 +1088,7 @@ def render_markdown(label: str, tree: list[dict], topics: list[dict], diagnostic
                 f"{sum(1 for t in topics if t['server_refs'])} "
                 "(resolve on the Brightspace server, not in the package — portability note, not a break)",
                 "",
-                "Verbatim body text is preserved in the JSON payload; this note only summarizes.",
+                "Verbatim body text is preserved for HTML/text topics; non-HTML course files are linked without decoding.",
             ]
         )
     lines.extend(["", "## Diagnostics", ""])
@@ -839,6 +1136,8 @@ def main(argv: list[str] | None = None) -> int:
         diagnostics.append("manifest has no organization items")
 
     topics = extract_html_topics(tree, root, diagnostics) if args.extract_html else []
+    if args.extract_html:
+        diagnostics.extend(package_scope_diagnostics(tree, root))
 
     output_dir = args.output_dir or (Path(__file__).resolve().parents[1] / "workspace" / "review")
     output_dir.mkdir(parents=True, exist_ok=True)

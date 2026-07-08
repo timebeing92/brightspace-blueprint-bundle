@@ -10,8 +10,15 @@ course export into a flat-file course blueprint (Markdown + DOCX) shaped after
 > Overview → Learning Objectives → Learning Materials/Resources → Assignments →
 > Discussions → Checklist → Other. Top-level pre-week pages render under
 > `Before Week 1: Additional Resources and Information`, grouped once per page
-> in a section table with local subsection labels. Schema is
-> `coursecraft.blueprint/4`.
+> in a section table with local subsection labels; if the same topic href or
+> title/body copy appears again inside a week, keep the pre-week copy and
+> suppress the weekly duplicate with a diagnostic. Schema is
+> `coursecraft.blueprint/4`. When a week has separate sibling overview and
+> learning-materials/resource pages, keep resource-like headings from the
+> explicit overview page in Overview; combined overview/materials pages still
+> split internally. Assignment/quiz and discussion rows use horizontal dividers
+> between separate D2L activity objects only; do not apply that divider as an
+> inferred split inside content pages.
 
 ## Operating mode
 
@@ -47,8 +54,9 @@ structure/activities/QA companions.
 ## Pipeline (what runs, in order)
 
 `export_inventory` → `manifest_probe` → `reconstruct_course_structure --extract-html`
-(HTML pages, heading blocks, visual cues, Creator+ practice metadata when local
-`.practice.json` is referenced) → `extract_course_activities` (assignments,
+(HTML pages, heading blocks, visual cues, image placeholders, attached-file
+placeholders, Creator+ practice metadata when local `.practice.json` is
+referenced) → `extract_course_activities` (assignments,
 discussions, quiz-level instructions/settings, XML checklists, joins) →
 `course_qa_report` → build JSON model → render Markdown + DOCX. Both renderers
 consume one model
@@ -79,8 +87,12 @@ and `blueprint_to_docx.py` if you extend it.
       (`{heading, level, blocks:[{kind, level, runs:[{text, href}], meta?}], text}`)
       via `html_to_segments` / `html_fragment_to_blocks`. Enables the
       mirror-don't-reconstruct week model and preserves paragraphs/bullets/links,
-      horizontal rules, selected visual containers, dropdown summaries, and
-      video/media embeds as review cues.
+      horizontal rules, selected visual containers, dropdown summaries,
+      image/file placeholders, and video/media embeds as review cues. Images
+      are never parsed/OCR'd; non-HTML course files are linked as references
+      rather than decoded as page body text. Hidden manifest items are retained
+      as short hidden-item placeholders with object type/title/path where
+      available; hidden bodies/details are not unpacked.
       Creator+ practice iframes with `data-file="practice/...practice.json"` are
       expanded into lightweight practice metadata and authored instructions/prompts;
       full answer/feedback review stays outside the blueprint.

@@ -5,6 +5,49 @@ changes** section at the bottom is the active to-do for the next session.
 
 ---
 
+## 2026-07-08 — Hidden manifest placeholders and package-scope diagnostics (done)
+
+Hidden manifest items now render as short hidden-item placeholders that name the
+object and type in sequence, while page/file/activity bodies remain unparsed.
+This covers hidden content pages/files and hidden D2L object links such as
+quizzes, assignments, discussions, checklists, quicklinks, and LTI links.
+
+Large or messy exports also get package-scope extraction notes: hidden
+manifest-linked files skipped from body extraction, and package files not
+directly linked from the visible manifest, summarized by count, type, size, and
+largest paths.
+
+## 2026-07-08 — Suppress weekly duplicates of pre-week roadmap pages (done)
+
+Some D2L courses link or copy the same global roadmap/setup page in both the
+pre-week orientation module and Week 1. The model builder now renders the page
+once in `Before Week 1: Additional Resources and Information` and skips later
+weekly copies with the same href or the same title/body signature, with a
+routing diagnostic explaining the skip.
+
+## 2026-07-08 — D2L activity object dividers in section rows (done)
+
+Markdown and DOCX renderers now place horizontal dividers between separate D2L
+activity objects inside the Assignment(s) and Discussion Board rows. This makes
+multiple assignments, quizzes, and discussion topics scan as separate objects
+instead of running together in one large cell.
+
+The divider is applied by object list only; it is not used to infer extra
+separation inside a single content page or resource page.
+
+## 2026-07-08 — Sibling-aware overview/resource routing (done)
+
+Stress-testing BUMG 520 found a split-page module pattern: weeks can have both
+`Week N Overview` and `Week N Learning Materials and Resources` as separate
+sibling pages. The router now detects that module-level structure before
+routing headings. In those modules, resource-like headings inside the explicit
+overview page stay in the Overview row instead of bleeding into Assigned Reading
+and Multimedia. Combined pages such as `Week N Overview and Learning Materials`
+still split internally because there is no separate resource sibling.
+
+The model also adds a routing diagnostic when this protection is applied, so
+stress-test output makes the structural decision visible.
+
 ## 2026-07-07 — XML-safe source text normalization (done)
 
 Stress-testing against the latest Downloads exports found two packages whose
@@ -77,6 +120,17 @@ drawn-question/candidate-question counts, and question-type summaries. Full
 question text, answer keys, question-library matching, and pool-origin review
 remain intentionally outside the blueprint bundle; use the dedicated quiz
 review extractor for that reviewer-facing layer.
+
+## 2026-07-08 — Binary course-file and image placeholders (done)
+
+Manifest `content` items that point at non-HTML course files now render as
+attached-file reference blocks instead of being decoded as page text. This keeps
+Office/PDF/spreadsheet/presentation payloads out of the JSON, Markdown, and DOCX
+blueprints while preserving the object as a reviewable course-file reference.
+
+HTML page images now render as stand-in image blocks with alt text when present,
+or a no-alt placeholder plus the source path when alt text is missing. The
+pipeline does not parse, OCR, convert, or embed the image itself.
 
 ## 2026-07-07 — DOCX layout option and XML checklist extraction (done)
 

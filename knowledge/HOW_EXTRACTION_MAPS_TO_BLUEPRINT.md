@@ -30,10 +30,17 @@ structured model to Markdown and DOCX:
    **blocks** — paragraphs and list items with link-aware runs
    (`{kind, level, runs:[{text, href}], meta?}`). Paragraphs, bullet lists,
    links, horizontal rules, dropdown summaries, selected callout/card visual
-   cues, and video/iframe embeds survive; Creator+ practice iframes that
-   reference a local `.practice.json` via `data-file` are expanded into
-   lightweight practice metadata blocks. `<script>`/`<style>` and page-template
-   artifacts (e.g. "Basic Page - No Banner") are dropped.
+   cues, image placeholders, attached-file placeholders, and video/iframe embeds
+   survive; Creator+ practice iframes that reference a local `.practice.json`
+   via `data-file` are expanded into lightweight practice metadata blocks.
+   Embedded images are not parsed, OCR'd, or embedded in the blueprint: they
+   render as stand-in blocks with alt text when available, otherwise a no-alt
+   placeholder plus the source path. Non-HTML course files such as `.docx`,
+   `.pdf`, or spreadsheet/presentation files render as attached-file references
+   instead of decoded body text. Hidden manifest items render as short
+   hidden-item placeholders naming the object/type/path where available, but
+   their bodies/details are not unpacked. `<script>`/`<style>` and
+   page-template artifacts (e.g. "Basic Page - No Banner") are dropped.
 4. `extract_course_activities.py` — dropbox folders, discussions, D2L
    checklists, quiz-level instructions/settings, and grade joins. Assignment
    instructions, discussion descriptions, quiz instructions, and checklist
@@ -64,12 +71,28 @@ Ordering matters in the alias table: **checklist is checked first**, then
 **objectives before resources** (so "Learning Objectives" doesn't match the
 `material` substring), and resources before overview.
 
+There is one module-level structural override: if a week/module has both an
+explicit overview page and a separate learning-materials/resources page (for
+example, `Week 1 Overview` plus `Week 1 Learning Materials and Resources`),
+resource-like headings inside the explicit overview page stay in **Overview**.
+This prevents overview pages with embedded videos or resource callouts from
+bleeding into Assigned Reading and Multimedia when the module already has a
+dedicated materials page. Combined pages such as `Week 1 Overview and Learning
+Materials` are not locked; they still split internal resource headings into the
+resources row because that single page is carrying both roles.
+
 Output order is a blueprint architecture choice: **Overview → Learning
 Objectives → Assigned Reading and Multimedia / Learning Materials →
 Assignments → Discussions → Checklist → Other course sections**. Learning
 materials sit immediately after the LOs so a SME can review whether the selected
 resources actually support the stated outcomes before moving into assessment
 and discussion details.
+
+Renderer dividers are intentionally scoped. Assignment(s) and Discussion Board
+rows add horizontal dividers between separate D2L activity objects, such as two
+dropbox folders, a dropbox folder followed by a quiz, or two discussion topics.
+The tool does **not** use that object divider to split headings inside one
+content page or resource page.
 
 Top-level non-week modules/pages that appear before the first detected week are
 preserved in a separate **Before Week 1: Additional Resources and Information**
@@ -80,6 +103,13 @@ title is shown once in the section table, and the page's internal headings
 become local labels inside that page section. Course Introduction pages that
 already populate the global Course Introduction field are not repeated in the
 before-week section.
+
+If the same source topic is also linked or copied into a later week/module, the
+blueprint keeps the before-week copy and suppresses the weekly duplicate. The
+dedupe key is either the same href or the same page title plus matching body
+signature, which covers D2L courses that place a global roadmap or assignment
+overview in both "Getting Started" and Week 1; the duplicate is noted in
+diagnostics instead of being split into Week 1 `Other course sections`.
 
 Every section routed from a page also carries provenance in the JSON model:
 `source_page` (the page title) and `level` (the heading level, 0 for a whole
@@ -163,3 +193,5 @@ matches; Description and Introduction match by topic title. Empty → `Needs rev
   confident source.
 - `None found in export extraction.` — a list field had no items.
 - `Extraction Notes` — diagnostics carried from the structure/activity passes.
+  Package-scope notes about hidden-linked or unlinked files are completeness
+  diagnostics; they are not inserted as instructional blueprint content.

@@ -221,6 +221,55 @@ def topic_for_node(node: dict, topics: dict[str, dict]) -> dict | None:
     return topics["href"].get(href) or topics["title"].get(title)
 
 
+def topic_dedupe_keys(topic: dict) -> set[str]:
+    """Stable keys for suppressing duplicate placements of the same source page.
+
+    Brightspace exports sometimes contain a pre-week page and a weekly copy with
+    different filenames but the same title and body. Href catches true repeated
+    links; title+body catches copied duplicate pages without collapsing unrelated
+    same-titled pages that have different content.
+    """
+    keys: set[str] = set()
+    href = clean_text(topic.get("href", "")).lower()
+    if href:
+        keys.add(f"href:{href}")
+    title = clean_label(topic_label(topic)).lower()
+    body = clean_text(topic.get("body_text", "")).lower()
+    if title and len(body) >= 160:
+        keys.add(f"title_body_prefix:{title}|{body[:1200]}")
+    return keys
+
+
+_TOPIC_TOKEN_RE = re.compile(r"[a-z0-9]+")
+
+
+def topic_body_token_set(topic: dict) -> set[str]:
+    body = clean_text(topic.get("body_text", "")).lower()
+    if len(body) < 160:
+        return set()
+    return set(_TOPIC_TOKEN_RE.findall(body))
+
+
+def topic_skip_match_key(
+    topic: dict,
+    skip_topic_keys: set[str],
+    skip_topic_tokens_by_title: dict[str, list[set[str]]],
+) -> str:
+    matching_skip_keys = topic_dedupe_keys(topic) & skip_topic_keys
+    if matching_skip_keys:
+        return sorted(matching_skip_keys)[0]
+    title = clean_label(topic_label(topic)).lower()
+    tokens = topic_body_token_set(topic)
+    if title and len(tokens) >= 20:
+        for index, pre_week_tokens in enumerate(skip_topic_tokens_by_title.get(title, [])):
+            if len(pre_week_tokens) < 20:
+                continue
+            overlap = len(tokens & pre_week_tokens) / max(1, min(len(tokens), len(pre_week_tokens)))
+            if overlap >= 0.92:
+                return f"title_token_overlap:{title}:{index}"
+    return ""
+
+
 def classify_heading(text: str, *, page_title: bool = False) -> str | None:
     """Map a heading (or, with page_title=True, a topic title) to a blueprint
     bucket, or None if unknown.
@@ -297,7 +346,25 @@ def _path_label(page: str, path: list[str]) -> str:
     return " › ".join(parts)
 
 
-def route_topic(topic: dict):
+def module_has_distinct_overview_and_resources(topics: list[dict]) -> bool:
+    """True when a module has separate overview and resources/materials pages.
+
+    Combined pages such as "Week 1 Overview and Learning Materials" classify as
+    overview because page-title routing gives overview priority. Separate pages
+    such as "Week 1 Overview" plus "Week 1 Learning Materials" classify into
+    distinct buckets and can safely lock overview-page resource headings in the
+    Overview row.
+    """
+    buckets = {
+        bucket
+        for topic in topics
+        for bucket in [classify_heading(topic_label(topic), page_title=True)]
+        if bucket
+    }
+    return "overview" in buckets and "resources" in buckets
+
+
+def route_topic(topic: dict, *, lock_overview_resources: bool = False):
     """Yield routing entries for one HTML topic:
     ``{bucket, label, blocks, source_page, level}``.
 
@@ -346,7 +413,16 @@ def route_topic(topic: dict):
             stack.pop()
         stack.append((level, heading))
         bucket = classify_heading(heading)
-        if page_bucket == "overview" and bucket not in ("objectives", "resources", "checklist"):
+        routing_note = ""
+        if page_bucket == "overview" and lock_overview_resources and bucket == "resources":
+            bucket = "overview"
+            label = heading
+            routing_note = (
+                f"resource-like heading '{heading}' from overview page '{page}' "
+                "kept in Overview because the module also has a separate "
+                "resources/materials page"
+            )
+        elif page_bucket == "overview" and bucket not in ("objectives", "resources", "checklist"):
             bucket = "overview"
             label = heading
         elif bucket:
@@ -354,15 +430,30 @@ def route_topic(topic: dict):
         else:
             bucket = page_bucket or _page_default_bucket(page)
             label = heading if bucket != "other" else _path_label(page, [h for _, h in stack])
-        yield {"bucket": bucket, "label": label, "blocks": blocks,
-               "source_page": page, "level": level}
+        entry = {"bucket": bucket, "label": label, "blocks": blocks,
+                 "source_page": page, "level": level}
+        if routing_note:
+            entry["routing_note"] = routing_note
+        yield entry
 
 
 # --------------------------------------------------------------------------- #
 # Activity formatting (from D2L object XML)
 # --------------------------------------------------------------------------- #
-def rcode_set(nodes: list[dict]) -> set[str]:
-    return {node.get("rcode", "") for node in nodes if node.get("rcode")}
+HIDDEN_ASSIGNMENT_KINDS = {"dropbox_link", "quiz_link"}
+HIDDEN_DISCUSSION_KINDS = {"discussion_link"}
+HIDDEN_CHECKLIST_KINDS = {"checklist_link"}
+
+
+def rcode_list(nodes: list[dict]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for node in nodes:
+        code = node.get("rcode", "")
+        if code and code not in seen:
+            seen.add(code)
+            ordered.append(code)
+    return ordered
 
 
 def format_points(value) -> str:
@@ -397,6 +488,53 @@ def _activity_meta_blocks(details: list[tuple[str, str]]) -> list[dict]:
         if value:
             blocks.append(_label_block(f"{name}: {value}"))
     return blocks
+
+
+def manifest_node_type_label(node: dict) -> str:
+    kind = node.get("kind", "")
+    labels = {
+        "module": "module",
+        "html_topic": "HTML content page",
+        "content_file": "course file",
+        "dropbox_link": "assignment link",
+        "quiz_link": "quiz link",
+        "discussion_link": "discussion link",
+        "checklist_link": "checklist link",
+        "survey_link": "survey link",
+        "lti_link": "LTI/external tool link",
+        "selfassessment_link": "self-assessment link",
+        "content_link": "content quicklink",
+        "quicklink": "quicklink",
+    }
+    return labels.get(kind, kind.replace("_", " ") or "manifest item")
+
+
+def format_hidden_manifest_node(node: dict) -> dict:
+    item_type = manifest_node_type_label(node)
+    href = clean_text(node.get("href", ""))
+    label = clean_label(node.get("title", "")) or "Hidden manifest item"
+    if node.get("kind") == "quiz_link" and label and not label.lower().startswith("quiz"):
+        label = clean_label(f"Quiz: {label}")
+    block = {
+        "kind": "hidden",
+        "level": 0,
+        "runs": [
+            {
+                "text": f"{item_type}; hidden in the Brightspace manifest, so details were not extracted",
+                "href": href,
+            }
+        ],
+        "meta": {
+            "item_type": item_type,
+            "manifest_kind": clean_text(node.get("kind", "")),
+            "extraction": "hidden manifest item",
+        },
+    }
+    section = {"label": label, "blocks": [block]}
+    if node.get("kind") not in HIDDEN_ASSIGNMENT_KINDS | HIDDEN_DISCUSSION_KINDS | HIDDEN_CHECKLIST_KINDS:
+        section["source_page"] = label
+        section["level"] = 0
+    return section
 
 
 def format_folder(folder: dict) -> dict:
@@ -512,6 +650,8 @@ def find_front_matter(structure: dict, category: str) -> list[dict]:
 
     if category in ("materials", "outcomes"):
         for topic in structure.get("html_topics", []):
+            if topic.get("hidden_manifest_item"):
+                continue
             title = f"{topic.get('manifest_title', '')} {topic.get('html_title', '')}"
             if _is_week_scoped_title(title):
                 continue
@@ -521,6 +661,8 @@ def find_front_matter(structure: dict, category: str) -> list[dict]:
                     return seg["blocks"]
 
     for topic in structure.get("html_topics", []):
+        if topic.get("hidden_manifest_item"):
+            continue
         title_raw = f"{topic.get('manifest_title', '')} {topic.get('html_title', '')}"
         if category in ("materials", "outcomes") and _is_week_scoped_title(title_raw):
             continue
@@ -545,20 +687,55 @@ def build_week_model(
     discussions_by_code: dict[str, dict],
     checklists_by_code: dict[str, dict],
     quizzes_by_code: dict[str, dict],
-) -> tuple[dict, set[str], set[str], set[str]]:
+    skip_topic_keys: set[str] | None = None,
+    skip_topic_tokens_by_title: dict[str, list[set[str]]] | None = None,
+) -> tuple[dict, set[str], set[str], set[str], list[str]]:
     nodes = flatten_nodes([module])
-    module_rcodes = rcode_set(nodes)
-    topics = [topic for node in nodes if (topic := topic_for_node(node, structure_topics))]
+    visible_nodes = [node for node in nodes if not node.get("is_hidden")]
+    module_rcodes = rcode_list(visible_nodes)
+    skip_topic_keys = skip_topic_keys or set()
+    skip_topic_tokens_by_title = skip_topic_tokens_by_title or {}
+    topics: list[dict] = []
+    skipped_topic_labels: list[str] = []
+    skipped_topic_keys: set[str] = set()
+    for node in nodes:
+        topic = topic_for_node(node, structure_topics)
+        if topic is None:
+            continue
+        skip_key = topic_skip_match_key(topic, skip_topic_keys, skip_topic_tokens_by_title)
+        if skip_key:
+            if skip_key not in skipped_topic_keys:
+                skipped_topic_keys.add(skip_key)
+                skipped_topic_labels.append(topic_label(topic))
+            continue
+        topics.append(topic)
     folders = [folders_by_code[code] for code in module_rcodes if code in folders_by_code]
     discussions = [discussions_by_code[code] for code in module_rcodes if code in discussions_by_code]
-    quiz_links = [node for node in nodes if node.get("kind") == "quiz_link"]
-    checklist_links = [node for node in nodes if node.get("kind") == "checklist_link"]
+    quiz_links = [node for node in visible_nodes if node.get("kind") == "quiz_link"]
+    checklist_links = [node for node in visible_nodes if node.get("kind") == "checklist_link"]
+    hidden_manifest_nodes = [
+        node
+        for node in nodes
+        if node.get("is_hidden")
+        and topic_for_node(node, structure_topics) is None
+        and node.get("kind") != "module"
+    ]
+    lock_overview_resources = module_has_distinct_overview_and_resources(topics)
 
     overview_blocks: list[dict] = []
     objective_blocks: list[dict] = []
     resources: list[dict] = []
     checklist: list[dict] = []
     other_sections: list[dict] = []
+    routing_diagnostics: list[str] = [
+        (
+            f"Routing: {clean_text(module.get('title', 'Course Module'))}: "
+            f"pre-week topic '{label}' skipped from weekly content because it is already "
+            "rendered before Week 1."
+        )
+        for label in skipped_topic_labels
+        if label
+    ]
 
     def extend_overview(entry: dict) -> None:
         label = clean_label(entry.get("label", ""))
@@ -570,10 +747,16 @@ def build_week_model(
         overview_blocks.extend(entry["blocks"])
 
     for topic in topics:
-        for entry in route_topic(topic):
+        topic_page_bucket = classify_heading(topic_label(topic), page_title=True)
+        topic_lock_overview_resources = lock_overview_resources and topic_page_bucket == "overview"
+        for entry in route_topic(topic, lock_overview_resources=topic_lock_overview_resources):
             blocks = entry["blocks"]
             if not blocks:
                 continue
+            if entry.get("routing_note"):
+                routing_diagnostics.append(
+                    f"Routing: {clean_text(module.get('title', 'Course Module'))}: {entry['routing_note']}."
+                )
             bucket = entry["bucket"]
             if bucket == "overview":
                 extend_overview(entry)
@@ -599,11 +782,32 @@ def build_week_model(
         for node in quiz_links
         if node.get("title") or node.get("rcode")
     )
+    assignment_items.extend(
+        format_hidden_manifest_node(node)
+        for node in hidden_manifest_nodes
+        if node.get("kind") in HIDDEN_ASSIGNMENT_KINDS
+    )
     discussion_items = [format_discussion(topic) for topic in discussions]
+    discussion_items.extend(
+        format_hidden_manifest_node(node)
+        for node in hidden_manifest_nodes
+        if node.get("kind") in HIDDEN_DISCUSSION_KINDS
+    )
     checklist.extend(
         format_checklist(checklists_by_code.get(node.get("rcode", "")), node)
         for node in checklist_links
         if node.get("title") or node.get("rcode")
+    )
+    checklist.extend(
+        format_hidden_manifest_node(node)
+        for node in hidden_manifest_nodes
+        if node.get("kind") in HIDDEN_CHECKLIST_KINDS
+    )
+    other_sections.extend(
+        format_hidden_manifest_node(node)
+        for node in hidden_manifest_nodes
+        if node.get("kind")
+        not in HIDDEN_ASSIGNMENT_KINDS | HIDDEN_DISCUSSION_KINDS | HIDDEN_CHECKLIST_KINDS
     )
 
     week = {
@@ -623,7 +827,7 @@ def build_week_model(
         for node in quiz_links
         if node.get("rcode", "") in quizzes_by_code
     }
-    return week, placed_folders, placed_discussions, placed_quizzes
+    return week, placed_folders, placed_discussions, placed_quizzes, routing_diagnostics
 
 
 def _before_week_local_label(label: str, source_page: str) -> str:
@@ -638,6 +842,8 @@ def _before_week_local_label(label: str, source_page: str) -> str:
 
 
 def _is_course_introduction_topic(topic: dict) -> bool:
+    if topic.get("hidden_manifest_item"):
+        return False
     title = f"{topic.get('manifest_title', '')} {topic.get('html_title', '')}".lower()
     if _is_week_scoped_title(title):
         return False
@@ -693,6 +899,37 @@ def build_before_week_sections(
     return [section for section in sections if section.get("blocks")]
 
 
+def before_week_topic_keys(
+    modules: list[dict],
+    structure_topics: dict[str, dict],
+) -> set[str]:
+    keys: set[str] = set()
+    for module in modules:
+        for node in flatten_nodes([module]):
+            topic = topic_for_node(node, structure_topics)
+            if topic is None:
+                continue
+            keys.update(topic_dedupe_keys(topic))
+    return keys
+
+
+def before_week_topic_tokens_by_title(
+    modules: list[dict],
+    structure_topics: dict[str, dict],
+) -> dict[str, list[set[str]]]:
+    by_title: dict[str, list[set[str]]] = {}
+    for module in modules:
+        for node in flatten_nodes([module]):
+            topic = topic_for_node(node, structure_topics)
+            if topic is None:
+                continue
+            title = clean_label(topic_label(topic)).lower()
+            tokens = topic_body_token_set(topic)
+            if title and tokens:
+                by_title.setdefault(title, []).append(tokens)
+    return by_title
+
+
 def build_blueprint_model(
     structure: dict,
     activities: dict,
@@ -705,6 +942,19 @@ def build_blueprint_model(
 ) -> dict:
     before_week_modules, modules = split_course_modules(structure.get("tree", []))
     topics = topic_lookup(structure)
+    front_matter = {
+        "course_description": find_front_matter(structure, "description"),
+        "required_materials": find_front_matter(structure, "materials"),
+        "course_learning_outcomes": find_front_matter(structure, "outcomes"),
+        "course_introduction": find_front_matter(structure, "introduction"),
+    }
+    before_week_sections = build_before_week_sections(
+        before_week_modules,
+        topics,
+        skip_course_introduction=bool(front_matter["course_introduction"]),
+    )
+    pre_week_topic_keys = before_week_topic_keys(before_week_modules, topics)
+    pre_week_topic_tokens_by_title = before_week_topic_tokens_by_title(before_week_modules, topics)
     folders_by_code = {
         folder.get("resource_code", ""): folder
         for folder in activities.get("dropbox_folders", [])
@@ -730,14 +980,23 @@ def build_blueprint_model(
     placed_folder_codes: set[str] = set()
     placed_discussion_codes: set[str] = set()
     placed_quiz_codes: set[str] = set()
+    routing_diagnostics: list[str] = []
     for module in modules:
-        week, folder_codes, discussion_codes, quiz_codes = build_week_model(
-            module, topics, folders_by_code, discussions_by_code, checklists_by_code, quizzes_by_code
+        week, folder_codes, discussion_codes, quiz_codes, week_routing_diagnostics = build_week_model(
+            module,
+            topics,
+            folders_by_code,
+            discussions_by_code,
+            checklists_by_code,
+            quizzes_by_code,
+            skip_topic_keys=pre_week_topic_keys,
+            skip_topic_tokens_by_title=pre_week_topic_tokens_by_title,
         )
         weeks.append(week)
         placed_folder_codes.update(folder_codes)
         placed_discussion_codes.update(discussion_codes)
         placed_quiz_codes.update(quiz_codes)
+        routing_diagnostics.extend(week_routing_diagnostics)
 
     unplaced_folders = [
         item
@@ -761,14 +1020,9 @@ def build_blueprint_model(
         if item.get("label") or item.get("blocks")
     ]
 
-    front_matter = {
-        "course_description": find_front_matter(structure, "description"),
-        "required_materials": find_front_matter(structure, "materials"),
-        "course_learning_outcomes": find_front_matter(structure, "outcomes"),
-        "course_introduction": find_front_matter(structure, "introduction"),
-    }
     diagnostics = [f"Structure: {clean_text(item)}" for item in structure.get("diagnostics", [])]
     diagnostics += [f"Activities: {clean_text(item)}" for item in activities.get("diagnostics", [])]
+    diagnostics += routing_diagnostics
     return {
         "schema": "coursecraft.blueprint/4",
         "template_reference": template_reference,
@@ -776,11 +1030,7 @@ def build_blueprint_model(
         "course_title": clean_text(course_title) or clean_text(label.replace("_", " ")),
         "term": clean_text(term),
         "front_matter": front_matter,
-        "before_week_1": build_before_week_sections(
-            before_week_modules,
-            topics,
-            skip_course_introduction=bool(front_matter["course_introduction"]),
-        ),
+        "before_week_1": before_week_sections,
         "weeks": weeks,
         "unplaced_activities": {
             "assignments": [item for item in [*unplaced_folders, *unplaced_quizzes] if item],
@@ -844,6 +1094,12 @@ def md_blocks(blocks: list[dict], fallback: str) -> str:
         elif kind == "embed":
             embed_type = clean_text(block.get("meta", {}).get("embed_type", "")) or "Embedded media"
             parts.append(("embed", f"**{embed_type}:** {inline}"))
+        elif kind == "image":
+            parts.append(("image", f"**Embedded image:** {inline}"))
+        elif kind == "file":
+            parts.append(("file", f"**Attached course file:** {inline}"))
+        elif kind == "hidden":
+            parts.append(("hidden", f"**Hidden manifest item:** {inline}"))
         else:
             parts.append(("p", inline))
     if not parts:
@@ -854,7 +1110,10 @@ def md_blocks(blocks: list[dict], fallback: str) -> str:
             tight = (
                 (kind == "li" and parts[index - 1][0] == "li")
                 or (kind == "label" and parts[index - 1][0] == "label")
-                or (kind in {"visual", "dropdown", "embed"} and parts[index - 1][0] in {"visual", "dropdown", "embed"})
+                or (
+                    kind in {"visual", "dropdown", "embed", "image", "file", "hidden"}
+                    and parts[index - 1][0] in {"visual", "dropdown", "embed", "image", "file", "hidden"}
+                )
             )
             out.append("<br>" if tight else "<br><br>")
         out.append(text)
@@ -873,6 +1132,9 @@ def should_divide_labeled_sections(previous: dict | None, current: dict, divider
         current_page = clean_text(current.get("source_page", ""))
         if previous_page and current_page:
             return previous_page != current_page
+        return False
+    if divider == "object":
+        return True
     return True
 
 
@@ -959,8 +1221,8 @@ def render_markdown(model: dict) -> str:
                 "Assigned Reading and Multimedia: (add links, articles, textbook readings, videos). Include style-correct citations.",
                 md_labeled(week["resources"]),
             ),
-            ("Assignment(s) and Instructions:", md_labeled(week["assignments"])),
-            ("Discussion Board Prompts:", md_labeled(week["discussions"])),
+            ("Assignment(s) and Instructions:", md_labeled(week["assignments"], divider="object")),
+            ("Discussion Board Prompts:", md_labeled(week["discussions"], divider="object")),
         ]
         if week["checklist"]:
             section_rows.append(("Checklist (mirrored from the export)", md_labeled(week["checklist"])))
@@ -988,9 +1250,9 @@ def render_markdown(model: dict) -> str:
             ]
         )
         if unplaced["assignments"]:
-            lines.extend(["### Assignments", "", md_labeled(unplaced["assignments"]), ""])
+            lines.extend(["### Assignments", "", md_labeled(unplaced["assignments"], divider="object"), ""])
         if unplaced["discussions"]:
-            lines.extend(["### Discussions", "", md_labeled(unplaced["discussions"]), ""])
+            lines.extend(["### Discussions", "", md_labeled(unplaced["discussions"], divider="object"), ""])
 
     if model["diagnostics"]:
         lines.extend(["## Extraction Notes", "", *[f"- {md_escape(item)}" for item in model["diagnostics"]], ""])

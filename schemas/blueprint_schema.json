@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "coursecraft.blueprint/4",
   "title": "Coursecraft Flat-File Course Blueprint",
-  "description": "Structured model emitted by build_blueprint_bundle.py from a Brightspace/D2L export. Both the Markdown and DOCX blueprints render from an instance of this schema. The blueprint frame follows the 2020 CGPS template, but each week's inner structure mirrors the course's own page headings, and content is carried as formatting-preserving blocks (paragraphs / bullets with link-aware runs) rather than flattened text. Labeled sections carry provenance (source page title + heading level) so every extracted component can be traced to where it lives in the course; before-week material preserves top-level orientation/resource pages before Week 1 as page-level sections with internal heading labels; visual block kinds preserve lightweight cues for source callouts, dropdowns, embeds, and dividers. The keys of this schema are closed, but section labels and content are open — they come from the course's own structure.",
+  "description": "Structured model emitted by build_blueprint_bundle.py from a Brightspace/D2L export. Both the Markdown and DOCX blueprints render from an instance of this schema. The blueprint frame follows the 2020 CGPS template, but each week's inner structure mirrors the course's own page headings, and content is carried as formatting-preserving blocks (paragraphs / bullets with link-aware runs) rather than flattened text. Labeled sections carry provenance (source page title + heading level) so every extracted component can be traced to where it lives in the course; before-week material preserves top-level orientation/resource pages before Week 1 as page-level sections with internal heading labels; visual block kinds preserve lightweight cues for source callouts, dropdowns, embeds, images, attached files, hidden manifest items, and dividers. The keys of this schema are closed, but section labels and content are open — they come from the course's own structure.",
   "type": "object",
   "required": ["schema", "course_title", "front_matter", "before_week_1", "weeks"],
   "additionalProperties": false,
@@ -19,16 +19,16 @@
     },
     "block": {
       "type": "object",
-      "description": "A paragraph ('p'), list item ('li'), internal subsection label ('label'), or lightweight visual-structure cue made of runs, preserving source formatting and page structure.",
+      "description": "A paragraph ('p'), list item ('li'), internal subsection label ('label'), or lightweight visual/media/file/hidden cue made of runs, preserving source formatting and page structure without parsing binary assets or hidden bodies.",
       "required": ["kind", "level", "runs"],
       "additionalProperties": false,
       "properties": {
-        "kind": {"type": "string", "enum": ["p", "li", "label", "visual", "dropdown", "embed", "divider"]},
-        "level": {"type": "integer", "description": "List nesting depth for 'li' (1-based); 0 for paragraphs, subsection labels, and visual cue blocks."},
+        "kind": {"type": "string", "enum": ["p", "li", "label", "visual", "dropdown", "embed", "image", "file", "hidden", "divider"]},
+        "level": {"type": "integer", "description": "List nesting depth for 'li' (1-based); 0 for paragraphs, subsection labels, and visual/media/file/hidden cue blocks."},
         "runs": {"type": "array", "items": {"$ref": "#/definitions/run"}},
         "meta": {
           "type": "object",
-          "description": "Optional lightweight rendering/provenance hints for visual cue blocks, such as embed_type, classes, tag, or source_style.",
+          "description": "Optional lightweight rendering/provenance hints for visual/media/file/hidden cue blocks, such as embed_type, classes, tag, source_style, src, alt, missing_alt, file_name, item_type, manifest_kind, or extraction.",
           "additionalProperties": {"type": "string"}
         }
       }
@@ -101,6 +101,6 @@
         "discussions": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}}
       }
     },
-    "diagnostics": {"type": "array", "items": {"type": "string"}, "description": "Extraction notes carried from the structure and activity passes."}
+    "diagnostics": {"type": "array", "items": {"type": "string"}, "description": "Extraction notes carried from the structure pass, activity pass, and blueprint routing decisions."}
   }
 }

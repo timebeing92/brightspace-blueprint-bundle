@@ -400,11 +400,14 @@ def _emit_block(container, block: dict, *, previous_kind: str = "") -> None:
             if text:
                 para.add_run(text).bold = True
         return
-    if kind in {"visual", "dropdown", "embed"}:
+    if kind in {"visual", "dropdown", "embed", "image", "file", "hidden"}:
         label = {
             "visual": "Visual cue: ",
             "dropdown": "Dropdown / expandable section: ",
             "embed": f"{clean_text(block.get('meta', {}).get('embed_type', '')) or 'Embedded media'}: ",
+            "image": "Embedded image: ",
+            "file": "Attached course file: ",
+            "hidden": "Hidden manifest item: ",
         }[kind]
         _space(para, before=6, after=4)
         set_paragraph_background(para, "F7F9FB")
@@ -454,6 +457,9 @@ def should_divide_labeled_sections(previous: dict | None, current: dict, divider
         current_page = clean_text(current.get("source_page", ""))
         if previous_page and current_page:
             return previous_page != current_page
+        return False
+    if divider == "object":
+        return True
     return True
 
 
@@ -516,9 +522,13 @@ def week_section_rows(week: dict):
         (READING_LABEL,
          lambda cell: write_value_labeled(cell, week.get("resources", []), missing=NOT_FOUND_LIST)),
         (ASSIGNMENTS_LABEL,
-         lambda cell: write_value_labeled(cell, week.get("assignments", []), missing=NOT_FOUND_LIST)),
+         lambda cell: write_value_labeled(
+             cell, week.get("assignments", []), missing=NOT_FOUND_LIST, divider="object"
+         )),
         (DISCUSSIONS_LABEL,
-         lambda cell: write_value_labeled(cell, week.get("discussions", []), missing=NOT_FOUND_LIST)),
+         lambda cell: write_value_labeled(
+             cell, week.get("discussions", []), missing=NOT_FOUND_LIST, divider="object"
+         )),
     ]
     if week.get("checklist"):
         rows.append((CHECKLIST_LABEL,
@@ -654,10 +664,10 @@ def render(model: dict, doc: "Document", *, section_layout: str = "top") -> None
         )
         if unplaced.get("assignments"):
             apply_heading(doc, doc.add_paragraph("Assignments"), "Heading 4")
-            write_value_labeled(doc, unplaced["assignments"], missing=NOT_FOUND_LIST)
+            write_value_labeled(doc, unplaced["assignments"], missing=NOT_FOUND_LIST, divider="object")
         if unplaced.get("discussions"):
             apply_heading(doc, doc.add_paragraph("Discussions"), "Heading 4")
-            write_value_labeled(doc, unplaced["discussions"], missing=NOT_FOUND_LIST)
+            write_value_labeled(doc, unplaced["discussions"], missing=NOT_FOUND_LIST, divider="object")
 
     add_simple_section(doc, "Extraction Notes", model.get("diagnostics", []) or ["None."])
 
