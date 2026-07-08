@@ -1,0 +1,45 @@
+{
+  "source": "examples/sample_export.zip",
+  "label": "sample_export",
+  "total_files": 9,
+  "counts": {
+    "d2l_xml": 4,
+    "html": 5
+  },
+  "d2l_components": [
+    "discussion_d2l_1.xml",
+    "dropbox_d2l.xml",
+    "grades_d2l.xml",
+    "imsmanifest.xml"
+  ],
+  "likely_quiz_files": [],
+  "likely_html_topics": [
+    "pages/week1-lecture.html",
+    "pages/week1-objectives.html",
+    "pages/week1-overview.html",
+    "pages/week1-readings.html",
+    "pages/week2-overview.html"
+  ],
+  "all_files": [
+    "discussion_d2l_1.xml",
+    "dropbox_d2l.xml",
+    "grades_d2l.xml",
+    "imsmanifest.xml",
+    "pages/week1-lecture.html",
+    "pages/week1-objectives.html",
+    "pages/week1-overview.html",
+    "pages/week1-readings.html",
+    "pages/week2-overview.html"
+  ],
+  "sample_files": [
+    "discussion_d2l_1.xml",
+    "dropbox_d2l.xml",
+    "grades_d2l.xml",
+    "imsmanifest.xml",
+    "pages/week1-lecture.html",
+    "pages/week1-objectives.html",
+    "pages/week1-overview.html",
+    "pages/week1-readings.html",
+    "pages/week2-overview.html"
+  ]
+}

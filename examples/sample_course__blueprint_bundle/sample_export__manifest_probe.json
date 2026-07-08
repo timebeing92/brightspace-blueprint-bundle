@@ -1,0 +1,141 @@
+{
+  "label": "sample_export",
+  "manifest_path": "examples/sample_export.zip!imsmanifest.xml",
+  "resource_count": 9,
+  "item_count": 9,
+  "items_with_identifierref": 9,
+  "resources": [
+    {
+      "identifier": "RES_MOD1",
+      "type": "webcontent",
+      "href": null
+    },
+    {
+      "identifier": "RES_MOD2",
+      "type": "webcontent",
+      "href": null
+    },
+    {
+      "identifier": "RES_OVERVIEW1",
+      "type": "webcontent",
+      "href": "pages/week1-overview.html"
+    },
+    {
+      "identifier": "RES_OBJECTIVES1",
+      "type": "webcontent",
+      "href": "pages/week1-objectives.html"
+    },
+    {
+      "identifier": "RES_LECTURE1",
+      "type": "webcontent",
+      "href": "pages/week1-lecture.html"
+    },
+    {
+      "identifier": "RES_READING1",
+      "type": "webcontent",
+      "href": "pages/week1-readings.html"
+    },
+    {
+      "identifier": "RES_OVERVIEW2",
+      "type": "webcontent",
+      "href": "pages/week2-overview.html"
+    },
+    {
+      "identifier": "RES_DROPBOX1",
+      "type": "webcontent",
+      "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=dropbox&rcode=CODE-F1"
+    },
+    {
+      "identifier": "RES_DISCUSS1",
+      "type": "webcontent",
+      "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=discuss&rCode=CODE-T1"
+    }
+  ],
+  "items": [
+    {
+      "identifier": "M1",
+      "identifierref": "RES_MOD1",
+      "title": "Week 1"
+    },
+    {
+      "identifier": "P1",
+      "identifierref": "RES_OVERVIEW1",
+      "title": "Week 1 Overview"
+    },
+    {
+      "identifier": "P2",
+      "identifierref": "RES_OBJECTIVES1",
+      "title": "Week 1 Learning Objectives"
+    },
+    {
+      "identifier": "P3",
+      "identifierref": "RES_LECTURE1",
+      "title": "Lecture: Framing the Field"
+    },
+    {
+      "identifier": "P4",
+      "identifierref": "RES_READING1",
+      "title": "Week 1 Readings and Media"
+    },
+    {
+      "identifier": "A1",
+      "identifierref": "RES_DROPBOX1",
+      "title": "Week 1 Assignment"
+    },
+    {
+      "identifier": "D1",
+      "identifierref": "RES_DISCUSS1",
+      "title": "Week 1 Discussion"
+    },
+    {
+      "identifier": "M2",
+      "identifierref": "RES_MOD2",
+      "title": "Week 2"
+    },
+    {
+      "identifier": "P5",
+      "identifierref": "RES_OVERVIEW2",
+      "title": "Week 2 Overview"
+    }
+  ],
+  "resources_missing_href": [
+    {
+      "identifier": "RES_MOD1",
+      "type": "webcontent",
+      "href": null
+    },
+    {
+      "identifier": "RES_MOD2",
+      "type": "webcontent",
+      "href": null
+    }
+  ],
+  "likely_quiz_resources": [],
+  "likely_html_resources": [
+    {
+      "identifier": "RES_OVERVIEW1",
+      "type": "webcontent",
+      "href": "pages/week1-overview.html"
+    },
+    {
+      "identifier": "RES_OBJECTIVES1",
+      "type": "webcontent",
+      "href": "pages/week1-objectives.html"
+    },
+    {
+      "identifier": "RES_LECTURE1",
+      "type": "webcontent",
+      "href": "pages/week1-lecture.html"
+    },
+    {
+      "identifier": "RES_READING1",
+      "type": "webcontent",
+      "href": "pages/week1-readings.html"
+    },
+    {
+      "identifier": "RES_OVERVIEW2",
+      "type": "webcontent",
+      "href": "pages/week2-overview.html"
+    }
+  ]
+}

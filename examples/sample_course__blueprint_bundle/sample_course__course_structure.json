@@ -1,0 +1,279 @@
+{
+  "export": "examples/sample_export.zip",
+  "label": "sample_course",
+  "kind_counts": {
+    "module": 2,
+    "html_topic": 5,
+    "dropbox_link": 1,
+    "discussion_link": 1
+  },
+  "tree": [
+    {
+      "title": "Week 1",
+      "identifier": "M1",
+      "identifierref": "RES_MOD1",
+      "kind": "module",
+      "href": "",
+      "rcode": "",
+      "is_hidden": false,
+      "resource_code": "",
+      "description": "",
+      "flags": [],
+      "children": [
+        {
+          "title": "Week 1 Overview",
+          "identifier": "P1",
+          "identifierref": "RES_OVERVIEW1",
+          "kind": "html_topic",
+          "href": "pages/week1-overview.html",
+          "rcode": "",
+          "is_hidden": false,
+          "resource_code": "",
+          "description": "",
+          "flags": [],
+          "children": []
+        },
+        {
+          "title": "Week 1 Learning Objectives",
+          "identifier": "P2",
+          "identifierref": "RES_OBJECTIVES1",
+          "kind": "html_topic",
+          "href": "pages/week1-objectives.html",
+          "rcode": "",
+          "is_hidden": false,
+          "resource_code": "",
+          "description": "",
+          "flags": [],
+          "children": []
+        },
+        {
+          "title": "Lecture: Framing the Field",
+          "identifier": "P3",
+          "identifierref": "RES_LECTURE1",
+          "kind": "html_topic",
+          "href": "pages/week1-lecture.html",
+          "rcode": "",
+          "is_hidden": false,
+          "resource_code": "",
+          "description": "",
+          "flags": [],
+          "children": []
+        },
+        {
+          "title": "Week 1 Readings and Media",
+          "identifier": "P4",
+          "identifierref": "RES_READING1",
+          "kind": "html_topic",
+          "href": "pages/week1-readings.html",
+          "rcode": "",
+          "is_hidden": false,
+          "resource_code": "",
+          "description": "",
+          "flags": [],
+          "children": []
+        },
+        {
+          "title": "Week 1 Assignment",
+          "identifier": "A1",
+          "identifierref": "RES_DROPBOX1",
+          "kind": "dropbox_link",
+          "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=dropbox&rcode=CODE-F1",
+          "rcode": "CODE-F1",
+          "is_hidden": false,
+          "resource_code": "",
+          "description": "",
+          "flags": [],
+          "children": []
+        },
+        {
+          "title": "Week 1 Discussion",
+          "identifier": "D1",
+          "identifierref": "RES_DISCUSS1",
+          "kind": "discussion_link",
+          "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=discuss&rCode=CODE-T1",
+          "rcode": "CODE-T1",
+          "is_hidden": false,
+          "resource_code": "",
+          "description": "",
+          "flags": [],
+          "children": []
+        }
+      ]
+    },
+    {
+      "title": "Week 2",
+      "identifier": "M2",
+      "identifierref": "RES_MOD2",
+      "kind": "module",
+      "href": "",
+      "rcode": "",
+      "is_hidden": false,
+      "resource_code": "",
+      "description": "",
+      "flags": [],
+      "children": [
+        {
+          "title": "Week 2 Overview",
+          "identifier": "P5",
+          "identifierref": "RES_OVERVIEW2",
+          "kind": "html_topic",
+          "href": "pages/week2-overview.html",
+          "rcode": "",
+          "is_hidden": false,
+          "resource_code": "",
+          "description": "",
+          "flags": [],
+          "children": []
+        }
+      ]
+    }
+  ],
+  "html_topics": [
+    {
+      "manifest_title": "Week 1 Overview",
+      "html_title": "",
+      "href": "pages/week1-overview.html",
+      "body_text": "Week 1 Overview This week introduces the purpose and structure of the course.",
+      "body_segments": [
+        {
+          "heading": "Week 1 Overview",
+          "level": 1,
+          "blocks": [
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "This week introduces the purpose and structure of the course.",
+                  "href": ""
+                }
+              ]
+            }
+          ],
+          "text": "This week introduces the purpose and structure of the course."
+        }
+      ],
+      "empty_page": false,
+      "missing_refs": [],
+      "server_refs": [],
+      "images_missing_alt": 0
+    },
+    {
+      "manifest_title": "Week 1 Learning Objectives",
+      "html_title": "",
+      "href": "pages/week1-objectives.html",
+      "body_text": "Week 1 Learning Objectives Students will be able to explain the core planning vocabulary.",
+      "body_segments": [
+        {
+          "heading": "Week 1 Learning Objectives",
+          "level": 1,
+          "blocks": [
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Students will be able to explain the core planning vocabulary.",
+                  "href": ""
+                }
+              ]
+            }
+          ],
+          "text": "Students will be able to explain the core planning vocabulary."
+        }
+      ],
+      "empty_page": false,
+      "missing_refs": [],
+      "server_refs": [],
+      "images_missing_alt": 0
+    },
+    {
+      "manifest_title": "Lecture: Framing the Field",
+      "html_title": "",
+      "href": "pages/week1-lecture.html",
+      "body_text": "Lecture: Framing the Field Lecture notes on the field.",
+      "body_segments": [
+        {
+          "heading": "Lecture: Framing the Field",
+          "level": 1,
+          "blocks": [
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Lecture notes on the field.",
+                  "href": ""
+                }
+              ]
+            }
+          ],
+          "text": "Lecture notes on the field."
+        }
+      ],
+      "empty_page": false,
+      "missing_refs": [],
+      "server_refs": [],
+      "images_missing_alt": 0
+    },
+    {
+      "manifest_title": "Week 1 Readings and Media",
+      "html_title": "",
+      "href": "pages/week1-readings.html",
+      "body_text": "Week 1 Readings and Media Read Chapter 1 and watch the orientation video.",
+      "body_segments": [
+        {
+          "heading": "Week 1 Readings and Media",
+          "level": 1,
+          "blocks": [
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Read Chapter 1 and watch the orientation video.",
+                  "href": ""
+                }
+              ]
+            }
+          ],
+          "text": "Read Chapter 1 and watch the orientation video."
+        }
+      ],
+      "empty_page": false,
+      "missing_refs": [],
+      "server_refs": [],
+      "images_missing_alt": 0
+    },
+    {
+      "manifest_title": "Week 2 Overview",
+      "html_title": "",
+      "href": "pages/week2-overview.html",
+      "body_text": "Week 2 Overview Week 2 builds on planning vocabulary.",
+      "body_segments": [
+        {
+          "heading": "Week 2 Overview",
+          "level": 1,
+          "blocks": [
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Week 2 builds on planning vocabulary.",
+                  "href": ""
+                }
+              ]
+            }
+          ],
+          "text": "Week 2 builds on planning vocabulary."
+        }
+      ],
+      "empty_page": false,
+      "missing_refs": [],
+      "server_refs": [],
+      "images_missing_alt": 0
+    }
+  ],
+  "diagnostics": []
+}

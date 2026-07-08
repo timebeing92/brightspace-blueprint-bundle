@@ -1,7 +1,6 @@
 # Bundle log & handoff notes
 
-Working log for `brightspace-blueprint-bundle`. Newest first. The **Requested next
-changes** section at the bottom is the active to-do for the next session.
+Working log for `brightspace-blueprint-bundle`. Newest first.
 
 ---
 
@@ -188,8 +187,8 @@ Linked the guide from `README.md` and `AGENTS.md`.
 
 ## 2026-07-06 — SME blueprint layout/order decision (done)
 
-The architecture decision was made explicit after reviewing the EDU
-741 SME output:
+The blueprint architecture decision was made after reviewing a SME-facing
+course output:
 
 - Weekly DOCX module tables are **full-width, single-column stacked sections**.
   Section scaffold labels sit in shaded header rows above the content, not in a
@@ -221,7 +220,8 @@ layer only — no extractor changes, so no new workbench divergences.
   page-derived section carries provenance (source page title + heading level).
 - Unmapped headings get a **"Page › Heading" path label** built from the page
   title plus the h1–h4 heading stack (`_path_label`), so sections from
-  different pages never merge into one "other" blob (the author's lumping symptom).
+  different pages never merge into one "other" blob (the section-lumping
+  symptom).
 - **Checklist is its own bucket** (`CHECKLIST_KEYS`, checked first in
   `classify_heading`) and its own week row in both renderers, shown only when
   present (placed after Reading, before Other).
@@ -255,11 +255,10 @@ sections separated by a blank line; `---` divider between weeks; Checklist row.
 
 **Verified:** chem-1020 (16 weeks) → 16/16 weeks with Checklist + LOs, 320 live
 hyperlinks, 773 native-numbered bullets, 0 literal-bullet fallbacks, path
-labels like "Week 4: Quiz › Conformation Analysis Quiz › Instructions";
-sandbox → LO fallback intact, "Reading Notes" page intro now correctly joins
-resources. Both models validate against the schema (jsonschema); both DOCX
-round-trip open. Example bundle regenerated; a chem review copy is in
-`output/chem-1020-review__blueprint_bundle/`.
+labels like "Week 4: Quiz › Conformation Analysis Quiz › Instructions"; sample
+fixture → LO fallback intact, reading page intro correctly joins resources.
+Both models validate against the schema (jsonschema); both DOCX round-trip open.
+Example bundle regenerated.
 
 ## 2026-07-02 — Formatting fidelity rebuild (done)
 
@@ -284,9 +283,10 @@ lists, and links survive into both renderers.
   `write_blocks` / `write_value_labeled`.
 - Schema bumped to `coursecraft.blueprint/2` with `run` / `block` / `blocks` /
   `labeled_section` definitions.
-- Verified: chem-1020 (16 weeks) → 320 live `w:hyperlink`s, readings as bulleted
-  live links, objectives as bullets, assignments structured; sandbox → LO
-  fallback intact. All scripts `py_compile` clean.
+- Verified: a formatting-rich private export produced 320 live `w:hyperlink`s,
+  readings as bulleted live links, objectives as bullets, and structured
+  assignments; the sample fixture kept the LO fallback intact. All scripts
+  `py_compile` clean.
 
 ## 2026-07-01 — Due dates de-scoped (done)
 
@@ -321,9 +321,9 @@ knowledge/, schemas/, reference/ (CGPS template), examples/. Both DOCX + Markdow
 - **Run it:** `bash bootstrap.sh` once, then
   `bash run_blueprint.sh <export.zip> --course-number .. --course-title .. --term ..`.
   Outputs land in `output/<label>__blueprint_bundle/`.
-- **Test exports on this machine** (under the sibling workbench):
-  - full, formatting-rich: `../coursecraft_workbench/workspace/exports/raw/20260423-091649__chem-1020-2021-tng-full-d2l-export.zip`
-  - small, privacy-safe (worked example): `../coursecraft_workbench/workspace/exports/raw/20260616-100257__d2lexport_00000_sample-sandbox_202661651.zip`
+- **Test exports:** use `examples/sample_export.zip` for a privacy-safe smoke
+  test, then validate against private Brightspace exports outside the repo when
+  changing extraction behavior.
 - **Pipeline:** `build_blueprint_bundle.py` orchestrates `export_inventory` →
   `manifest_probe` → `reconstruct_course_structure --extract-html` →
   `extract_course_activities` → `course_qa_report`, builds a JSON model
@@ -334,21 +334,8 @@ knowledge/, schemas/, reference/ (CGPS template), examples/. Both DOCX + Markdow
 
 ---
 
-## Requested next changes (ACTIVE)
+## Requested next changes
 
-The four 2026-07-02 requested changes (DOCX polish; other-section fidelity;
-Checklist row; flexible uncodified pages) are **done** — see the entry at the
-top. **Awaiting the author's review** of the regenerated output before backporting:
-open `output/chem-1020-review__blueprint_bundle/chem-1020-review__blueprint.docx`
-(formatting-rich) and the regenerated `examples/sandbox_demo__blueprint_bundle/`.
-
-Once the output is approved:
-
-1. Zip the bundle (exclude `.venv`, `output`; keep `reference/` template).
-2. Copy the zip into `../coursecraft_workbench/share_packets/`.
-3. Backport scripts to `../coursecraft_workbench/scripts/` (merge — keep
-   workbench paths). This session changed only the bundle layer
-   (`build_blueprint_bundle.py`, `blueprint_to_docx.py`, schema) — the
-   extractors are untouched, so the known divergences list is unchanged.
-4. Add schema → workbench schemas area, knowledge doc → knowledge base, a
-   `VERIFIED_WORKFLOWS.md` entry, and a `logs/` worklog note in the workbench.
+No active carryover items are recorded here. Use the newest dated entries above
+for current behavior and rerun `examples/sample_export.zip` before publishing or
+sharing a refreshed package.

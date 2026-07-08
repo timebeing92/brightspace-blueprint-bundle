@@ -1,0 +1,20 @@
+{
+  "export": "examples/sample_export.zip",
+  "label": "sample_course",
+  "config": {},
+  "summary": {
+    "dropbox_folders": 1,
+    "discussion_topics": 1,
+    "quizzes": 0,
+    "grade_items": 1,
+    "manifest_items": 9,
+    "html_topics": 5,
+    "external_urls": 0
+  },
+  "breaks": [],
+  "warnings": [],
+  "notes": [
+    "gradebook countable total: 20 (set expected_total in --config to enforce)"
+  ],
+  "external_urls": []
+}

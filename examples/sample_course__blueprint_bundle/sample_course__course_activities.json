@@ -1,0 +1,145 @@
+{
+  "export": "examples/sample_export.zip",
+  "label": "sample_course",
+  "dropbox_folders": [
+    {
+      "id": "1",
+      "name": "Planning Memo",
+      "resource_code": "CODE-F1",
+      "submission_type": "",
+      "folder_type": "",
+      "out_of": "20",
+      "grade_item_code": "CODE-G1",
+      "rubric_ids": [],
+      "date_due": "2026-09-20T03:59:59",
+      "is_hidden": "",
+      "condition_set": "",
+      "instructions_text": "Draft a short planning memo.",
+      "instructions_blocks": [
+        {
+          "kind": "p",
+          "level": 0,
+          "runs": [
+            {
+              "text": "Draft a short planning memo.",
+              "href": ""
+            }
+          ]
+        }
+      ],
+      "instructions_html": "<p>Draft a short planning memo.</p>",
+      "images_missing_alt": 0,
+      "grade_item_name": "Planning Memo",
+      "grade_item_out_of": "20",
+      "rubrics_resolved": "",
+      "quicklink_count": 1
+    }
+  ],
+  "discussions": [
+    {
+      "kind": "forum",
+      "source_file": "discussion_d2l_1.xml",
+      "forum_id": "20",
+      "topic_id": "",
+      "title": "Course Discussions",
+      "resource_code": "CODE-FORUM",
+      "score_out_of": "",
+      "grade_item_code": "",
+      "rubric_ids": [],
+      "is_hidden": "",
+      "requires_approval": "",
+      "must_post_to_participate": "",
+      "condition_set": "",
+      "description_text": "",
+      "description_html": "",
+      "images_missing_alt": 0,
+      "grade_item_name": "",
+      "grade_item_out_of": "",
+      "rubrics_resolved": "",
+      "quicklink_count": 0
+    },
+    {
+      "kind": "topic",
+      "source_file": "discussion_d2l_1.xml",
+      "forum_id": "20",
+      "topic_id": "21",
+      "title": "Planning Assumptions",
+      "resource_code": "CODE-T1",
+      "score_out_of": "",
+      "grade_item_code": "",
+      "rubric_ids": [],
+      "is_hidden": "",
+      "requires_approval": "",
+      "must_post_to_participate": "",
+      "condition_set": "",
+      "description_text": "Post one assumption you bring into the course.",
+      "description_blocks": [
+        {
+          "kind": "p",
+          "level": 0,
+          "runs": [
+            {
+              "text": "Post one assumption you bring into the course.",
+              "href": ""
+            }
+          ]
+        }
+      ],
+      "description_html": "<p>Post one assumption you bring into the course.</p>",
+      "images_missing_alt": 0,
+      "grade_item_name": "",
+      "grade_item_out_of": "",
+      "rubrics_resolved": "",
+      "quicklink_count": 1
+    }
+  ],
+  "checklists": [],
+  "quizzes": [],
+  "grade_items": [
+    {
+      "id": "10",
+      "identifier": "9001",
+      "resource_code": "CODE-G1",
+      "name": "Planning Memo",
+      "short_name": "",
+      "type_id": "1",
+      "is_active": "True",
+      "category_id": "",
+      "category_name": "",
+      "out_of": "20",
+      "max_grade": "20",
+      "is_bonus": "",
+      "exclude_from_final_grade_calc": "",
+      "linked_activities": [
+        "dropbox_folder: Planning Memo"
+      ]
+    }
+  ],
+  "joins": [
+    {
+      "source_kind": "dropbox_folder",
+      "source_name": "Planning Memo",
+      "source_code": "CODE-F1",
+      "join_type": "grade_item",
+      "target": "CODE-G1",
+      "resolved": "yes"
+    },
+    {
+      "source_kind": "dropbox_folder",
+      "source_name": "Planning Memo",
+      "source_code": "CODE-F1",
+      "join_type": "manifest_quicklink",
+      "target": "1 link(s)",
+      "resolved": "yes"
+    },
+    {
+      "source_kind": "discussion_topic",
+      "source_name": "Planning Assumptions",
+      "source_code": "CODE-T1",
+      "join_type": "manifest_quicklink",
+      "target": "1 link(s)",
+      "resolved": "yes"
+    }
+  ],
+  "diagnostics": []
+}

@@ -1,0 +1,172 @@
+{
+  "schema": "coursecraft.blueprint/4",
+  "template_reference": "Course Blueprint Template 2020 CGPS.docx",
+  "course_number": "SAMPLE 100",
+  "course_title": "Sample Course",
+  "term": "Demo Term",
+  "front_matter": {
+    "course_description": [],
+    "required_materials": [],
+    "course_learning_outcomes": [],
+    "course_introduction": []
+  },
+  "before_week_1": [],
+  "weeks": [
+    {
+      "title": "Week 1",
+      "overview": [
+        {
+          "kind": "label",
+          "level": 0,
+          "runs": [
+            {
+              "text": "Week 1 Overview:",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "p",
+          "level": 0,
+          "runs": [
+            {
+              "text": "This week introduces the purpose and structure of the course.",
+              "href": ""
+            }
+          ]
+        }
+      ],
+      "learning_objectives": [
+        {
+          "kind": "p",
+          "level": 0,
+          "runs": [
+            {
+              "text": "Students will be able to explain the core planning vocabulary.",
+              "href": ""
+            }
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "label": "Week 1 Readings and Media",
+          "blocks": [
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Read Chapter 1 and watch the orientation video.",
+                  "href": ""
+                }
+              ]
+            }
+          ],
+          "source_page": "Week 1 Readings and Media",
+          "level": 1
+        }
+      ],
+      "assignments": [
+        {
+          "label": "Planning Memo",
+          "blocks": [
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Points: 20 pts",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Draft a short planning memo.",
+                  "href": ""
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "discussions": [
+        {
+          "label": "Planning Assumptions",
+          "blocks": [
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Post one assumption you bring into the course.",
+                  "href": ""
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "checklist": [],
+      "other_sections": [
+        {
+          "label": "Lecture: Framing the Field",
+          "blocks": [
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Lecture notes on the field.",
+                  "href": ""
+                }
+              ]
+            }
+          ],
+          "source_page": "Lecture: Framing the Field",
+          "level": 1
+        }
+      ]
+    },
+    {
+      "title": "Week 2",
+      "overview": [
+        {
+          "kind": "label",
+          "level": 0,
+          "runs": [
+            {
+              "text": "Week 2 Overview:",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "p",
+          "level": 0,
+          "runs": [
+            {
+              "text": "Week 2 builds on planning vocabulary.",
+              "href": ""
+            }
+          ]
+        }
+      ],
+      "learning_objectives": [],
+      "resources": [],
+      "assignments": [],
+      "discussions": [],
+      "checklist": [],
+      "other_sections": []
+    }
+  ],
+  "unplaced_activities": {
+    "assignments": [],
+    "discussions": []
+  },
+  "diagnostics": []
+}
