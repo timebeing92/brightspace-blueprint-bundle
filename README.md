@@ -195,7 +195,7 @@ brightspace-blueprint-bundle/
 ├── README.md                  ← you are here
 ├── LICENSE                    ← AGPL-3.0-or-later license text
 ├── COMMERCIAL.md              ← commercial licensing and services note
-├── AGENTS.md / CLAUDE.md      ← contract for an AI agent
+├── AGENTS.md                  ← contract for an AI agent
 ├── requirements.txt
 ├── bootstrap.sh / bootstrap.ps1
 ├── run_blueprint.sh
