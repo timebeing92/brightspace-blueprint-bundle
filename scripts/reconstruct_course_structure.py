@@ -633,13 +633,15 @@ def _hidden_manifest_topic(node: dict) -> dict:
     href = node.get("href", "")
     title = clean(node.get("title", ""))
     item_type = _hidden_item_type_label(node)
-    text = f"{item_type}; hidden in the Brightspace manifest, so body extraction was skipped"
+    object_name = title or clean(href) or "hidden manifest item"
+    text = f"Object: {object_name}; type: {item_type}; hidden in the Brightspace manifest, so body extraction was skipped"
     blocks = [
         _block(
             "hidden",
             text,
             href,
             meta={
+                "object_name": object_name,
                 "item_type": item_type,
                 "manifest_kind": node.get("kind", ""),
                 "extraction": "hidden manifest item",

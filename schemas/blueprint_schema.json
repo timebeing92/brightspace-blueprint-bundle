@@ -28,7 +28,7 @@
         "runs": {"type": "array", "items": {"$ref": "#/definitions/run"}},
         "meta": {
           "type": "object",
-          "description": "Optional lightweight rendering/provenance hints for visual/media/file/hidden cue blocks, such as embed_type, classes, tag, source_style, src, alt, missing_alt, file_name, item_type, manifest_kind, or extraction.",
+          "description": "Optional lightweight rendering/provenance hints for visual/media/file/hidden cue blocks, such as embed_type, classes, tag, source_style, src, alt, missing_alt, file_name, object_name, item_type, manifest_kind, or extraction.",
           "additionalProperties": {"type": "string"}
         }
       }
@@ -53,9 +53,9 @@
   "properties": {
     "schema": {"type": "string", "const": "coursecraft.blueprint/4"},
     "template_reference": {"type": "string"},
-    "course_number": {"type": "string", "description": "Header course number. Empty renders as 'Course #'. Pass via --course-number."},
-    "course_title": {"type": "string", "description": "Course title; falls back to the de-slugged label."},
-    "term": {"type": "string", "description": "Header term. Empty renders as 'Term'."},
+    "course_number": {"type": "string", "description": "Optional course number metadata. Pass via --course-number when useful for reviewers."},
+    "course_title": {"type": "string", "description": "Visible blueprint title; falls back to the de-slugged label."},
+    "term": {"type": "string", "description": "Optional term metadata. Stored for traceability, but not rendered in the visible blueprint title."},
     "front_matter": {
       "type": "object",
       "description": "Course-level sections rendered above the weekly tables, each as blocks.",

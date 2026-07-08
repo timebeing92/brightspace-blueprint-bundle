@@ -153,7 +153,9 @@ matches; Description and Introduction match by topic title. Empty → `Needs rev
 
 ## Known limitations (tell the reviewer)
 
-- **Headers are not in the package.** Course number / term come from CLI flags.
+- **The visible title is the course title.** `--course-title` overrides the
+  export-label fallback. Course number and term can still be stored as optional
+  model metadata, but they do not build the rendered H1/DOCX title.
 - **Segmentation depends on real headings.** A course that styles headings as
   bold paragraphs instead of `<h1>`–`<h4>` will under-segment (content stays in
   Overview). This is intentional: we follow real structure, not guesswork.

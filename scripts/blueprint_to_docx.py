@@ -613,18 +613,10 @@ def add_simple_section(doc: "Document", heading: str, items: list[str]) -> None:
 def render(model: dict, doc: "Document", *, section_layout: str = "top") -> None:
     clear_body(doc)
 
-    header_course = model.get("course_number") or "Course #"
-    header_term = model.get("term") or "Term"
-
     title_para = doc.add_paragraph()
-    title_run = title_para.add_run(f"{header_course} - Course Blueprint - {header_term}")
+    title_run = title_para.add_run(model.get("course_title") or "Course Blueprint")
     title_run.bold = True
     title_run.font.size = Pt(16)
-
-    subtitle = doc.add_paragraph()
-    subtitle_run = subtitle.add_run(model.get("course_title") or "COURSE TITLE")
-    subtitle_run.bold = True
-    subtitle_run.font.size = Pt(13)
 
     note = doc.add_paragraph()
     note_run = note.add_run(

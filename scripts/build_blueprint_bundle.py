@@ -512,7 +512,8 @@ def manifest_node_type_label(node: dict) -> str:
 def format_hidden_manifest_node(node: dict) -> dict:
     item_type = manifest_node_type_label(node)
     href = clean_text(node.get("href", ""))
-    label = clean_label(node.get("title", "")) or "Hidden manifest item"
+    object_name = clean_label(node.get("title", "")) or clean_text(href) or "Hidden manifest item"
+    label = object_name
     if node.get("kind") == "quiz_link" and label and not label.lower().startswith("quiz"):
         label = clean_label(f"Quiz: {label}")
     block = {
@@ -520,11 +521,12 @@ def format_hidden_manifest_node(node: dict) -> dict:
         "level": 0,
         "runs": [
             {
-                "text": f"{item_type}; hidden in the Brightspace manifest, so details were not extracted",
+                "text": f"Object: {object_name}; type: {item_type}; hidden in the Brightspace manifest, so details were not extracted",
                 "href": href,
             }
         ],
         "meta": {
+            "object_name": object_name,
             "item_type": item_type,
             "manifest_kind": clean_text(node.get("kind", "")),
             "extraction": "hidden manifest item",
@@ -1161,13 +1163,10 @@ def md_labeled(sections: list[dict], fallback: str = NOT_FOUND_LIST, *, divider:
 
 def render_markdown(model: dict) -> str:
     fm = model["front_matter"]
-    header_course = model["course_number"] or "Course #"
-    header_term = model["term"] or "Term"
+    course_title = model["course_title"] or "Course Blueprint"
 
     lines = [
-        f"# {header_course} - Course Blueprint - {header_term}",
-        "",
-        model["course_title"] or "COURSE TITLE",
+        f"# {course_title}",
         "",
         f"> Template format reference: {model['template_reference']}",
         "> Evidence mode: this blueprint mirrors the exported course structure. "
@@ -1315,9 +1314,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("export", type=Path, help="Brightspace export ZIP or unpacked export folder")
     parser.add_argument("--label", default="", help="Label for output filenames")
-    parser.add_argument("--course-number", default="", help="Course number for the blueprint heading")
-    parser.add_argument("--course-title", default="", help="Course title for the blueprint heading")
-    parser.add_argument("--term", default="", help="Term for the blueprint heading")
+    parser.add_argument("--course-number", default="", help="Optional course number metadata")
+    parser.add_argument("--course-title", default="", help="Course title for the visible blueprint title")
+    parser.add_argument("--term", default="", help="Optional term metadata; not rendered in the visible title")
     parser.add_argument(
         "--output-dir",
         type=Path,

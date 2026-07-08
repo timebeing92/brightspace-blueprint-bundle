@@ -157,7 +157,8 @@ heading-driven mirroring).
 
 | Flag                                            | Purpose                                               |
 | ----------------------------------------------- | ----------------------------------------------------- |
-| `--course-number` / `--course-title` / `--term` | Fill the header (not reliably in the package).        |
+| `--course-title`                                | Set the visible blueprint title; defaults from the export label. |
+| `--course-number` / `--term`                    | Store optional metadata in the JSON model; not rendered in the visible title. |
 | `--label NAME`                                  | Output filename stem (defaults from the export name). |
 | `--output-dir DIR`                              | Base output directory (default `output/`).            |
 | `--skip-qa`                                     | Skip the QA report pass.                              |

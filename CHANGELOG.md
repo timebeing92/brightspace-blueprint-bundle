@@ -5,6 +5,13 @@ changes** section at the bottom is the active to-do for the next session.
 
 ---
 
+## 2026-07-08 — Blueprint title uses course title directly (done)
+
+Markdown and DOCX blueprints now use the actual course title as the visible
+top-level title. The old placeholder-style heading (`Course # - Course Blueprint
+- Term`) is no longer rendered, and the course title is no longer demoted to a
+subtitle. Course number and term remain optional metadata in the JSON model.
+
 ## 2026-07-08 — Hidden manifest placeholders and package-scope diagnostics (done)
 
 Hidden manifest items now render as short hidden-item placeholders that name the
