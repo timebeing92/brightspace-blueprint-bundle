@@ -1,7 +1,6 @@
 # Blueprint Bundle - sample_course
 
 Source export: `examples/sample_export.zip`
-Template format reference: `Course Blueprint Template 2020 CGPS.docx`
 
 Primary outputs:
 - `sample_course__blueprint.md`

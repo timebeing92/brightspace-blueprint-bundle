@@ -1,22 +1,22 @@
-# Brightspace → Course Blueprint (flat file)
+# Brightspace → Course Blueprint
 
 Turn a **Brightspace/D2L course export** into a flat-file **course blueprint**
-as **Markdown + DOCX**, shaped after the *2020 CGPS Course Blueprint* template.
+as **Markdown + DOCX** for source-traceable course review.
 
 This is a self-contained bundle: scripts, dependencies list, a one-command
-setup, knowledge docs, the JSON schema, the format-reference template, and a
-worked example. Hand it to a colleague (or point an AI agent at it) and it runs
-without any other repo.
+setup, knowledge docs, the JSON schema, and a worked example. Hand it to a
+colleague (or point an AI agent at it) and it runs without any other repo.
 
 ---
 
 ## Design philosophy: mirror, don't reconstruct
 
-The blueprint template encodes a backwards-design intent — LOs first, then
-assessments aligned to them, then resources chosen to support them. A built
-course is the forward artifact, and by the time it's in Brightspace that design
-logic is baked into pages, not labeled. Trying to reverse it back into the
-framework means the script has to infer instructional intent, and that's exactly the guessing that (a) needs the
+The blueprint structure is intentionally review-first: LOs, learning materials,
+assessments, discussions, checklist/tooling, and other course sections are
+presented in a stable order. A built course is the forward artifact, and by the
+time it's in Brightspace the design logic is baked into pages, not labeled.
+Trying to reverse it back into a perfect design model means the script has to
+infer instructional intent, and that's exactly the guessing that (a) needs the
 sprawling config logic you don't want, and (b) produces confident-looking but
 wrong output — the worst failure mode for a review surface.
 
@@ -26,16 +26,16 @@ to use this to drive a redesign, a faithful, well-organized mirror is a far
 better starting point than a lossy reconstruction — they can see what's actually
 there and restructure deliberately.
 
-**In practice:** the course front matter and per-week frame come from the CGPS
-template, but each week's inner structure is taken from the *course's own page
-headings*. A small alias table pulls the few universal buckets (Learning
-Objectives, Resources, Checklist) into consistent rows; every other page or
-heading is preserved under its own label in an "Other course sections" row,
-labeled with its "Page › Heading" path so distinct pages stay distinct. Every
-extracted section also carries provenance (`source_page`, heading `level`) in
-the JSON model. Learning Objectives are split into their own row only when the
-course actually uses an objectives heading — otherwise that text stays in
-Overview rather than being guessed at.
+**In practice:** the course front matter and per-week frame are stable, but each
+week's inner structure is taken from the *course's own page headings*. A small
+alias table pulls the few universal buckets (Learning Objectives, Resources,
+Checklist) into consistent rows; every other page or heading is preserved under
+its own label in an "Other course sections" row, labeled with its "Page ›
+Heading" path so distinct pages stay distinct. Every extracted section also
+carries provenance (`source_page`, heading `level`) in the JSON model. Learning
+Objectives are split into their own row only when the course actually uses an
+objectives heading — otherwise that text stays in Overview rather than being
+guessed at.
 
 When a pre-week course-level page is linked or copied again inside a weekly
 module, the blueprint keeps the course-level copy and suppresses the weekly
@@ -68,7 +68,7 @@ bash run_blueprint.sh /path/to/course-export.zip \
 Outputs land in `output/<label>__blueprint_bundle/`:
 
 - **`<label>__blueprint.md`** — the flat Markdown blueprint
-- **`<label>__blueprint.docx`** — DOCX styled like the CGPS template
+- **`<label>__blueprint.docx`** — DOCX version of the same review blueprint
 - `<label>__blueprint.json` — the structured model both renderers use
 - companion artifacts: inventory, manifest probe, course structure, activities
   (JSON/MD/xlsx), QA report, and a per-run `README.md`
@@ -88,7 +88,7 @@ D2L XML evidence files, package structure, and joins.
 
 ## What the blueprint contains
 
-Follows the template's frame, populated from the export:
+Follows a stable review frame, populated from the export:
 
 - Header: actual course title from `--course-title` or the export label.
   Course number and term are stored as optional metadata, not rendered in the
@@ -193,6 +193,8 @@ pipeline again.
 ```text
 brightspace-blueprint-bundle/
 ├── README.md                  ← you are here
+├── LICENSE                    ← AGPL-3.0-or-later license text
+├── COMMERCIAL.md              ← commercial licensing and services note
 ├── AGENTS.md / CLAUDE.md      ← contract for an AI agent
 ├── requirements.txt
 ├── bootstrap.sh / bootstrap.ps1
@@ -200,12 +202,18 @@ brightspace-blueprint-bundle/
 ├── scripts/                   ← pipeline + renderers (self-contained)
 ├── knowledge/                 ← pipeline guide, package structure, export→blueprint mapping, triage skill
 ├── schemas/blueprint_schema.json
-├── reference/                 ← Course Blueprint Template 2020 CGPS.docx (format anchor)
 ├── examples/                  ← a real export run, end-to-end
 └── output/                    ← generated bundles (created on first run)
 ```
 
----
+## License
+
+This repository is licensed under the GNU Affero General Public License,
+version 3 or later (`AGPL-3.0-or-later`). See `LICENSE`.
+
+Commercial licenses, hosted deployments, implementation support, institutional
+integrations, training, maintenance, warranty, and procurement support are
+available by agreement. See `COMMERCIAL.md`.
 
 ## Provenance
 

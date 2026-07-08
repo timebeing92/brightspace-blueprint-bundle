@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
-"""Render a structured blueprint model (JSON) to a CGPS-styled DOCX.
+"""Render a structured blueprint model (JSON) to DOCX.
 
 Input is the ``<label>__blueprint.json`` produced by build_blueprint_bundle.py.
-The model contract is documented in
-``workspace/reference/schemas/blueprint/blueprint_schema.json``. The output
-mirrors the section structure of the CGPS template stored in
-``workspace/reference/blueprints/templates/``:
+The model contract is documented in ``schemas/blueprint_schema.json``. The output
+uses a stable course-blueprint review structure:
 
 - course header line + course title
 - single-column front-matter tables (Description / Materials / Course Learning Outcomes)
@@ -26,9 +24,9 @@ in shaded left cells and the content remains in full-page-width tables.
 Bullets use the document's native List Bullet styles (real hanging indents,
 nesting by level) when the style base defines them.
 
-When a template DOCX is supplied with ``--template``, it is opened as the style
-base so the output inherits the template's fonts (Open Sans), heading styles,
-and page setup. Its body content is cleared and regenerated from the model.
+When a template DOCX is supplied with ``--template``, it is opened as a generic
+style base so the output can inherit local fonts, heading styles, and page setup.
+Its body content is cleared and regenerated from the model.
 
 Requires python-docx (``pip install python-docx``). If it is missing this exits
 with code 3 and a clear message; the Markdown blueprint is unaffected.
@@ -58,9 +56,9 @@ LIVE_SCHEMES = ("http://", "https://", "mailto:")
 
 NOT_FOUND_FIELD = "Needs review: not found in export extraction."
 NOT_FOUND_LIST = "None found in export extraction."
-LABEL_FALLBACK = "(blank in template - fill in during review)"
+LABEL_FALLBACK = "(blank in source - fill in during review)"
 
-# Verbatim row labels from the 2020 CGPS template.
+# Stable row labels for the blueprint review document.
 OVERVIEW_LABEL = "Overview: (add an introduction to the week's topic and activities here, with references as needed)"
 OBJECTIVES_LABEL = (
     "Learning Objectives: Must follow the guidelines in this Learning Objectives Guide.\n"
@@ -321,8 +319,8 @@ _BULLET_NUM_ID_CACHE: dict[int, str | None] = {}
 
 
 def _find_bullet_num_id(doc_part) -> str | None:
-    """Find a numbering definition whose first level is a bullet (the CGPS
-    template defines several); None when the document has no numbering part."""
+    """Find a numbering definition whose first level is a bullet; None when the
+    document has no numbering part."""
     try:
         numbering = doc_part.part_related_by(RELATIONSHIP_TYPE.NUMBERING).element
     except (KeyError, AttributeError):
@@ -620,7 +618,6 @@ def render(model: dict, doc: "Document", *, section_layout: str = "top") -> None
 
     note = doc.add_paragraph()
     note_run = note.add_run(
-        f"Template format reference: {model.get('template_reference', '')}  |  "
         "Evidence mode: extracted text is source-derived; missing fields remain marked for review."
     )
     note_run.italic = True
@@ -672,7 +669,7 @@ def main(argv: list[str] | None = None) -> int:
         "--template",
         type=Path,
         default=None,
-        help="CGPS template .docx to use as the style base (optional)",
+        help="Optional .docx to use as a style base; body content is regenerated",
     )
     parser.add_argument(
         "--section-layout",

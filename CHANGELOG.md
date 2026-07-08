@@ -4,6 +4,13 @@ Working log for `brightspace-blueprint-bundle`. Newest first.
 
 ---
 
+## 2026-07-08 — Public license and commercial licensing note (done)
+
+The bundle now uses `AGPL-3.0-or-later` as its public software license and adds
+`COMMERCIAL.md` for organizations that need commercial licenses, hosted
+deployments, implementation support, institutional integrations, training,
+maintenance, warranty, or procurement support.
+
 ## 2026-07-08 — Blueprint title uses course title directly (done)
 
 Markdown and DOCX blueprints now use the actual course title as the visible
@@ -239,11 +246,11 @@ layer only — no extractor changes, so no new workbench divergences.
 
 - Week tables are now **two-column: shaded 9pt scaffold-label cell | content
   cell** (1.9in / 4.6in, fixed layout, cell margins) — extracted content stands
-  out from template scaffolding; matches the Markdown layout.
+  out from scaffold labels; matches the Markdown layout.
 - **Native Word bullets**: List Bullet styles when the style base defines them,
-  else a `numPr` reference to the template's own bullet numbering
-  (`_find_bullet_num_id` / `_apply_native_bullet` — the CGPS template has 5
-  bullet defs), else manual hanging-indent fallback. Real nesting by `level`.
+  else a `numPr` reference to the document's own bullet numbering
+  (`_find_bullet_num_id` / `_apply_native_bullet`), else manual hanging-indent
+  fallback. Real nesting by `level`.
 - Paragraph spacing (6pt after prose, 2pt after bullets, 8pt before each
   labeled section after the first) so cells aren't cramped; leading empty cell
   paragraphs trimmed (`_trim_leading_empty`).
@@ -308,14 +315,14 @@ the artificial "Lecture topics" row; added "Other course sections".
 Standalone bundle assembled: 7 workbench pipeline scripts copied verbatim +
 custom `build_blueprint_bundle.py` (reverse: export → flat blueprint) and new
 `blueprint_to_docx.py`. requirements.txt + bootstrap.sh/.ps1 + run_blueprint.sh,
-knowledge/, schemas/, reference/ (CGPS template), examples/. Both DOCX + Markdown.
+knowledge/, schemas/, examples/. Both DOCX + Markdown.
 
 ---
 
 ## Orientation for the next session
 
 - **What this is:** Brightspace/D2L export → flat-file course blueprint
-  (Markdown + DOCX), shaped after `reference/Course Blueprint Template 2020 CGPS.docx`.
+  (Markdown + DOCX) for source-traceable course review.
   Read `README.md` (esp. *Design philosophy*), then `AGENTS.md`, then
   `knowledge/HOW_EXTRACTION_MAPS_TO_BLUEPRINT.md`.
 - **Run it:** `bash bootstrap.sh` once, then
@@ -330,7 +337,8 @@ knowledge/, schemas/, reference/ (CGPS template), examples/. Both DOCX + Markdow
   (`schemas/blueprint_schema.json`), and renders `.md` + `.docx`.
 - **Design rules to keep:** mirror, don't reconstruct; no per-course config
   (labels come from the course's own headings/titles); never invent content;
-  keep missing fields visible; Markdown is canonical, DOCX resembles the template.
+  keep missing fields visible; Markdown is canonical, DOCX is the Word rendering
+  of the same model.
 
 ---
 

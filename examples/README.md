@@ -1,8 +1,8 @@
 # Worked example
 
 `sample_course__blueprint_bundle/` is a **real end-to-end run** of this bundle
-against the tiny synthetic Brightspace-style fixture at `sample_export.zip`. It
-is here so you can see the output shape before running your own export.
+against the synthetic Brightspace-style fixture at `sample_export.zip`. It is
+here so you can see the output shape before running your own export.
 
 It was produced with:
 
@@ -35,15 +35,25 @@ bash run_blueprint.sh examples/sample_export.zip \
 
 ## What this example demonstrates
 
-The fixture is deliberately small but exercises the main joins:
+The fixture is deliberately synthetic but exercises the main extraction and
+rendering paths:
 
+- course-level description, materials, outcomes, and introduction,
+- before-week orientation/roadmap material,
 - two weekly modules,
-- multiple HTML content topics,
+- separate and combined overview/materials page patterns,
 - an explicit learning-objectives topic,
 - resource/reading content routed into Assigned Reading and Multimedia,
-- a graded assignment joined through D2L dropbox/grade data,
-- a discussion topic joined through D2L discussion data,
-- an unplaced discussion surfaced rather than dropped.
+- visual cues, dropdowns, horizontal rules, video embeds, image placeholders,
+  and Creator+ practice metadata,
+- attached course-file placeholders,
+- multiple assignments, a quiz, discussions, and a D2L checklist joined through
+  manifest resource codes,
+- hidden manifest items named but not unpacked,
+- unplaced assignment/discussion objects surfaced rather than dropped,
+- package-scope diagnostics for hidden-linked and unlinked support files,
+- companion inventory, manifest probe, structure, activities workbook, QA, JSON,
+  Markdown, and DOCX outputs.
 
-Most front-matter fields show `Needs review` because this fixture has no matching
-course-level topics. That is intentional: missing data is surfaced, not invented.
+Week 2 intentionally leaves Learning Objectives blank so the output demonstrates
+the `Needs review` fallback: missing data is surfaced, not invented.

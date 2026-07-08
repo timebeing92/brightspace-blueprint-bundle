@@ -324,7 +324,16 @@ def main(argv: list[str] | None = None) -> int:
     else:
         report.add("breaks", "imsmanifest.xml missing from export")
     for diagnostic in structure_diagnostics:
-        severity = "warnings" if "page body is empty" in diagnostic else "breaks"
+        if (
+            "body extraction skipped for non-HTML file" in diagnostic
+            or "hidden content" in diagnostic
+            or "Package scope:" in diagnostic
+        ):
+            severity = "notes"
+        elif "page body is empty" in diagnostic:
+            severity = "warnings"
+        else:
+            severity = "breaks"
         report.add(severity, diagnostic)
 
     # Dates.

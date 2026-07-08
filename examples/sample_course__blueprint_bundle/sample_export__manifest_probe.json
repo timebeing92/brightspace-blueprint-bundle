@@ -1,10 +1,15 @@
 {
   "label": "sample_export",
   "manifest_path": "examples/sample_export.zip!imsmanifest.xml",
-  "resource_count": 9,
-  "item_count": 9,
-  "items_with_identifierref": 9,
+  "resource_count": 25,
+  "item_count": 25,
+  "items_with_identifierref": 25,
   "resources": [
+    {
+      "identifier": "RES_MOD0",
+      "type": "webcontent",
+      "href": null
+    },
     {
       "identifier": "RES_MOD1",
       "type": "webcontent",
@@ -16,42 +21,147 @@
       "href": null
     },
     {
-      "identifier": "RES_OVERVIEW1",
+      "identifier": "RES_COURSE_INTRO",
+      "type": "webcontent",
+      "href": "pages/course-introduction.html"
+    },
+    {
+      "identifier": "RES_COURSE_DESCRIPTION",
+      "type": "webcontent",
+      "href": "pages/course-description.html"
+    },
+    {
+      "identifier": "RES_COURSE_MATERIALS",
+      "type": "webcontent",
+      "href": "pages/course-materials.html"
+    },
+    {
+      "identifier": "RES_COURSE_OUTCOMES",
+      "type": "webcontent",
+      "href": "pages/course-outcomes.html"
+    },
+    {
+      "identifier": "RES_PROJECT_ROADMAP",
+      "type": "webcontent",
+      "href": "pages/project-roadmap.html"
+    },
+    {
+      "identifier": "RES_W1_OVERVIEW",
       "type": "webcontent",
       "href": "pages/week1-overview.html"
     },
     {
-      "identifier": "RES_OBJECTIVES1",
+      "identifier": "RES_W1_OBJECTIVES",
       "type": "webcontent",
       "href": "pages/week1-objectives.html"
     },
     {
-      "identifier": "RES_LECTURE1",
+      "identifier": "RES_W1_MATERIALS",
       "type": "webcontent",
-      "href": "pages/week1-lecture.html"
+      "href": "pages/week1-materials.html"
     },
     {
-      "identifier": "RES_READING1",
+      "identifier": "RES_W1_CASE_PACKET",
       "type": "webcontent",
-      "href": "pages/week1-readings.html"
+      "href": "files/week1-case-packet.pdf"
     },
     {
-      "identifier": "RES_OVERVIEW2",
+      "identifier": "RES_W1_SCENARIO",
       "type": "webcontent",
-      "href": "pages/week2-overview.html"
+      "href": "pages/week1-scenario-lab.html"
     },
     {
-      "identifier": "RES_DROPBOX1",
+      "identifier": "RES_W2_COMBINED",
       "type": "webcontent",
-      "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=dropbox&rcode=CODE-F1"
+      "href": "pages/week2-overview-materials.html"
     },
     {
-      "identifier": "RES_DISCUSS1",
+      "identifier": "RES_W2_PRACTICE",
       "type": "webcontent",
-      "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=discuss&rCode=CODE-T1"
+      "href": "pages/week2-practice.html"
+    },
+    {
+      "identifier": "RES_HIDDEN_FILE",
+      "type": "webcontent",
+      "href": "files/hidden-instructor-notes.docx"
+    },
+    {
+      "identifier": "RES_HIDDEN_PAGE",
+      "type": "webcontent",
+      "href": "pages/hidden-faculty-setup.html"
+    },
+    {
+      "identifier": "RES_DROPBOX_A1",
+      "type": "webcontent",
+      "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=dropbox&rCode=CODE-A1"
+    },
+    {
+      "identifier": "RES_DROPBOX_A2",
+      "type": "webcontent",
+      "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=dropbox&rCode=CODE-A2"
+    },
+    {
+      "identifier": "RES_DROPBOX_A3",
+      "type": "webcontent",
+      "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=dropbox&rCode=CODE-A3"
+    },
+    {
+      "identifier": "RES_QUIZ_Q1",
+      "type": "webcontent",
+      "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=quiz&rCode=CODE-Q1"
+    },
+    {
+      "identifier": "RES_HIDDEN_QUIZ",
+      "type": "webcontent",
+      "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=quiz&rCode=CODE-QH"
+    },
+    {
+      "identifier": "RES_DISCUSS_D1",
+      "type": "webcontent",
+      "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=discuss&rCode=CODE-D1"
+    },
+    {
+      "identifier": "RES_DISCUSS_D2",
+      "type": "webcontent",
+      "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=discuss&rCode=CODE-D2"
+    },
+    {
+      "identifier": "RES_CHECKLIST_C1",
+      "type": "webcontent",
+      "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=checklist&rCode=CODE-CL1"
     }
   ],
   "items": [
+    {
+      "identifier": "M0",
+      "identifierref": "RES_MOD0",
+      "title": "Getting Started"
+    },
+    {
+      "identifier": "P0A",
+      "identifierref": "RES_COURSE_INTRO",
+      "title": "Course Introduction"
+    },
+    {
+      "identifier": "P0B",
+      "identifierref": "RES_COURSE_DESCRIPTION",
+      "title": "Course Description"
+    },
+    {
+      "identifier": "P0C",
+      "identifierref": "RES_COURSE_MATERIALS",
+      "title": "Course Materials"
+    },
+    {
+      "identifier": "P0D",
+      "identifierref": "RES_COURSE_OUTCOMES",
+      "title": "Course Learning Outcomes"
+    },
+    {
+      "identifier": "P0E",
+      "identifierref": "RES_PROJECT_ROADMAP",
+      "title": "Project Roadmap and Setup"
+    },
     {
       "identifier": "M1",
       "identifierref": "RES_MOD1",
@@ -59,33 +169,68 @@
     },
     {
       "identifier": "P1",
-      "identifierref": "RES_OVERVIEW1",
+      "identifierref": "RES_W1_OVERVIEW",
       "title": "Week 1 Overview"
     },
     {
       "identifier": "P2",
-      "identifierref": "RES_OBJECTIVES1",
+      "identifierref": "RES_W1_OBJECTIVES",
       "title": "Week 1 Learning Objectives"
     },
     {
       "identifier": "P3",
-      "identifierref": "RES_LECTURE1",
-      "title": "Lecture: Framing the Field"
+      "identifierref": "RES_W1_MATERIALS",
+      "title": "Week 1 Learning Materials and Resources"
     },
     {
       "identifier": "P4",
-      "identifierref": "RES_READING1",
-      "title": "Week 1 Readings and Media"
+      "identifierref": "RES_W1_CASE_PACKET",
+      "title": "Case Packet PDF"
+    },
+    {
+      "identifier": "P5",
+      "identifierref": "RES_W1_SCENARIO",
+      "title": "Scenario Lab"
     },
     {
       "identifier": "A1",
-      "identifierref": "RES_DROPBOX1",
-      "title": "Week 1 Assignment"
+      "identifierref": "RES_DROPBOX_A1",
+      "title": "Planning Memo"
+    },
+    {
+      "identifier": "A2",
+      "identifierref": "RES_DROPBOX_A2",
+      "title": "Data Snapshot Worksheet"
+    },
+    {
+      "identifier": "Q1",
+      "identifierref": "RES_QUIZ_Q1",
+      "title": "Readiness Quiz"
     },
     {
       "identifier": "D1",
-      "identifierref": "RES_DISCUSS1",
-      "title": "Week 1 Discussion"
+      "identifierref": "RES_DISCUSS_D1",
+      "title": "Planning Assumptions Discussion"
+    },
+    {
+      "identifier": "D2",
+      "identifierref": "RES_DISCUSS_D2",
+      "title": "Peer Reply Discussion"
+    },
+    {
+      "identifier": "C1",
+      "identifierref": "RES_CHECKLIST_C1",
+      "title": "Week 1 Checklist"
+    },
+    {
+      "identifier": "HQ1",
+      "identifierref": "RES_HIDDEN_QUIZ",
+      "title": "Draft Quiz - Hidden"
+    },
+    {
+      "identifier": "HF1",
+      "identifierref": "RES_HIDDEN_FILE",
+      "title": "Instructor Notes Draft"
     },
     {
       "identifier": "M2",
@@ -93,12 +238,32 @@
       "title": "Week 2"
     },
     {
-      "identifier": "P5",
-      "identifierref": "RES_OVERVIEW2",
-      "title": "Week 2 Overview"
+      "identifier": "P6",
+      "identifierref": "RES_W2_COMBINED",
+      "title": "Week 2 Overview and Learning Materials"
+    },
+    {
+      "identifier": "P7",
+      "identifierref": "RES_W2_PRACTICE",
+      "title": "Week 2 Practice and Reflection"
+    },
+    {
+      "identifier": "A3",
+      "identifierref": "RES_DROPBOX_A3",
+      "title": "Reflection Journal"
+    },
+    {
+      "identifier": "HP2",
+      "identifierref": "RES_HIDDEN_PAGE",
+      "title": "Hidden Faculty Setup Page"
     }
   ],
   "resources_missing_href": [
+    {
+      "identifier": "RES_MOD0",
+      "type": "webcontent",
+      "href": null
+    },
     {
       "identifier": "RES_MOD1",
       "type": "webcontent",
@@ -110,32 +275,78 @@
       "href": null
     }
   ],
-  "likely_quiz_resources": [],
+  "likely_quiz_resources": [
+    {
+      "identifier": "RES_QUIZ_Q1",
+      "type": "webcontent",
+      "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=quiz&rCode=CODE-Q1"
+    },
+    {
+      "identifier": "RES_HIDDEN_QUIZ",
+      "type": "webcontent",
+      "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=quiz&rCode=CODE-QH"
+    }
+  ],
   "likely_html_resources": [
     {
-      "identifier": "RES_OVERVIEW1",
+      "identifier": "RES_COURSE_INTRO",
+      "type": "webcontent",
+      "href": "pages/course-introduction.html"
+    },
+    {
+      "identifier": "RES_COURSE_DESCRIPTION",
+      "type": "webcontent",
+      "href": "pages/course-description.html"
+    },
+    {
+      "identifier": "RES_COURSE_MATERIALS",
+      "type": "webcontent",
+      "href": "pages/course-materials.html"
+    },
+    {
+      "identifier": "RES_COURSE_OUTCOMES",
+      "type": "webcontent",
+      "href": "pages/course-outcomes.html"
+    },
+    {
+      "identifier": "RES_PROJECT_ROADMAP",
+      "type": "webcontent",
+      "href": "pages/project-roadmap.html"
+    },
+    {
+      "identifier": "RES_W1_OVERVIEW",
       "type": "webcontent",
       "href": "pages/week1-overview.html"
     },
     {
-      "identifier": "RES_OBJECTIVES1",
+      "identifier": "RES_W1_OBJECTIVES",
       "type": "webcontent",
       "href": "pages/week1-objectives.html"
     },
     {
-      "identifier": "RES_LECTURE1",
+      "identifier": "RES_W1_MATERIALS",
       "type": "webcontent",
-      "href": "pages/week1-lecture.html"
+      "href": "pages/week1-materials.html"
     },
     {
-      "identifier": "RES_READING1",
+      "identifier": "RES_W1_SCENARIO",
       "type": "webcontent",
-      "href": "pages/week1-readings.html"
+      "href": "pages/week1-scenario-lab.html"
     },
     {
-      "identifier": "RES_OVERVIEW2",
+      "identifier": "RES_W2_COMBINED",
       "type": "webcontent",
-      "href": "pages/week2-overview.html"
+      "href": "pages/week2-overview-materials.html"
+    },
+    {
+      "identifier": "RES_W2_PRACTICE",
+      "type": "webcontent",
+      "href": "pages/week2-practice.html"
+    },
+    {
+      "identifier": "RES_HIDDEN_PAGE",
+      "type": "webcontent",
+      "href": "pages/hidden-faculty-setup.html"
     }
   ]
 }

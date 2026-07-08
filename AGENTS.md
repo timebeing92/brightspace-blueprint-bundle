@@ -1,8 +1,8 @@
 # Agent contract — Brightspace → Blueprint bundle
 
 You are working inside a **self-contained bundle** that converts a Brightspace/D2L
-course export into a flat-file course blueprint (Markdown + DOCX) shaped after
-`reference/Course Blueprint Template 2020 CGPS.docx`.
+course export into a flat-file course blueprint (Markdown + DOCX) for
+source-traceable course review.
 
 > **⏭ Read `CHANGELOG.md` first.** The default SME-facing DOCX layout uses
 > full-width stacked section headers; `--docx-section-layout left` is also
@@ -102,9 +102,9 @@ and `blueprint_to_docx.py` if you extend it.
       `quizzes` activity collection so activity content keeps its formatting
       too. Quiz extraction is intentionally quiz-level only: instructions,
       grade joins, attempts/time settings, and section/question-count summaries.
-- DOCX section/field layout must keep matching the CGPS template. Markdown is the
-  canonical flat file; DOCX is rendered to resemble the template, not byte-match
-  its branding.
+- DOCX section/field layout must stay aligned with the Markdown model and the
+  public worked example. Markdown is the canonical flat file; DOCX is the
+  reviewer-friendly Word rendering of the same JSON model.
 - Keep both DOCX section-label layouts aligned. The default is `top` (shaded
   header rows over full-width content rows). The optional `left` layout must
   remain a rendering-only variant over the same JSON model and use full-width

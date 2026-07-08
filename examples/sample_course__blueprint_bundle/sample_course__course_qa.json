@@ -3,18 +3,24 @@
   "label": "sample_course",
   "config": {},
   "summary": {
-    "dropbox_folders": 1,
-    "discussion_topics": 1,
-    "quizzes": 0,
-    "grade_items": 1,
-    "manifest_items": 9,
-    "html_topics": 5,
+    "dropbox_folders": 4,
+    "discussion_topics": 3,
+    "quizzes": 1,
+    "grade_items": 8,
+    "manifest_items": 25,
+    "html_topics": 14,
     "external_urls": 0
   },
   "breaks": [],
-  "warnings": [],
+  "warnings": [
+    "grade item with no linked activity: 'Standalone Participation'",
+    "images missing alt text across activities and pages: 1"
+  ],
   "notes": [
-    "gradebook countable total: 20 (set expected_total in --config to enforce)"
+    "content file 'Case Packet PDF': body extraction skipped for non-HTML file: files/week1-case-packet.pdf",
+    "hidden content 'Instructor Notes Draft': body extraction skipped: files/hidden-instructor-notes.docx",
+    "hidden content 'Hidden Faculty Setup Page': body extraction skipped: pages/hidden-faculty-setup.html",
+    "gradebook countable total: 73 (set expected_total in --config to enforce)"
   ],
   "external_urls": []
 }

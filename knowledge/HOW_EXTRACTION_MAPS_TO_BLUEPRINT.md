@@ -1,20 +1,19 @@
 # How the export maps to the blueprint
 
 This workbench workflow turns a Brightspace/D2L **course export** into a
-flat-file **course blueprint** shaped after
-`workspace/reference/blueprints/templates/Course Blueprint Template 2020 CGPS.docx`.
-It is an *extraction + review* tool, not a generator: it surfaces what is in the
-package and marks what it cannot find. It never invents instructional content.
+flat-file **course blueprint** for source-traceable review. It is an
+*extraction + review* tool, not a generator: it surfaces what is in the package
+and marks what it cannot find. It never invents instructional content.
 
 ## Design stance: mirror, don't reconstruct
 
-The blueprint template encodes a *backwards-design* intent (LOs → aligned
-assessments → supporting resources). A built course is the forward artifact and
-that design logic is baked into pages, not labeled. Rather than guess intent, we
-**mirror the course's own structure inside the blueprint frame**: the per-week
-inner structure comes from the course's own page headings, with a small alias
-table normalizing only the few universal buckets. See the README's *Design
-philosophy* section for the full rationale.
+The review frame keeps learning outcomes, materials, assessments, discussions,
+checklists/tooling, and other course sections in a stable order. A built course
+is the forward artifact and its design logic is baked into pages, not labeled.
+Rather than guess intent, we **mirror the course's own structure inside the
+blueprint frame**: the per-week inner structure comes from the course's own page
+headings, with a small alias table normalizing only the few universal buckets.
+See the README's *Design philosophy* section for the full rationale.
 
 ## Pipeline
 
@@ -49,7 +48,7 @@ structured model to Markdown and DOCX:
    their formatting is preserved too.
 5. `course_qa_report.py` — severity-tiered export QA (optional, `--skip-qa`).
 6. **model build** → `<label>__blueprint.json` (see
-   `workspace/reference/schemas/blueprint/blueprint_schema.json`).
+   `schemas/blueprint_schema.json`).
 7. **render** → `<label>__blueprint.md` and `<label>__blueprint.docx`.
 
 ## How each week is assembled

@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "coursecraft.blueprint/4",
   "title": "Coursecraft Flat-File Course Blueprint",
-  "description": "Structured model emitted by build_blueprint_bundle.py from a Brightspace/D2L export. Both the Markdown and DOCX blueprints render from an instance of this schema. The blueprint frame follows the 2020 CGPS template, but each week's inner structure mirrors the course's own page headings, and content is carried as formatting-preserving blocks (paragraphs / bullets with link-aware runs) rather than flattened text. Labeled sections carry provenance (source page title + heading level) so every extracted component can be traced to where it lives in the course; before-week material preserves top-level orientation/resource pages before Week 1 as page-level sections with internal heading labels; visual block kinds preserve lightweight cues for source callouts, dropdowns, embeds, images, attached files, hidden manifest items, and dividers. The keys of this schema are closed, but section labels and content are open — they come from the course's own structure.",
+  "description": "Structured model emitted by build_blueprint_bundle.py from a Brightspace/D2L export. Both the Markdown and DOCX blueprints render from an instance of this schema. The blueprint frame is a stable review structure, but each week's inner structure mirrors the course's own page headings, and content is carried as formatting-preserving blocks (paragraphs / bullets with link-aware runs) rather than flattened text. Labeled sections carry provenance (source page title + heading level) so every extracted component can be traced to where it lives in the course; before-week material preserves top-level orientation/resource pages before Week 1 as page-level sections with internal heading labels; visual block kinds preserve lightweight cues for source callouts, dropdowns, embeds, images, attached files, hidden manifest items, and dividers. The keys of this schema are closed, but section labels and content are open — they come from the course's own structure.",
   "type": "object",
   "required": ["schema", "course_title", "front_matter", "before_week_1", "weeks"],
   "additionalProperties": false,
@@ -52,7 +52,7 @@
   },
   "properties": {
     "schema": {"type": "string", "const": "coursecraft.blueprint/4"},
-    "template_reference": {"type": "string"},
+    "template_reference": {"type": "string", "description": "Optional compatibility metadata describing the blueprint review format. It is stored but not rendered in the visible title or evidence note."},
     "course_number": {"type": "string", "description": "Optional course number metadata. Pass via --course-number when useful for reviewers."},
     "course_title": {"type": "string", "description": "Visible blueprint title; falls back to the de-slugged label."},
     "term": {"type": "string", "description": "Optional term metadata. Stored for traceability, but not rendered in the visible blueprint title."},

@@ -1,16 +1,259 @@
 {
   "schema": "coursecraft.blueprint/4",
-  "template_reference": "Course Blueprint Template 2020 CGPS.docx",
+  "template_reference": "Brightspace course blueprint review format",
   "course_number": "SAMPLE 100",
   "course_title": "Sample Course",
   "term": "Demo Term",
   "front_matter": {
-    "course_description": [],
-    "required_materials": [],
-    "course_learning_outcomes": [],
-    "course_introduction": []
+    "course_description": [
+      {
+        "kind": "p",
+        "level": 0,
+        "runs": [
+          {
+            "text": "This synthetic course helps reviewers inspect how Brightspace export evidence becomes a readable blueprint.",
+            "href": ""
+          }
+        ]
+      }
+    ],
+    "required_materials": [
+      {
+        "kind": "li",
+        "level": 1,
+        "runs": [
+          {
+            "text": "Open readings linked from each weekly module.",
+            "href": ""
+          }
+        ]
+      },
+      {
+        "kind": "li",
+        "level": 1,
+        "runs": [
+          {
+            "text": "A planning worksheet supplied as a downloadable course file.",
+            "href": ""
+          }
+        ]
+      }
+    ],
+    "course_learning_outcomes": [
+      {
+        "kind": "li",
+        "level": 1,
+        "runs": [
+          {
+            "text": "Identify the structure of a Brightspace course export.",
+            "href": ""
+          }
+        ]
+      },
+      {
+        "kind": "li",
+        "level": 1,
+        "runs": [
+          {
+            "text": "Trace course objects from manifest placement to review output.",
+            "href": ""
+          }
+        ]
+      },
+      {
+        "kind": "li",
+        "level": 1,
+        "runs": [
+          {
+            "text": "Distinguish extracted evidence from missing or hidden content.",
+            "href": ""
+          }
+        ]
+      }
+    ],
+    "course_introduction": [
+      {
+        "kind": "p",
+        "level": 0,
+        "runs": [
+          {
+            "text": "Welcome to the synthetic blueprint review course. This page demonstrates course-level introduction extraction.",
+            "href": ""
+          }
+        ]
+      }
+    ]
   },
-  "before_week_1": [],
+  "before_week_1": [
+    {
+      "label": "Course Description",
+      "blocks": [
+        {
+          "kind": "p",
+          "level": 0,
+          "runs": [
+            {
+              "text": "This synthetic course helps reviewers inspect how Brightspace export evidence becomes a readable blueprint.",
+              "href": ""
+            }
+          ]
+        }
+      ],
+      "source_page": "Course Description",
+      "level": 0
+    },
+    {
+      "label": "Course Materials",
+      "blocks": [
+        {
+          "kind": "label",
+          "level": 0,
+          "runs": [
+            {
+              "text": "Required Materials:",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "li",
+          "level": 1,
+          "runs": [
+            {
+              "text": "Open readings linked from each weekly module.",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "li",
+          "level": 1,
+          "runs": [
+            {
+              "text": "A planning worksheet supplied as a downloadable course file.",
+              "href": ""
+            }
+          ]
+        }
+      ],
+      "source_page": "Course Materials",
+      "level": 0
+    },
+    {
+      "label": "Course Learning Outcomes",
+      "blocks": [
+        {
+          "kind": "li",
+          "level": 1,
+          "runs": [
+            {
+              "text": "Identify the structure of a Brightspace course export.",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "li",
+          "level": 1,
+          "runs": [
+            {
+              "text": "Trace course objects from manifest placement to review output.",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "li",
+          "level": 1,
+          "runs": [
+            {
+              "text": "Distinguish extracted evidence from missing or hidden content.",
+              "href": ""
+            }
+          ]
+        }
+      ],
+      "source_page": "Course Learning Outcomes",
+      "level": 0
+    },
+    {
+      "label": "Project Roadmap and Setup",
+      "blocks": [
+        {
+          "kind": "p",
+          "level": 0,
+          "runs": [
+            {
+              "text": "This pre-week page should render before Week 1 instead of being forced into a weekly module.",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "label",
+          "level": 0,
+          "runs": [
+            {
+              "text": "Milestones:",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "li",
+          "level": 1,
+          "runs": [
+            {
+              "text": "Review the course overview.",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "li",
+          "level": 1,
+          "runs": [
+            {
+              "text": "Confirm the activity joins.",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "li",
+          "level": 1,
+          "runs": [
+            {
+              "text": "Flag missing fields for human review.",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "label",
+          "level": 0,
+          "runs": [
+            {
+              "text": "Tooling Notes:",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "p",
+          "level": 0,
+          "runs": [
+            {
+              "text": "The bundle also emits inventory, manifest probe, course structure, activity workbook, QA, JSON, Markdown, and DOCX outputs.",
+              "href": ""
+            }
+          ]
+        }
+      ],
+      "source_page": "Project Roadmap and Setup",
+      "level": 0
+    }
+  ],
   "weeks": [
     {
       "title": "Week 1",
@@ -30,7 +273,114 @@
           "level": 0,
           "runs": [
             {
-              "text": "This week introduces the purpose and structure of the course.",
+              "text": "This week introduces source tracing and module placement.",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "label",
+          "level": 0,
+          "runs": [
+            {
+              "text": "Required Resources:",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "p",
+          "level": 0,
+          "runs": [
+            {
+              "text": "This resource-like heading intentionally remains in Overview because Week 1 also has a separate Learning Materials page.",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "visual",
+          "level": 0,
+          "runs": [
+            {
+              "text": "Callout",
+              "href": ""
+            }
+          ],
+          "meta": {
+            "tag": "aside",
+            "classes": "callout"
+          }
+        },
+        {
+          "kind": "p",
+          "level": 0,
+          "runs": [
+            {
+              "text": "Visual callout cue: reviewers should see this as a callout marker, not exact Brightspace styling.",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "dropdown",
+          "level": 0,
+          "runs": [
+            {
+              "text": "Expandable instructor note",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "p",
+          "level": 0,
+          "runs": [
+            {
+              "text": "Dropdown content is preserved as a review cue.",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "image",
+          "level": 0,
+          "runs": [
+            {
+              "text": "Planning cycle diagram",
+              "href": "../assets/planning-cycle.png"
+            }
+          ],
+          "meta": {
+            "alt": "Planning cycle diagram",
+            "src": "../assets/planning-cycle.png"
+          }
+        },
+        {
+          "kind": "image",
+          "level": 0,
+          "runs": [
+            {
+              "text": "No alt text",
+              "href": "../assets/equation-screenshot.png"
+            }
+          ],
+          "meta": {
+            "src": "../assets/equation-screenshot.png",
+            "missing_alt": "true"
+          }
+        },
+        {
+          "kind": "divider",
+          "level": 0,
+          "runs": []
+        },
+        {
+          "kind": "p",
+          "level": 0,
+          "runs": [
+            {
+              "text": "After the divider, the page continues with authored prose.",
               "href": ""
             }
           ]
@@ -38,11 +388,21 @@
       ],
       "learning_objectives": [
         {
-          "kind": "p",
-          "level": 0,
+          "kind": "li",
+          "level": 1,
           "runs": [
             {
-              "text": "Students will be able to explain the core planning vocabulary.",
+              "text": "Explain how manifest items become weekly blueprint rows.",
+              "href": ""
+            }
+          ]
+        },
+        {
+          "kind": "li",
+          "level": 1,
+          "runs": [
+            {
+              "text": "Recognize hidden and unplaced D2L objects in diagnostics.",
               "href": ""
             }
           ]
@@ -50,20 +410,67 @@
       ],
       "resources": [
         {
-          "label": "Week 1 Readings and Media",
+          "label": "Week 1 Learning Materials and Resources",
           "blocks": [
             {
               "kind": "p",
               "level": 0,
               "runs": [
                 {
-                  "text": "Read Chapter 1 and watch the orientation video.",
+                  "text": "This intro belongs with resources because the whole page is a materials page.",
                   "href": ""
                 }
               ]
             }
           ],
-          "source_page": "Week 1 Readings and Media",
+          "source_page": "Week 1 Learning Materials and Resources",
+          "level": 0
+        },
+        {
+          "label": "Required Readings",
+          "blocks": [
+            {
+              "kind": "li",
+              "level": 1,
+              "runs": [
+                {
+                  "text": "Export anatomy overview",
+                  "href": "https://example.edu/readings/export-anatomy"
+                }
+              ]
+            },
+            {
+              "kind": "li",
+              "level": 1,
+              "runs": [
+                {
+                  "text": "Read the case packet attached in the module.",
+                  "href": ""
+                }
+              ]
+            }
+          ],
+          "source_page": "Week 1 Learning Materials and Resources",
+          "level": 1
+        },
+        {
+          "label": "Multimedia",
+          "blocks": [
+            {
+              "kind": "embed",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Orientation video",
+                  "href": "https://www.youtube.com/embed/dQw4w9WgXcQ"
+                }
+              ],
+              "meta": {
+                "embed_type": "Video embed"
+              }
+            }
+          ],
+          "source_page": "Week 1 Learning Materials and Resources",
           "level": 1
         }
       ],
@@ -82,14 +489,185 @@
               ]
             },
             {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Rubric: RUB-1: Planning Memo Rubric",
+                  "href": ""
+                }
+              ]
+            },
+            {
               "kind": "p",
               "level": 0,
               "runs": [
                 {
-                  "text": "Draft a short planning memo.",
+                  "text": "Draft a short planning memo that names the evidence files you inspected.",
                   "href": ""
                 }
               ]
+            },
+            {
+              "kind": "li",
+              "level": 1,
+              "runs": [
+                {
+                  "text": "Use one paragraph for the manifest evidence.",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "li",
+              "level": 1,
+              "runs": [
+                {
+                  "text": "Use one paragraph for the activity join evidence.",
+                  "href": ""
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Data Snapshot Worksheet",
+          "blocks": [
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Points: 10 pts",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Complete the worksheet using the course activities workbook generated by the bundle.",
+                  "href": ""
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Quiz: Readiness Quiz",
+          "blocks": [
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Points: 3 pts",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Gradebook item: Readiness Quiz",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Attempts allowed: 1",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Time limit: 20 minutes",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Time limit enforced: yes",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Sections: 1",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Complete this short readiness check after reviewing the Week 1 materials.",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "li",
+              "level": 1,
+              "runs": [
+                {
+                  "text": "One attempt is allowed.",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "li",
+              "level": 1,
+              "runs": [
+                {
+                  "text": "Questions are drawn from a small pool.",
+                  "href": ""
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Quiz: Draft Quiz - Hidden",
+          "blocks": [
+            {
+              "kind": "hidden",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Object: Draft Quiz - Hidden; type: quiz link; hidden in the Brightspace manifest, so details were not extracted",
+                  "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=quiz&rCode=CODE-QH"
+                }
+              ],
+              "meta": {
+                "object_name": "Draft Quiz - Hidden",
+                "item_type": "quiz link",
+                "manifest_kind": "quiz_link",
+                "extraction": "hidden manifest item"
+              }
             }
           ]
         }
@@ -99,11 +677,46 @@
           "label": "Planning Assumptions",
           "blocks": [
             {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Points: 5 pts",
+                  "href": ""
+                }
+              ]
+            },
+            {
               "kind": "p",
               "level": 0,
               "runs": [
                 {
-                  "text": "Post one assumption you bring into the course.",
+                  "text": "Post one assumption you bring into source-traceable course review.",
+                  "href": ""
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Peer Reply",
+          "blocks": [
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Points: 5 pts",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Reply to a peer and identify one item that should remain marked for review.",
                   "href": ""
                 }
               ]
@@ -111,24 +724,282 @@
           ]
         }
       ],
-      "checklist": [],
+      "checklist": [
+        {
+          "label": "Week 1 Checklist",
+          "blocks": [
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Review outputs:",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "li",
+              "level": 1,
+              "runs": [
+                {
+                  "text": "Open the Markdown blueprint",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "li",
+              "level": 1,
+              "runs": [
+                {
+                  "text": "Inspect the DOCX rendering",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Trace evidence:",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "li",
+              "level": 1,
+              "runs": [
+                {
+                  "text": "Compare the manifest probe with the weekly rows",
+                  "href": ""
+                }
+              ]
+            }
+          ]
+        }
+      ],
       "other_sections": [
         {
-          "label": "Lecture: Framing the Field",
+          "label": "Creator+ Practice",
           "blocks": [
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Creator+ practice: Sort Course Evidence",
+                  "href": "https://practices.lcs.brightspace.com/player"
+                }
+              ]
+            },
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Practice type: Sorting",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Source file: practice/week1-sort.practice.json",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Practice id: sample-sort-1",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Items: 3",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Categories/slots: 3",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Scoring: 3 pts",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Description",
+                  "href": ""
+                }
+              ]
+            },
             {
               "kind": "p",
               "level": 0,
               "runs": [
                 {
-                  "text": "Lecture notes on the field.",
+                  "text": "Sort each artifact into the evidence layer it comes from.",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Instructions",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Drag each item into manifest, page, or activity evidence.",
                   "href": ""
                 }
               ]
             }
           ],
-          "source_page": "Lecture: Framing the Field",
+          "source_page": "Week 1 Learning Materials and Resources",
           "level": 1
+        },
+        {
+          "label": "Case Packet PDF",
+          "blocks": [
+            {
+              "kind": "file",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "week1-case-packet.pdf",
+                  "href": "files/week1-case-packet.pdf"
+                }
+              ],
+              "meta": {
+                "file_name": "week1-case-packet.pdf",
+                "extraction": "non-HTML course file"
+              }
+            }
+          ],
+          "source_page": "Case Packet PDF",
+          "level": 0
+        },
+        {
+          "label": "Scenario Lab",
+          "blocks": [
+            {
+              "kind": "visual",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Case card",
+                  "href": ""
+                }
+              ],
+              "meta": {
+                "tag": "section",
+                "classes": "case-card"
+              }
+            },
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "A sample stakeholder asks whether a course export preserves its weekly organization.",
+                  "href": ""
+                }
+              ]
+            }
+          ],
+          "source_page": "Scenario Lab",
+          "level": 1
+        },
+        {
+          "label": "Scenario Lab › Debrief Questions",
+          "blocks": [
+            {
+              "kind": "li",
+              "level": 1,
+              "runs": [
+                {
+                  "text": "Which evidence file answers the placement question?",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "li",
+              "level": 1,
+              "runs": [
+                {
+                  "text": "Which fields should remain marked Needs review?",
+                  "href": ""
+                }
+              ]
+            }
+          ],
+          "source_page": "Scenario Lab",
+          "level": 2
+        },
+        {
+          "label": "Instructor Notes Draft",
+          "blocks": [
+            {
+              "kind": "hidden",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Object: Instructor Notes Draft; type: DOCX course file; hidden in the Brightspace manifest, so body extraction was skipped",
+                  "href": "files/hidden-instructor-notes.docx"
+                }
+              ],
+              "meta": {
+                "object_name": "Instructor Notes Draft",
+                "item_type": "DOCX course file",
+                "manifest_kind": "content_file",
+                "extraction": "hidden manifest item"
+              }
+            }
+          ],
+          "source_page": "Instructor Notes Draft",
+          "level": 0
         }
       ]
     },
@@ -150,23 +1021,202 @@
           "level": 0,
           "runs": [
             {
-              "text": "Week 2 builds on planning vocabulary.",
+              "text": "This combined page demonstrates overview and materials splitting within one page.",
               "href": ""
             }
           ]
         }
       ],
       "learning_objectives": [],
-      "resources": [],
-      "assignments": [],
+      "resources": [
+        {
+          "label": "Required Resources",
+          "blocks": [
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Because there is no separate Week 2 materials page, this heading moves to Assigned Reading and Multimedia.",
+                  "href": ""
+                }
+              ]
+            }
+          ],
+          "source_page": "Week 2 Overview and Learning Materials",
+          "level": 2
+        }
+      ],
+      "assignments": [
+        {
+          "label": "Reflection Journal",
+          "blocks": [
+            {
+              "kind": "label",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Points: 5 pts",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Write a short reflection after reviewing Week 2 materials.",
+                  "href": ""
+                }
+              ]
+            }
+          ]
+        }
+      ],
       "discussions": [],
-      "checklist": [],
-      "other_sections": []
+      "checklist": [
+        {
+          "label": "Checklist",
+          "blocks": [
+            {
+              "kind": "li",
+              "level": 1,
+              "runs": [
+                {
+                  "text": "Confirm the sample output still validates.",
+                  "href": ""
+                }
+              ]
+            },
+            {
+              "kind": "li",
+              "level": 1,
+              "runs": [
+                {
+                  "text": "Review the extraction notes at the bottom.",
+                  "href": ""
+                }
+              ]
+            }
+          ],
+          "source_page": "Week 2 Overview and Learning Materials",
+          "level": 2
+        }
+      ],
+      "other_sections": [
+        {
+          "label": "Practice Activity",
+          "blocks": [
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "This page demonstrates an Other course section with authored practice instructions.",
+                  "href": ""
+                }
+              ]
+            }
+          ],
+          "source_page": "Week 2 Practice and Reflection",
+          "level": 1
+        },
+        {
+          "label": "Reflection Prompt",
+          "blocks": [
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Write one sentence about where the source evidence appears in the output.",
+                  "href": ""
+                }
+              ]
+            }
+          ],
+          "source_page": "Week 2 Practice and Reflection",
+          "level": 2
+        },
+        {
+          "label": "Hidden Faculty Setup Page",
+          "blocks": [
+            {
+              "kind": "hidden",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Object: Hidden Faculty Setup Page; type: HTML content page; hidden in the Brightspace manifest, so body extraction was skipped",
+                  "href": "pages/hidden-faculty-setup.html"
+                }
+              ],
+              "meta": {
+                "object_name": "Hidden Faculty Setup Page",
+                "item_type": "HTML content page",
+                "manifest_kind": "html_topic",
+                "extraction": "hidden manifest item"
+              }
+            }
+          ],
+          "source_page": "Hidden Faculty Setup Page",
+          "level": 0
+        }
+      ]
     }
   ],
   "unplaced_activities": {
-    "assignments": [],
-    "discussions": []
+    "assignments": [
+      {
+        "label": "Unplaced Capstone Draft",
+        "blocks": [
+          {
+            "kind": "label",
+            "level": 0,
+            "runs": [
+              {
+                "text": "Points: 15 pts",
+                "href": ""
+              }
+            ]
+          },
+          {
+            "kind": "p",
+            "level": 0,
+            "runs": [
+              {
+                "text": "This assignment is not linked in the manifest and should appear as unplaced.",
+                "href": ""
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "discussions": [
+      {
+        "label": "Unplaced Help Forum",
+        "blocks": [
+          {
+            "kind": "p",
+            "level": 0,
+            "runs": [
+              {
+                "text": "This discussion topic is not linked in the manifest and should be reported as unplaced.",
+                "href": ""
+              }
+            ]
+          }
+        ]
+      }
+    ]
   },
-  "diagnostics": []
+  "diagnostics": [
+    "Structure: content file 'Case Packet PDF': body extraction skipped for non-HTML file: files/week1-case-packet.pdf",
+    "Structure: hidden content 'Instructor Notes Draft': body extraction skipped: files/hidden-instructor-notes.docx",
+    "Structure: hidden content 'Hidden Faculty Setup Page': body extraction skipped: pages/hidden-faculty-setup.html",
+    "Structure: Package scope: hidden manifest-linked files skipped from blueprint body extraction: 2 file(s), 178 B total; by type: html: 1 / 140 B, document: 1 / 38 B; largest: pages/hidden-faculty-setup.html (140 B), files/hidden-instructor-notes.docx (38 B)",
+    "Structure: Package scope: files not directly linked from the visible manifest: 8 file(s), 971 B total; by type: frontend_support: 1 / 585 B, xml: 3 / 234 B, image: 3 / 112 B, document: 1 / 40 B; largest: practice/week1-sort.practice.json (585 B), conditionalrelease_d2l.xml (108 B), survey_d2l_1.xml (78 B), links_d2l.xml (48 B), assets/equation-screenshot.png (47 B), files/unlinked-faculty-deck.pptx (40 B), assets/planning-cycle.png (35 B), assets/unused-diagram.png (30 B) (may include support assets referenced inside HTML pages)",
+    "Routing: Week 1: resource-like heading 'Required Resources' from overview page 'Week 1 Overview' kept in Overview because the module also has a separate resources/materials page."
+  ]
 }

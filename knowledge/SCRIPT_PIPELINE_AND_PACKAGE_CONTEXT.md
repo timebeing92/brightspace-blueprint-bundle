@@ -95,7 +95,8 @@ The stable contract is the JSON model:
 
 The model contains:
 
-- course header fields: course number, course title, term, template reference
+- course metadata fields: course number, course title, term, and optional
+  format-reference metadata
 - course-level front matter: description, materials, outcomes, introduction
 - `before_week_1`: top-level orientation/resource pages before the first week,
   grouped once per page with local subsection labels

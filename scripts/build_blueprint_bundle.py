@@ -7,10 +7,10 @@ structured blueprint *model*, and renders that model to:
 
 - ``<label>__blueprint.json``  -- the structured model
 - ``<label>__blueprint.md``    -- the flat Markdown blueprint
-- ``<label>__blueprint.docx``  -- a DOCX styled after the 2020 CGPS template
+- ``<label>__blueprint.docx``  -- a DOCX review document
 
-Design stance: **mirror, don't reconstruct.** The blueprint frame (course front
-matter + per-week sections) comes from the CGPS template, but each week's inner
+Design stance: **mirror, don't reconstruct.** The blueprint frame provides
+stable course front matter and per-week review sections, while each week's inner
 structure is taken from the *course's own page headings* rather than forced into
 a fixed taxonomy. A small alias table pulls the few universal buckets (Learning
 Objectives, Resources, Checklist) into consistent rows; every other heading is
@@ -39,8 +39,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_DIR = REPO_ROOT / "scripts"
-DEFAULT_TEMPLATE_REFERENCE = "Course Blueprint Template 2020 CGPS.docx"
-TEMPLATE_DOCX = REPO_ROOT / "workspace" / "reference" / "blueprints" / "templates" / DEFAULT_TEMPLATE_REFERENCE
+DEFAULT_FORMAT_REFERENCE = "Brightspace course blueprint review format"
 WEEKISH = re.compile(r"\b(week|module|unit)\s*0*(\d{1,2})\b", re.IGNORECASE)
 
 NOT_FOUND_FIELD = "Needs review: not found in export extraction."
@@ -1168,7 +1167,6 @@ def render_markdown(model: dict) -> str:
     lines = [
         f"# {course_title}",
         "",
-        f"> Template format reference: {model['template_reference']}",
         "> Evidence mode: this blueprint mirrors the exported course structure. "
         "Extracted text is source-derived; missing fields remain marked for review.",
         "",
@@ -1272,7 +1270,6 @@ def write_bundle_readme(
     blueprint_md: Path,
     blueprint_json: Path,
     blueprint_docx: Path | None,
-    template_reference: str,
     include_qa: bool,
 ) -> None:
     qa_line = "- course QA report" if include_qa else "- course QA report skipped by command option"
@@ -1283,7 +1280,6 @@ def write_bundle_readme(
                 f"# Blueprint Bundle - {label}",
                 "",
                 f"Source export: `{export}`",
-                f"Template format reference: `{template_reference}`",
                 "",
                 "Primary outputs:",
                 f"- `{blueprint_md.name}`",
@@ -1326,8 +1322,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--bundle-dir", type=Path, default=None, help="Exact bundle directory to write")
     parser.add_argument(
         "--template-reference",
-        default=DEFAULT_TEMPLATE_REFERENCE,
-        help="Human-readable template source note to include in the blueprint",
+        default=DEFAULT_FORMAT_REFERENCE,
+        help="Optional format metadata stored in the JSON model for compatibility; not rendered",
     )
     parser.add_argument("--skip-qa", action="store_true", help="Do not run course_qa_report.py")
     parser.add_argument("--no-docx", action="store_true", help="Do not render the DOCX blueprint")
@@ -1388,8 +1384,6 @@ def main(argv: list[str] | None = None) -> int:
             "--section-layout",
             args.docx_section_layout,
         ]
-        if TEMPLATE_DOCX.exists():
-            docx_args += ["--template", str(TEMPLATE_DOCX)]
         result = subprocess.run(
             [sys.executable, str(SCRIPT_DIR / "blueprint_to_docx.py"), *docx_args],
             cwd=REPO_ROOT,
@@ -1415,7 +1409,6 @@ def main(argv: list[str] | None = None) -> int:
         blueprint_md=blueprint_md,
         blueprint_json=blueprint_json,
         blueprint_docx=docx_written,
-        template_reference=args.template_reference,
         include_qa=not args.skip_qa,
     )
 
