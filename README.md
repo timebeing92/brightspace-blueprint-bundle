@@ -90,7 +90,9 @@ D2L XML evidence files, package structure, and joins.
 
 Follows the template's frame, populated from the export:
 
-- Header: `Course # - Course Blueprint - Term` + course title
+- Header: actual course title from `--course-title` or the export label.
+  Course number and term are stored as optional metadata, not rendered in the
+  visible title.
 - **Course Description**, **Textbooks / Required Materials**, **Course Learning
   Outcomes** (single-column tables)
 - **Course Introduction**
