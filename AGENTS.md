@@ -1,118 +1,117 @@
-# Agent contract — Brightspace → Blueprint bundle
+# Optional Contributor And Assistant Guide
 
-You are working inside a **self-contained bundle** that converts a Brightspace/D2L
-course export into a flat-file course blueprint (Markdown + DOCX) for
-source-traceable course review.
+This bundle converts a Brightspace/D2L course export into a flat-file course
+blueprint for source-traceable review.
 
-> **⏭ Read `CHANGELOG.md` first.** The default SME-facing DOCX layout uses
-> full-width stacked section headers; `--docx-section-layout left` is also
-> supported for the alternate left-label table layout. Weekly content is ordered
-> Overview → Learning Objectives → Learning Materials/Resources → Assignments →
-> Discussions → Checklist → Other. Top-level pre-week pages render under
-> `Before Week 1: Additional Resources and Information`, grouped once per page
-> in a section table with local subsection labels; if the same topic href or
-> title/body copy appears again inside a week, keep the pre-week copy and
-> suppress the weekly duplicate with a diagnostic. Schema is
-> `coursecraft.blueprint/4`. When a week has separate sibling overview and
-> learning-materials/resource pages, keep resource-like headings from the
-> explicit overview page in Overview; combined overview/materials pages still
-> split internally. Assignment/quiz and discussion rows use horizontal dividers
-> between separate D2L activity objects only; do not apply that divider as an
-> inferred split inside content pages.
+The bundle runs without AI. Normal users should follow `README.md` and run:
 
-## Operating mode
+```bash
+bash bootstrap.sh
+bash run_blueprint.sh <export.zip|unpacked-dir> [options]
+```
 
-This is **extraction + review**, never generation of instructional content.
+This file is for maintainers, human contributors, and optional coding
+assistants working on the scripts or helping a user run the bundle. It is not a
+runtime requirement, not an authorship statement, and not something the pipeline
+uses.
+
+## Non-Authoring Rule
+
+Do not add AI-authorship or assistant-provenance notes to generated bundles or
+source files. In particular, do not create or include assistant-vs-script
+pipeline reports, script-improvement review memos, vendor-specific provenance
+notes, or assistant activity logs in reviewer-facing output.
+
+If the user asks what a human or assistant did versus what scripts did, answer
+in the conversation or place that analysis in a clearly non-shared scratch
+location. Do not include it in a reviewer-facing course bundle unless the user
+explicitly asks for that file to be shared.
+
+## Operating Mode
+
+This is extraction and review, not instructional-content generation.
+
 - Preserve extracted wording. Do not paraphrase or invent course content.
-- Keep missing data visible (`Needs review` / `None found`). Do not fill gaps
-  with plausible text.
-- Distinguish extracted fact from inference when you summarize for the user.
-- Never edit the only raw copy of an export. Work from copies; outputs go under
-  `output/`.
+- Keep missing data visible as `Needs review` or `None found`.
+- Distinguish extracted fact from inference when summarizing results.
+- Work from copies of exports. Do not edit the only raw copy of an export.
+- Default generated output belongs under `workspace/review/`.
 
-## How to run
+## Current Runtime Flow
 
-```bash
-bash bootstrap.sh                       # once: create .venv, install deps
-bash run_blueprint.sh <export.zip|dir> [--course-number .. --course-title .. --term ..]
-```
+`run_blueprint.sh` calls `scripts/build_blueprint_bundle.py`, which runs:
 
-`bootstrap.sh` is a one-time dependency install into the bundle-local `.venv`
-(`openpyxl` for `.xlsx`, `python-docx` for DOCX). If `.venv` already exists and
-has those packages, reuse it. If a bootstrap was interrupted, rerun
-`bash bootstrap.sh` before running exports.
+1. `export_inventory.py`
+2. `manifest_probe.py`
+3. `reconstruct_course_structure.py --extract-html`
+4. `extract_course_activities.py`
+5. `course_qa_report.py` unless `--skip-qa` is used
+6. model assembly into `coursecraft.blueprint/4`
+7. Markdown rendering
+8. DOCX rendering unless `--no-docx` is used
+9. optional DOCX render QA when `--render-docx-check` is used
 
-Direct equivalent (after bootstrap):
-```bash
-.venv/bin/python scripts/build_blueprint_bundle.py <export> --label NAME
-```
+External URLs are inventoried by default. Fetching/checking them requires
+`--check-external-links`.
 
-Outputs: `output/<label>__blueprint_bundle/` containing `*.blueprint.md`,
-`*.blueprint.docx`, `*.blueprint.json` (the model), plus inventory/manifest/
-structure/activities/QA companions.
+## Current Blueprint Behavior
 
-## Pipeline (what runs, in order)
+- The default DOCX layout is `--docx-section-layout top`, using full-width
+  stacked section rows. `--docx-section-layout left` is still supported.
+- Weekly content order is Overview, Learning Objectives, Assigned Reading and
+  Multimedia, Assignment(s) and Instructions, Discussion Board Prompts,
+  Checklist, then Other course sections.
+- Top-level pre-week pages render under `Before Week 1: Additional Resources
+  and Information`.
+- Duplicate pre-week material that also appears in Week 1 is suppressed with a
+  routing diagnostic.
+- Hidden/faculty-facing manifest items remain visible: hidden modules get a
+  notice, hidden HTML bodies are extracted where readable, hidden non-HTML files
+  are preserved as file references, and hidden tool links keep object type,
+  title, and path where available.
+- Manifest-linked non-HTML files render as attached-file references, not decoded
+  body text.
+- HTML images render as image placeholders with alt text when available, or a
+  no-alt placeholder with source path when missing.
+- Creator+ practice iframes that reference local `.practice.json` payloads
+  render as compact practice metadata and source prompt/instruction summaries.
+- Visual cues such as callout/note/card-like containers, styled highlight
+  sections, dropdown summaries, media embeds, and horizontal rules are preserved
+  as review cues. When source HTML wraps a full callout/card section, the
+  generated Markdown/DOCX wraps the child content too. No attempt is made to
+  reproduce Brightspace CSS pixel-for-pixel.
+- Repeated low-value visual wrappers, such as timeline item/card containers, are
+  suppressed so output does not become wrapper noise.
+- QA reports include specific image-alt locations, package-scope diagnostics,
+  front-matter source diagnostics, and optional external-link checking.
 
-`export_inventory` → `manifest_probe` → `reconstruct_course_structure --extract-html`
-(HTML pages, heading blocks, visual cues, image placeholders, attached-file
-placeholders, Creator+ practice metadata when local `.practice.json` is
-referenced) → `extract_course_activities` (assignments,
-discussions, quiz-level instructions/settings, XML checklists, joins) →
-`course_qa_report` → build JSON model → render Markdown + DOCX. Both renderers
-consume one model
-(`schemas/blueprint_schema.json`); change the model shape in **both** the schema
-and `blueprint_to_docx.py` if you extend it.
+## Where To Look
 
-## Where to look
+- `README.md` - user-facing setup, run, output, and review instructions.
+- `CHANGELOG.md` - implementation history.
+- `knowledge/SCRIPT_PIPELINE_AND_PACKAGE_CONTEXT.md` - plain-language pipeline
+  walkthrough plus technical dataflow.
+- `knowledge/HOW_EXTRACTION_MAPS_TO_BLUEPRINT.md` - source-to-section mapping,
+  joins, and known limitations.
+- `knowledge/BRIGHTSPACE_PACKAGE_STRUCTURE_AND_IMPORT_NOTES.md` - Brightspace
+  package shape, joins, and date caveats.
+- `schemas/blueprint_schema.json` - model contract used by Markdown and DOCX.
+- `examples/` - worked sample output and config example.
 
-- `knowledge/SCRIPT_PIPELINE_AND_PACKAGE_CONTEXT.md` — plain-language pipeline
-  walkthrough plus technical dataflow, schema, package XML, and join context.
-- `knowledge/HOW_EXTRACTION_MAPS_TO_BLUEPRINT.md` — source→section mapping,
-  join logic, and known limitations. **Read this before changing extraction.**
-- `knowledge/BRIGHTSPACE_PACKAGE_STRUCTURE_AND_IMPORT_NOTES.md` — package shape,
-  joins, and the UTC due-date caveat.
-- `knowledge/brightspace-export-triage_SKILL.md` — triage posture.
-- `schemas/blueprint_schema.json` — the contract between extraction and rendering.
-- `examples/` — a real worked run to compare against.
+## Editing Rules
 
-## Editing rules
+- Prefer existing script patterns and local helper functions.
+- Keep Markdown and DOCX rendering aligned with the same JSON model.
+- If model shape changes, update `schemas/blueprint_schema.json`,
+  Markdown rendering, and `blueprint_to_docx.py` together.
+- If an extractor change belongs upstream in `coursecraft_workbench`, call that
+  out in the summary so it can be reconciled.
+- Keep generated folders (`workspace/`, `output/`, render pages, `.venv/`) out
+  of source commits unless the user explicitly asks otherwise.
+- Do not move Learning Materials/Resources below assessments; they belong right
+  after Learning Objectives.
 
-- The pipeline scripts under `scripts/` come from the upstream
-  `coursecraft_workbench` master. Prefer changing the blueprint layer
-  (`build_blueprint_bundle.py`, `blueprint_to_docx.py`) over the extractors; if
-  you must change an extractor, note it so it can be reconciled upstream.
-  - **Known divergences (both additive; original fields unchanged):**
-    - `reconstruct_course_structure.py` adds `body_segments` to each HTML topic —
-      heading-split chunks parsed into formatting-preserving **blocks**
-      (`{heading, level, blocks:[{kind, level, runs:[{text, href}], meta?}], text}`)
-      via `html_to_segments` / `html_fragment_to_blocks`. Enables the
-      mirror-don't-reconstruct week model and preserves paragraphs/bullets/links,
-      horizontal rules, selected visual containers, dropdown summaries,
-      image/file placeholders, and video/media embeds as review cues. Images
-      are never parsed/OCR'd; non-HTML course files are linked as references
-      rather than decoded as page body text. Hidden manifest items are retained
-      as short hidden-item placeholders with object type/title/path where
-      available; hidden bodies/details are not unpacked.
-      Creator+ practice iframes with `data-file="practice/...practice.json"` are
-      expanded into lightweight practice metadata and authored instructions/prompts;
-      full answer/feedback review stays outside the blueprint.
-    - `extract_course_activities.py` imports `html_fragment_to_blocks` and adds
-      `instructions_blocks` (dropbox folders and quizzes),
-      `description_blocks` (discussions), D2L checklist `blocks`, and a
-      `quizzes` activity collection so activity content keeps its formatting
-      too. Quiz extraction is intentionally quiz-level only: instructions,
-      grade joins, attempts/time settings, and section/question-count summaries.
-- DOCX section/field layout must stay aligned with the Markdown model and the
-  public worked example. Markdown is the canonical flat file; DOCX is the
-  reviewer-friendly Word rendering of the same JSON model.
-- Keep both DOCX section-label layouts aligned. The default is `top` (shaded
-  header rows over full-width content rows). The optional `left` layout must
-  remain a rendering-only variant over the same JSON model and use full-width
-  weekly tables.
-- Do not move Learning Materials/Resources below assessments. They belong
-  immediately after Learning Objectives.
+## When Unsure
 
-## When unsure
-
-Surface ambiguity explicitly to the user. A blueprint with honest `Needs review`
-markers is correct; a confident-looking blueprint with invented content is not.
+Surface ambiguity explicitly. A blueprint with honest `Needs review` markers is
+correct; a confident-looking blueprint with invented content is not.

@@ -11,7 +11,9 @@ Treat the export as evidence first.
 3. Distinguish extracted facts from inference.
 4. Keep wording intact when surfacing instructional content.
 5. Write review-friendly outputs into `workspace/review/`.
-6. Do not edit the only raw copy of the export.
+6. Keep hidden/faculty-facing manifest items visible with a clear note rather
+   than dropping them silently.
+7. Do not edit the only raw copy of the export.
 
 ## Priorities
 - preserve raw evidence
@@ -22,7 +24,13 @@ Treat the export as evidence first.
 ## Typical outputs
 - package inventory markdown/json
 - manifest probe markdown/json
+- course structure markdown/json
+- course activities markdown/json/workbook
+- course QA markdown/json
+- blueprint markdown/json/DOCX when running the full bundle pipeline
 - concise unresolved-questions note
 
 ## Repo note
-- If present, consult `docs/project/BRIGHTSPACE_PACKAGE_STRUCTURE_AND_IMPORT_NOTES.md` for repo-specific package patterns and current import-area conventions.
+- In this bundle, consult `knowledge/BRIGHTSPACE_PACKAGE_STRUCTURE_AND_IMPORT_NOTES.md`
+  for package patterns and `knowledge/SCRIPT_PIPELINE_AND_PACKAGE_CONTEXT.md`
+  for the full `run_blueprint.sh` pipeline.

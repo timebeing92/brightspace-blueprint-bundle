@@ -30,15 +30,20 @@ structured model to Markdown and DOCX:
    (`{kind, level, runs:[{text, href}], meta?}`). Paragraphs, bullet lists,
    links, horizontal rules, dropdown summaries, selected callout/card visual
    cues, image placeholders, attached-file placeholders, and video/iframe embeds
-   survive; Creator+ practice iframes that reference a local `.practice.json`
-   via `data-file` are expanded into lightweight practice metadata blocks.
+   survive. When a callout/card/highlight container wraps a full source section,
+   the child paragraphs and lists stay nested under that visual block so the
+   generated Markdown/DOCX can highlight the full section, not only the cue
+   title. Creator+ practice iframes that reference a local `.practice.json` via
+   `data-file` are expanded into lightweight practice metadata blocks.
    Embedded images are not parsed, OCR'd, or embedded in the blueprint: they
    render as stand-in blocks with alt text when available, otherwise a no-alt
    placeholder plus the source path. Non-HTML course files such as `.docx`,
    `.pdf`, or spreadsheet/presentation files render as attached-file references
-   instead of decoded body text. Hidden manifest items render as short
-   hidden-item placeholders naming the object/type/path where available, but
-   their bodies/details are not unpacked. `<script>`/`<style>` and
+   instead of decoded body text. Hidden/faculty-facing manifest items remain
+   visible: hidden modules get a notice, hidden HTML bodies are extracted where
+   readable and prefixed with a hidden/faculty-facing note, hidden non-HTML
+   files are preserved as file references, and hidden tool links keep
+   object/type/path evidence where available. `<script>`/`<style>` and
    page-template artifacts (e.g. "Basic Page - No Banner") are dropped.
 4. `extract_course_activities.py` — dropbox folders, discussions, D2L
    checklists, quiz-level instructions/settings, and grade joins. Assignment
@@ -46,10 +51,14 @@ structured model to Markdown and DOCX:
    items are parsed into the same blocks (`instructions_blocks`,
    `description_blocks`, quiz `instructions_blocks`, checklist `blocks`), so
    their formatting is preserved too.
-5. `course_qa_report.py` — severity-tiered export QA (optional, `--skip-qa`).
+5. `course_qa_report.py` — severity-tiered export QA (optional, `--skip-qa`),
+   including specific image-alt locations, package-scope notes, front-matter
+   source diagnostics, and optional live external-link checks.
 6. **model build** → `<label>__blueprint.json` (see
    `schemas/blueprint_schema.json`).
 7. **render** → `<label>__blueprint.md` and `<label>__blueprint.docx`.
+8. Optional **visual render QA** with `--render-docx-check` →
+   `render_qa/render_summary.json` plus PDF/PNG pages.
 
 ## How each week is assembled
 
@@ -64,11 +73,14 @@ Each detected week/module gathers its HTML topics, and every topic's
 | **Assignment(s) and Instructions** | dropbox folders joined to the module by `resource_code`; quiz quicklinks joined to `quiz_d2l_*.xml` by rCode/resource code, with quiz-level instructions and settings when present. Numeric due dates are NOT encoded (see below) |
 | **Discussion Board Prompts** | discussion topics joined by `resource_code` |
 | **Checklist** | D2L checklist tool quicklinks joined to `checklist_d2l.xml` payloads by `resource_code`/`rCode`; HTML headings matching `checklist` are also preserved here. Only shown when present. |
-| **Other course sections** | any remaining page or heading (Next Steps, Case Study, Instructions…) preserved under its own **"Page › Heading" path label**, built from the page title plus the h1–h4 heading hierarchy, so sections from different pages never merge. Markdown and DOCX add a horizontal divider between different source pages, while keeping multiple subsections from the same page grouped without extra rules. Lesson/practice pages usually live here; embedded Creator+ practices are shown inside the section where their iframe appears. Only shown when present. |
+| **Other course sections** | any remaining page or heading (Next Steps, Case Study, Instructions, practice/self-assessment material...) preserved under its own **"Page › Heading" path label**, built from the page title plus the h1–h4 heading hierarchy, so sections from different pages never merge. Markdown and DOCX add a horizontal divider between different source pages, while keeping multiple subsections from the same page grouped without extra rules. Lesson/practice pages usually live here; embedded Creator+ practices are shown inside the section where their iframe appears. Only shown when present. |
 
-Ordering matters in the alias table: **checklist is checked first**, then
-**objectives before resources** (so "Learning Objectives" doesn't match the
-`material` substring), and resources before overview.
+Ordering matters in the alias table: **checklist and practice are checked
+first** (so "Self-Assessment" is not treated as a generic assessment), then
+**objectives before resources** (so "Learning Objectives" does not match the
+`material` substring), and resources before overview for segment headings. Page
+titles use a slightly different priority so a page titled "Week 1 Overview and
+Learning Materials" still acts as the week's overview page.
 
 There is one module-level structural override: if a week/module has both an
 explicit overview page and a separate learning-materials/resources page (for
@@ -173,19 +185,34 @@ matches; Description and Introduction match by topic title. Empty → `Needs rev
   quiz review extractor.
 - **Creator+ practice details are metadata-level only.** If an HTML iframe points
   to a local `.practice.json`, the blueprint includes the practice title, type,
-  item/question/category counts, scoring status, source file, and authored
+  item/question/category counts, scoring status, source file, and source
   description/instructions/prompts. Full answer-key or feedback review belongs
   in a dedicated Creator+ review pass, not the blueprint.
 - **Visual styling is translated into cues, not recreated.** The extractor
   preserves semantic visual structure that helps a reviewer read long pages:
   callouts/notes/card-like sections, dropdown summaries, video/media embeds,
-  and horizontal rules. It does not attempt to reproduce exact Brightspace CSS,
-  fonts, layout, or every decorative wrapper.
+  and horizontal rules. Callout/card/highlight containers can wrap nested child
+  blocks, so the generated review artifact can show the full highlighted
+  section rather than only a leading label. It does not attempt to reproduce
+  exact Brightspace CSS, fonts, layout, or every decorative wrapper. Repeated
+  low-value wrappers, such as timeline item/card containers, are suppressed
+  when they would only add label noise.
 - **Formatting is preserved, not reflowed.** Paragraphs, bullet lists, and links
   are carried through as authored (links render live in both Markdown and DOCX).
-  Fine inline styling (bold/italic, fonts, colors) and images are not carried —
-  images become an `[image: alt]` marker when they have alt text. Very unusual
-  page markup can still mis-block, but the common D2L shapes are handled.
+  Fine inline styling (bold/italic, fonts, colors) and images are not embedded.
+  Images become an `[image: alt]` marker when they have alt text and a
+  no-alt/source-path marker when they do not. Missing-alt locations also appear
+  in the QA report when available. Very unusual page markup can still
+  mis-block, but the common D2L shapes are handled.
+- **Hidden/faculty-facing material is included with a warning posture.** Hidden
+  HTML pages are extracted where readable, but are prefixed with a visible note
+  that the source item is hidden/faculty-facing. Hidden non-HTML files and tool
+  links are preserved as references or placeholders rather than deeply decoded.
+- **External links are not fetched unless requested.** The QA report inventories
+  external URLs offline by default. Use `--check-external-links` for live link
+  checks.
+- **DOCX render QA is optional.** Use `--render-docx-check` when LibreOffice,
+  Poppler, and `pdf2image` are available.
 - The blueprint is a **review surface**, not an instructional-design approval.
 
 ## Reading the output
@@ -196,3 +223,8 @@ matches; Description and Introduction match by topic title. Empty → `Needs rev
 - `Extraction Notes` — diagnostics carried from the structure/activity passes.
   Package-scope notes about hidden-linked or unlinked files are completeness
   diagnostics; they are not inserted as instructional blueprint content.
+- QA `Warnings` — review risks such as missing image alt text, now with topic
+  title and asset path when the extractor can identify them.
+- QA `Notes` — package-scope diagnostics, hidden/faculty-facing evidence,
+  front-matter source diagnostics, external URL inventory, and other context
+  that helps explain the export without blocking the blueprint.

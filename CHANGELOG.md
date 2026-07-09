@@ -1,8 +1,37 @@
-# Bundle log & handoff notes
+# Changelog
 
-Working log for `brightspace-blueprint-bundle`. Newest first.
+Implementation history for `brightspace-blueprint-bundle`. Newest first.
 
 ---
+
+## 2026-07-09 — Visual callout section wrapping (done)
+
+Source callout/card/highlight containers now preserve the full wrapped section
+when the HTML structure supports it. Markdown renders the cue and child content
+inside a highlighted review block, and DOCX shades both the cue paragraph and
+the section text so visual hierarchy is clearer during review.
+
+The blueprint schema now allows visual blocks to carry nested child blocks for
+this purpose while retaining the older single-cue fallback for simple wrappers.
+
+---
+
+## 2026-07-09 — User-facing documentation and knowledge refresh (done)
+
+The README now leads with the script-run workflow, bundle contents, setup steps,
+virtual-environment usage, pipeline order, QA/render options, share hygiene, and
+how to suggest improvements for review and roadmap consideration.
+
+The `knowledge/` folder was refreshed to match the current bundle behavior:
+`workspace/review` output defaults, `coursecraft.blueprint/4`, optional DOCX
+render QA, hidden/faculty-facing material handling, specific image-alt QA
+details, package-scope diagnostics, front-matter source diagnostics, optional
+external-link checks, Creator+ practice handling, and current local bundle
+references.
+
+The provenance note now clarifies that many core scripts are derived from a more
+substantive Brightspace XML and course tooling suite that has been in
+development since 2024 and is available upon request.
 
 ## 2026-07-08 — Public license and commercial licensing note (done)
 
@@ -18,12 +47,14 @@ top-level title. The old placeholder-style heading (`Course # - Course Blueprint
 - Term`) is no longer rendered, and the course title is no longer demoted to a
 subtitle. Course number and term remain optional metadata in the JSON model.
 
-## 2026-07-08 — Hidden manifest placeholders and package-scope diagnostics (done)
+## 2026-07-08 — Hidden/faculty-facing manifest content and package-scope diagnostics (done)
 
-Hidden manifest items now render as short hidden-item placeholders that name the
-object and type in sequence, while page/file/activity bodies remain unparsed.
-This covers hidden content pages/files and hidden D2L object links such as
-quizzes, assignments, discussions, checklists, quicklinks, and LTI links.
+Hidden/faculty-facing manifest items now remain visible in review output with a
+clear note. Hidden modules get a visible notice, hidden HTML bodies are
+extracted when readable, hidden non-HTML files are preserved as file references,
+and hidden D2L object links such as quizzes, assignments, discussions,
+checklists, quicklinks, and LTI links keep object/type/path evidence where
+available.
 
 Large or messy exports also get package-scope extraction notes: hidden
 manifest-linked files skipped from body extraction, and package files not
@@ -327,14 +358,16 @@ knowledge/, schemas/, examples/. Both DOCX + Markdown.
   `knowledge/HOW_EXTRACTION_MAPS_TO_BLUEPRINT.md`.
 - **Run it:** `bash bootstrap.sh` once, then
   `bash run_blueprint.sh <export.zip> --course-number .. --course-title .. --term ..`.
-  Outputs land in `output/<label>__blueprint_bundle/`.
+  Outputs land in `workspace/review/<label>__blueprint_bundle/` unless
+  `--output-dir` is supplied.
 - **Test exports:** use `examples/sample_export.zip` for a privacy-safe smoke
   test, then validate against private Brightspace exports outside the repo when
   changing extraction behavior.
 - **Pipeline:** `build_blueprint_bundle.py` orchestrates `export_inventory` →
   `manifest_probe` → `reconstruct_course_structure --extract-html` →
   `extract_course_activities` → `course_qa_report`, builds a JSON model
-  (`schemas/blueprint_schema.json`), and renders `.md` + `.docx`.
+  (`schemas/blueprint_schema.json`), renders `.md` + `.docx`, and can run
+  optional DOCX visual render QA with `--render-docx-check`.
 - **Design rules to keep:** mirror, don't reconstruct; no per-course config
   (labels come from the course's own headings/titles); never invent content;
   keep missing fields visible; Markdown is canonical, DOCX is the Word rendering

@@ -12,9 +12,11 @@ the package, reconstructs the course module/page/activity evidence, builds one
 schema-backed JSON model, and renders that same model to Markdown and DOCX.
 
 Runtime dependencies are intentionally small: `openpyxl` writes the
-course-activities workbook and `python-docx` renders DOCX blueprints. They are
-listed in `requirements.txt` and should be installed once into the local
-environment, not reinstalled for every export.
+course-activities workbook, `python-docx` renders DOCX blueprints, and
+`pdf2image` supports optional DOCX visual render QA. They are listed in
+`requirements.txt` and should be installed once into the bundle-local `.venv`,
+not reinstalled for every export. The optional render-QA path also needs
+LibreOffice/`soffice` and Poppler utilities available on the machine.
 
 ## Plain-Language Version
 
@@ -38,13 +40,16 @@ It asks:
 5. What text can be safely copied into a blueprint review surface?
 6. What is missing, ambiguous, or not joined cleanly?
 
-The pipeline then writes a folder of outputs. The main files are:
+The pipeline then writes a folder of outputs, by default under
+`workspace/review/<label>__blueprint_bundle/`. The main files are:
 
 - `<label>__blueprint.docx` for SME/reviewer sharing
 - `<label>__blueprint.md` for a readable flat-file version
 - `<label>__blueprint.json` for the structured data model
 - companion inventory, manifest, structure, activity, workbook, and QA files
   for anyone who wants to audit where the blueprint came from
+- optional `render_qa/` output with PDF/PNG pages and a render summary when
+  `--render-docx-check` is used
 
 The tool does not log in to Brightspace, change the course, upload anything, or
 use AI to fill gaps. If the export does not clearly contain something, the
@@ -75,9 +80,10 @@ order:
 | 2 | `manifest_probe.py` | Read `imsmanifest.xml`, summarize organizations/items/resources, identifierref usage, likely quiz resources, and suspicious hrefs. | `*__manifest_probe.json`, `*__manifest_probe.md` |
 | 3 | `reconstruct_course_structure.py --extract-html` | Rebuild the module/topic tree, resolve manifest items to resources, read HTML pages, split page bodies by real headings, preserve paragraphs/lists/links plus lightweight visual cues as blocks, and expand Creator+ practice iframes from local `.practice.json` metadata when available. | `<label>__course_structure.json`, `<label>__course_structure.md` |
 | 4 | `extract_course_activities.py` | Read assignment/dropbox, discussion, quiz-level instructions/settings, checklist, grade, rubric, condition, and quicklink evidence; resolve joins by `resource_code` where possible. | `<label>__course_activities.json`, `.md`, `.xlsx` |
-| 5 | `course_qa_report.py` | Run read-only integrity checks over joins, missing files, malformed XML, dated fields, image alt text, and other review risks. | `<label>__course_qa.json`, `<label>__course_qa.md` |
+| 5 | `course_qa_report.py` | Run read-only integrity checks over joins, missing files, malformed XML, dated fields, image alt text with specific locations, package-scope notes, front-matter source diagnostics, and other review risks. External URLs are inventoried by default and fetched only with `--check-external-links`. | `<label>__course_qa.json`, `<label>__course_qa.md` |
 | 6 | `build_blueprint_bundle.py` model builder | Combine course structure + activities into the blueprint model. | `<label>__blueprint.json` |
 | 7 | Markdown renderer + `blueprint_to_docx.py` | Render the model into human-readable review outputs. | `<label>__blueprint.md`, `<label>__blueprint.docx` |
+| 8 | `render_blueprint_docx.py` | Optional visual QA when `--render-docx-check` is used: convert the generated DOCX to PDF/PNG pages and write a render summary. | `render_qa/` |
 
 Markdown and DOCX both render from the same JSON model. If those two views ever
 disagree, treat that as a renderer problem, not as two separate sources of
@@ -111,9 +117,12 @@ Text content is stored as formatting-preserving blocks:
 
 - `p` = paragraph
 - `li` = list item, with nesting level
-- `label` = internal subsection label used by the renderer
-- `visual`, `dropdown`, `embed`, `divider` = lightweight visual-structure cues
-  from the source HTML
+- `label` = subsection label used by the renderer
+- `practice` = compact Creator+ practice metadata block
+- `visual`, `dropdown`, `embed`, `image`, `file`, `hidden`, `divider` =
+  lightweight source-structure cues from the source HTML or manifest
+- `visual` blocks can also carry nested child `blocks` when the source
+  callout/card/highlight styling wraps a full section
 - each block contains link-aware text runs: `{text, href}`
 
 Labeled sections preserve provenance where the evidence comes from course pages:
@@ -141,8 +150,8 @@ Common export files the scripts know how to recognize include:
 | --- | --- |
 | `imsmanifest.xml` | Course structure, organizations, items, resource references, quicklink placement, resource hrefs. |
 | `orgunitconfig/orgunitconfig.xml` | Course/package metadata context. Not usually where instructional content lives. |
-| HTML/HTM files | Student-facing content pages. These supply overview text, learning materials, objectives, checklists, and other sections. |
-| `practice/*.practice.json` or `*.practice.json` | Creator+ Practice payloads referenced by HTML iframe `data-file` attributes. The blueprint carries lightweight practice metadata and authored prompts/instructions, not full answer-key review. |
+| HTML/HTM files | Content pages. These supply overview text, learning materials, objectives, checklists, and other sections. Hidden/faculty-facing HTML pages are included where readable and prefixed with a hidden/faculty-facing notice. |
+| `practice/*.practice.json` or `*.practice.json` | Creator+ Practice payloads referenced by HTML iframe `data-file` attributes. The blueprint carries lightweight practice metadata and source prompts/instructions, not full answer-key review. |
 | `dropbox_d2l.xml` | Assignment/dropbox folders, instructions, points, activity resource codes. |
 | `discussion_d2l_*.xml` | Discussion forums/topics, prompts/descriptions, points, activity resource codes. |
 | `grades_d2l.xml` | Grade items and grade joins for assignments, discussions, and quizzes. |
@@ -175,6 +184,10 @@ The weekly blueprint placement depends mostly on the manifest tree and
 `resource_code` joins:
 
 - modules/weeks come from `imsmanifest.xml` organizations/items
+- hidden/faculty-facing manifest items are retained: hidden modules get a
+  visible notice, hidden HTML bodies are extracted when readable, hidden
+  non-HTML files are preserved as file references, and hidden tool links are
+  represented with object/type/path evidence when available
 - top-level non-week modules before the first detected week become
   `before_week_1`, rendered as `Before Week 1: Additional Resources and
   Information`; page titles render once inside a section table, internal
@@ -215,8 +228,13 @@ blueprint buckets:
 - HTML headings matching checklist -> Checklist
 - Creator+ iframe `data-file` + local `.practice.json` payloads -> lightweight
   practice metadata blocks inside the current page section
+- practice/self-assessment headings -> preserved as practice-like page sections,
+  normally under `Other course sections` unless the surrounding page routes
+  them into another visible course section
 - selected source visual structure -> block cues (`visual`, `dropdown`,
-  `embed`, `divider`) rendered in Markdown and DOCX
+  `embed`, `image`, `file`, `hidden`, `practice`, `divider`) rendered in
+  Markdown and DOCX; source callout/card/highlight containers can wrap nested
+  child content so the visual hierarchy applies to the full section
 
 Everything else stays visible under `Other course sections` using a
 `Page > Heading` style provenance label. This keeps unusual course content from
@@ -252,10 +270,16 @@ Known limits:
   translated into blueprint rows
 - Creator+ practices are surfaced only when an HTML iframe points to a readable
   local `.practice.json`; the blueprint includes title/type/count/scoring/source
-  metadata and authored instructions/prompts, not full answer/feedback review
+  metadata and source instructions/prompts, not full answer/feedback review
 - visual styling is translated into review cues, not exact CSS recreation;
   source callouts, dropdowns, embeds, and separators are preserved when detected,
   but decorative layout wrappers are intentionally ignored
+- blank Brightspace template artifacts such as screen-reader-only "Basic Page -
+  No Banner" labels are dropped rather than rendered as page content
+- external links are inventoried offline by default; live link checking is
+  opt-in through `--check-external-links`
+- DOCX visual render QA is optional and depends on LibreOffice/`soffice`,
+  Poppler, and `pdf2image`
 - LTI/external-tool payloads are not deeply interpreted
 - missing learning-objective alignment is not inferred
 

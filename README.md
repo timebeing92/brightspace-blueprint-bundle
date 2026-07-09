@@ -1,219 +1,241 @@
-# Brightspace → Course Blueprint
+# Brightspace Blueprint Bundle
 
-Turn a **Brightspace/D2L course export** into a flat-file **course blueprint**
-as **Markdown + DOCX** for source-traceable course review.
+Turn a Brightspace/D2L course export into a source-traceable course blueprint:
+Markdown, DOCX, JSON, activity workbook, inventory files, and QA reports.
 
-This is a self-contained bundle: scripts, dependencies list, a one-command
-setup, knowledge docs, the JSON schema, and a worked example. Hand it to a
-colleague (or point an AI agent at it) and it runs without any other repo.
-
----
-
-## Design philosophy: mirror, don't reconstruct
-
-The blueprint structure is intentionally review-first: LOs, learning materials,
-assessments, discussions, checklist/tooling, and other course sections are
-presented in a stable order. A built course is the forward artifact, and by the
-time it's in Brightspace the design logic is baked into pages, not labeled.
-Trying to reverse it back into a perfect design model means the script has to
-infer instructional intent, and that's exactly the guessing that (a) needs the
-sprawling config logic you don't want, and (b) produces confident-looking but
-wrong output — the worst failure mode for a review surface.
-
-So: mirror the course structure faithfully and present it clearly, inside the
-blueprint's frame. Don't try to re-derive the backwards-design. If someone wants
-to use this to drive a redesign, a faithful, well-organized mirror is a far
-better starting point than a lossy reconstruction — they can see what's actually
-there and restructure deliberately.
-
-**In practice:** the course front matter and per-week frame are stable, but each
-week's inner structure is taken from the *course's own page headings*. A small
-alias table pulls the few universal buckets (Learning Objectives, Resources,
-Checklist) into consistent rows; every other page or heading is preserved under
-its own label in an "Other course sections" row, labeled with its "Page ›
-Heading" path so distinct pages stay distinct. Every extracted section also
-carries provenance (`source_page`, heading `level`) in the JSON model. Learning
-Objectives are split into their own row only when the course actually uses an
-objectives heading — otherwise that text stays in Overview rather than being
-guessed at.
-
-When a pre-week course-level page is linked or copied again inside a weekly
-module, the blueprint keeps the course-level copy and suppresses the weekly
-duplicate with a diagnostic. This prevents global roadmap/setup pages from also
-appearing as Week 1 "Other course sections."
-
-Binary/course-file assets stay as references. If a manifest `content` item
-points to a Word/PDF/spreadsheet/presentation file, the blueprint renders an
-attached-file placeholder instead of decoding the payload. Images embedded in
-HTML pages render as image placeholders with alt text when available, or a
-no-alt placeholder plus the source path; the tool does not parse or OCR images.
-Hidden manifest items remain visible as short hidden-item placeholders that name
-the object and type, but their page/file/activity bodies are not unpacked.
-Extraction notes also summarize hidden manifest-linked files and package files
-not directly linked from the visible manifest by size and type.
-
----
+This bundle can run entirely from normal command-line scripts. No AI service is
+required to use it. You can also point an agent at the bundle and ask it to run
+the scripts for you; it will likely ask permission to install the required
+Python packages and system libraries, then execute the same pipeline described
+below. `AGENTS.md` is optional maintainer guidance for a human contributor or an
+AI coding assistant working on the scripts; it is not part of the runtime
+pipeline.
 
 ## Quickstart
 
 ```bash
-# 1. one-time setup (creates .venv, installs deps)
+# 1. One-time setup in this folder (macOS/Linux).
 bash bootstrap.sh
 
-# 2. run it on an export (ZIP or unpacked export folder)
+# 2. Run a Brightspace export through the blueprint pipeline.
 bash run_blueprint.sh /path/to/course-export.zip \
-  --course-number "ABC 123" --course-title "Intro to Whatever" --term "Fall 2026"
+  --label my-course \
+  --course-number "ABC 123" \
+  --course-title "Course Title" \
+  --term "Fall 2026"
 ```
 
-Outputs land in `output/<label>__blueprint_bundle/`:
+By default, the output folder is:
 
-- **`<label>__blueprint.md`** — the flat Markdown blueprint
-- **`<label>__blueprint.docx`** — DOCX version of the same review blueprint
-- `<label>__blueprint.json` — the structured model both renderers use
-- companion artifacts: inventory, manifest probe, course structure, activities
-  (JSON/MD/xlsx), QA report, and a per-run `README.md`
+```text
+workspace/review/<label>__blueprint_bundle/
+```
 
-A worked example is in `examples/` so you can see the output before running your
-own.
+The wrapper reuses the bundle-local `.venv` on later runs. If `.venv` is missing,
+`run_blueprint.sh` starts `bootstrap.sh` automatically.
 
-New to the internals? Read
-`knowledge/SCRIPT_PIPELINE_AND_PACKAGE_CONTEXT.md` for a plain-language
-walkthrough of the pipeline, then a technical map of the scripts, JSON schema,
-D2L XML evidence files, package structure, and joins.
+## What You Need
 
-> **Windows:** run `./bootstrap.ps1` in PowerShell, then
-> `./.venv/Scripts/python.exe scripts/build_blueprint_bundle.py C:\path\to\export.zip`.
+- Python 3.11 or newer.
+- A Brightspace/D2L export ZIP, or an unpacked export folder with
+  `imsmanifest.xml` at the export root.
+- Python packages from `requirements.txt`:
+  - `openpyxl` for the activity workbook.
+  - `python-docx` for DOCX rendering.
+  - `pdf2image` for optional DOCX visual render QA.
+- Optional render-QA system tools:
+  - LibreOffice/`soffice` to convert DOCX to PDF.
+  - Poppler utilities on `PATH` for PDF-to-PNG rendering.
 
----
+`bootstrap.sh` installs the Python packages into `.venv`. LibreOffice and
+Poppler are system tools and must be installed separately.
 
-## What the blueprint contains
+Windows setup:
 
-Follows a stable review frame, populated from the export:
+```powershell
+.\bootstrap.ps1
+.\.venv\Scripts\python.exe scripts\build_blueprint_bundle.py C:\path\to\export.zip
+```
 
-- Header: actual course title from `--course-title` or the export label.
-  Course number and term are stored as optional metadata, not rendered in the
-  visible title.
-- **Course Description**, **Textbooks / Required Materials**, **Course Learning
-  Outcomes** (single-column tables)
-- **Course Introduction**
-- **Before Week 1: Additional Resources and Information** when the export has
-  top-level orientation, syllabus, project overview, roadmap, or other setup
-  pages before the first detected week/module. These pages render once under
-  their page title in the section table, with local subsection labels inside
-  the page; content already used as the global Course Introduction is not
-  repeated here.
-- One **table per week/module**:
-  Overview · Learning Objectives · Assigned Reading and Multimedia (resources /
-  learning materials, with the course's own sub-labels) · Assignment(s) and
-  Instructions · Discussion Board Prompts · a **Checklist** row when the week
-  has a D2L checklist tool payload or checklist page heading · and an **Other
-  course sections** row when the week has pages/headings that don't map to a
-  standard bucket (each under its own "Page › Heading" label). In Markdown and
-  DOCX, horizontal dividers in this row mark transitions between separate
-  source pages; multiple subsections from the same page stay grouped together.
-  D2L XML checklists are the normal checklist source; HTML checklist
-  pages/headings are also preserved when present. Linked `quiz_d2l_*.xml`
-  payloads supply quiz-level instructions, gradebook/points joins,
-  attempts/time-limit settings, and section/question-count summaries; full
-  question-bank/pool review remains outside this bundle. Creator+ practice
-  iframes that point to local
-  `.practice.json` files are expanded as compact practice cards with
-  title/type/count/scoring metadata plus authored instructions/prompts, but not
-  answer-key review.
-  Source-page visual structure is carried as review cues when detected:
-  callout/note/card-like containers, dropdown summaries, video/media embeds, and
-  horizontal rules. The bundle preserves those cues without trying to reproduce
-  Brightspace CSS pixel-for-pixel. Low-value nested wrappers such as repeated
-  timeline item/card containers are suppressed so the document does not become
-  a stream of visual wrapper labels.
-  Separate D2L activity objects inside Assignment(s) and Discussion Board rows
-  are divided visually, so multiple assignments, quizzes, or discussion topics
-  remain distinct. This divider rule is object-based; it does not split
-  inferred subsections inside one content page.
-  When a module has separate sibling pages for overview and learning materials
-  (for example, `Week 1 Overview` plus `Week 1 Learning Materials and
-  Resources`), resource-like headings inside the explicit overview page stay in
-  the Overview row. Combined pages such as `Week 1 Overview and Learning
-  Materials` still split their internal resources into Assigned Reading and
-  Multimedia.
-  The underlying JSON model is `coursecraft.blueprint/4`.
-  Learning Objectives are split out only when the course used an objectives
-  heading (see *Design philosophy* above). Numeric due dates aren't encoded (they're
-  term-relative); the day-of-week cadence rides along in the extracted
-  assignment/discussion/quiz/checklist text.
-- In the default DOCX, each weekly module is a full-width, single-column table.
-  Scaffold labels sit in shaded header rows above the extracted content. Use
-  `--docx-section-layout left` if you want the alternate full-width table with
-  shaded labels in a left column. Both DOCX layouts render from the same JSON
-  model; bullets are native Word lists and links are clickable.
+## What The Output Contains
 
-It is a **review surface**: extracted wording is source-derived, and anything not
-found is marked `Needs review` / `None found` rather than invented. See
-`knowledge/SCRIPT_PIPELINE_AND_PACKAGE_CONTEXT.md` for the layered pipeline and
-package explanation, and `knowledge/HOW_EXTRACTION_MAPS_TO_BLUEPRINT.md` for the
-full source→section map and known limitations (headers, due dates,
-heading-driven mirroring).
+A normal run creates one course-specific bundle folder. The main reviewer-facing
+files are:
 
----
+- `<label>__blueprint.docx` - Word review document.
+- `<label>__blueprint.md` - flat Markdown version of the same blueprint.
+- `<label>__blueprint.json` - structured model used by both renderers.
+- `<label>__course_activities.xlsx` - extracted activities workbook.
+- `<label>__course_qa.md` and `.json` - QA warnings, notes, and diagnostics.
+- `<label>__course_structure.md` and `.json` - reconstructed module/topic tree.
+- `<export>__inventory.md` and `.json` - package file inventory.
+- `<export>__manifest_probe.md` and `.json` - manifest/resource inspection.
+- `README.md` - short per-run guide to the generated files.
+- `render_qa/` - optional PDF/PNG render check output when requested.
 
-## Common options
+Generated bundles are course-specific review artifacts. The repository source
+does not need to include generated `workspace/` or `output/` folders.
 
-`scripts/build_blueprint_bundle.py` (called by `run_blueprint.sh`):
+## Normal Pipeline
 
-| Flag                                            | Purpose                                               |
-| ----------------------------------------------- | ----------------------------------------------------- |
-| `--course-title`                                | Set the visible blueprint title; defaults from the export label. |
-| `--course-number` / `--term`                    | Store optional metadata in the JSON model; not rendered in the visible title. |
-| `--label NAME`                                  | Output filename stem (defaults from the export name). |
-| `--output-dir DIR`                              | Base output directory (default `output/`).            |
-| `--skip-qa`                                     | Skip the QA report pass.                              |
-| `--check-external-links`                        | Opt in to live external URL checks in the QA report.  |
-| `--no-docx`                                     | Markdown + JSON only.                                 |
-| `--render-docx-check`                           | Render the generated DOCX to PDF/PNG pages in `render_qa/` for visual QA. |
-| `--docx-section-layout top\|left`                | DOCX section-label layout; `top` is the default.      |
-| `--quiet`                                       | Suppress sub-script chatter.                          |
+`run_blueprint.sh` calls `scripts/build_blueprint_bundle.py`, which runs the
+steps below in order:
 
-Markdown is always produced. If `python-docx` is missing, DOCX is skipped with a
-warning and everything else still works.
+| Step | Script | Purpose |
+| --- | --- | --- |
+| 1 | `export_inventory.py` | List files in the export and summarize package contents. |
+| 2 | `manifest_probe.py` | Inspect `imsmanifest.xml`, resources, visibility, and links. |
+| 3 | `reconstruct_course_structure.py --extract-html` | Rebuild the module/topic structure and extract HTML page content, headings, visual cues, styled callout/card sections, media placeholders, file placeholders, image alt evidence, hidden/faculty-facing notices and content where readable, and Creator+ practice metadata. |
+| 4 | `extract_course_activities.py` | Extract assignments, discussions, quiz-level settings/instructions, checklists, grade/rubric joins, and activity metadata. |
+| 5 | `course_qa_report.py` | Produce QA warnings and notes; external URL fetching is opt-in. |
+| 6 | `build_blueprint_bundle.py` | Assemble the `coursecraft.blueprint/4` JSON model. |
+| 7 | `blueprint_to_docx.py` | Render DOCX from the same model used for Markdown. |
+| 8 | `render_blueprint_docx.py` | Optional visual check: DOCX to PDF/PNG pages plus render summary. |
 
----
+Markdown is always produced. DOCX is produced when `python-docx` is available.
+Detected source callouts, notes, cards, and styled highlight sections are kept
+as review cues; when the source HTML wraps a full section, the generated
+Markdown/DOCX wraps the section content, not only the callout title.
 
-## Requirements
+## Common Commands
 
-- Python **3.11+**
-- Python packages in `requirements.txt`:
-  - `openpyxl>=3.1,<4` for the course-activities workbook (`.xlsx`)
-  - `python-docx>=1.1,<2` for DOCX blueprint rendering
-  - `pdf2image>=1.17,<2` for optional DOCX visual render QA
-- System tools for optional `--render-docx-check`:
-  - LibreOffice/`soffice`
-  - Poppler utilities available on `PATH`
+Run with default QA:
 
-Run `bash bootstrap.sh` once after unzipping the bundle. It creates the local
-`.venv` and installs those packages. After that, `bash run_blueprint.sh ...`
-reuses `.venv`; you do not need to reinstall dependencies for every export. If a
-first bootstrap was interrupted, rerun `bash bootstrap.sh` before running the
-pipeline again.
+```bash
+bash run_blueprint.sh /path/to/export.zip --label course-review
+```
 
----
+Run visual DOCX render QA:
 
-## Layout
+```bash
+bash run_blueprint.sh /path/to/export.zip \
+  --label course-review \
+  --render-docx-check
+```
+
+Opt in to live external-link checks:
+
+```bash
+bash run_blueprint.sh /path/to/export.zip \
+  --label course-review \
+  --check-external-links
+```
+
+Write to a different base output folder:
+
+```bash
+bash run_blueprint.sh /path/to/export.zip \
+  --label course-review \
+  --output-dir output
+```
+
+Use the alternate DOCX table layout:
+
+```bash
+bash run_blueprint.sh /path/to/export.zip \
+  --label course-review \
+  --docx-section-layout left
+```
+
+## Common Options
+
+| Flag | Purpose |
+| --- | --- |
+| `--label NAME` | Output filename stem and bundle folder name. |
+| `--course-title "Title"` | Visible blueprint title. |
+| `--course-number "ABC 123"` | Optional metadata in the JSON model. |
+| `--term "Fall 2026"` | Optional metadata in the JSON model. |
+| `--output-dir DIR` | Base output directory; default is `workspace/review`. |
+| `--bundle-dir DIR` | Exact output bundle directory. |
+| `--skip-qa` | Skip `course_qa_report.py`. |
+| `--check-external-links` | Fetch and check external URLs during QA. Offline inventory remains the default. |
+| `--external-link-timeout N` | Per-URL timeout in seconds for external-link checks. |
+| `--no-docx` | Produce Markdown and JSON only. |
+| `--render-docx-check` | Render the generated DOCX to PDF/PNG pages in `render_qa/`. |
+| `--docx-section-layout top\|left` | DOCX weekly section-label layout; `top` is the default. |
+| `--quiet` | Suppress companion script output. |
+
+## How To Review A Run
+
+Start with the generated DOCX or Markdown blueprint. Then check the QA report:
+
+- `Warnings` identify likely review issues, such as missing alt text with the
+  topic title and asset path when available.
+- `Notes` identify package-scope findings, such as hidden manifest-linked files
+  and unlinked package files that may explain large exports or indirect assets.
+- Front-matter diagnostics say which candidate sources were checked when a field
+  remains `Needs review`.
+- External links are inventoried by default. They are fetched only when
+  `--check-external-links` is used.
+
+For visual layout QA, run `--render-docx-check` and inspect
+`render_qa/render_summary.json` plus the generated PNG pages.
+
+## Repository Layout
 
 ```text
 brightspace-blueprint-bundle/
-├── README.md                  ← you are here
-├── LICENSE                    ← AGPL-3.0-or-later license text
-├── COMMERCIAL.md              ← commercial licensing and services note
-├── AGENTS.md                  ← contract for an AI agent
-├── requirements.txt
-├── bootstrap.sh / bootstrap.ps1
-├── run_blueprint.sh
-├── scripts/                   ← pipeline + renderers (self-contained)
-├── knowledge/                 ← pipeline guide, package structure, export→blueprint mapping, triage skill
+├── README.md                  <- user guide
+├── LICENSE                    <- AGPL-3.0-or-later license text
+├── COMMERCIAL.md              <- commercial licensing and services note
+├── CHANGELOG.md               <- implementation history
+├── AGENTS.md                  <- optional maintainer/assistant guidance
+├── requirements.txt           <- Python dependencies for .venv
+├── bootstrap.sh               <- macOS/Linux setup
+├── bootstrap.ps1              <- Windows setup
+├── run_blueprint.sh           <- normal pipeline wrapper
+├── scripts/                   <- pipeline, model builder, renderers, QA tools
+├── knowledge/                 <- pipeline and Brightspace package references
 ├── schemas/blueprint_schema.json
-├── examples/                  ← a real export run, end-to-end
-└── output/                    ← generated bundles (created on first run)
+└── examples/                  <- worked sample output and config example
 ```
+
+Ignored local folders:
+
+- `.venv/` - local Python environment.
+- `workspace/` - default generated run output.
+- `output/` - optional generated run output.
+- `__pycache__/`, `*.pyc`, `.DS_Store` - local runtime/system files.
+
+## Design Philosophy
+
+The blueprint mirrors the exported course; it does not try to reconstruct an
+ideal design model. A built Brightspace course already has design decisions
+baked into pages, links, and activity objects. Guessing backwards from that
+structure can produce confident but wrong output.
+
+The stable review frame is:
+
+- course front matter,
+- Course Introduction,
+- before-week orientation or setup material,
+- repeatable week/module sections,
+- extraction notes.
+
+Inside each week, the tool preserves the course's own headings and page
+provenance. A small alias table routes common material such as Learning
+Objectives, Resources, Practice, Checklist, Assignments, and Discussions into
+consistent rows. Material that does not fit those buckets stays visible under
+`Other course sections`.
+
+Missing fields remain `Needs review` or `None found`; the scripts do not invent
+course descriptions, learning outcomes, due dates, or instructional language.
+
+## Share Hygiene
+
+For sharing the source bundle, use the repository files and exclude ignored local
+folders such as `.venv/`, `workspace/`, and `output/`.
+
+For sharing a course-specific result, share only the intended generated bundle
+folder for that course. Do not add internal sidecar notes such as authoring
+provenance, assistant activity logs, or maintenance review notes unless the
+recipient explicitly asked for them.
+
+## Suggesting Improvements
+
+If you find a bug, confusing output, or a workflow improvement while using the
+bundle, ask to push the improvement back to the repository. Proposed changes can
+then be reviewed and added to the roadmap.
 
 ## License
 
@@ -226,9 +248,10 @@ available by agreement. See `COMMERCIAL.md`.
 
 ## Provenance
 
-The pipeline scripts are copied from the `coursecraft_workbench` master and run
-unmodified here; `build_blueprint_bundle.py` and `blueprint_to_docx.py` are the
-blueprint-specific layer built for this flat-file workflow. The workbench is the
-upstream source of truth for the extractors.
+Many of the core scripts are derived from a more substantive Brightspace XML and
+course tooling suite that has been in development since 2024 and is available
+upon request. This repository packages the relevant extractors with the
+blueprint-specific builder, DOCX renderer, schema, knowledge notes, and setup
+wrappers needed for a standalone share bundle.
 
 Current blueprint model schema: `coursecraft.blueprint/4`.

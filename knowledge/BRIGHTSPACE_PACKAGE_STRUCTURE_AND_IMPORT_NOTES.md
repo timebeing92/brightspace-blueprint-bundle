@@ -39,6 +39,9 @@ component payload XML
 - for blueprint extraction, checklist and quiz payload XML are joined back to
   manifest quicklinks by `resource_code` / `rCode`; quiz joins surface
   quiz-level instructions/settings, not full question-bank review
+- hidden/faculty-facing object links in the manifest are still useful evidence:
+  the blueprint keeps a visible hidden/faculty-facing note, object type, title,
+  and path/resource information when available
 
 Creator+ practice JSON
 
@@ -47,8 +50,20 @@ Creator+ practice JSON
 - travels with the HTML page as a local asset rather than as a separate
   manifest activity in typical exports
 - for blueprint extraction, the iframe stays in the page section where it was
-  authored; the tool surfaces lightweight practice metadata and authored
+  placed; the tool surfaces lightweight practice metadata and source
   prompts/instructions, not answer-key review
+
+Hidden/faculty-facing content
+
+- Brightspace manifest items can be hidden through `isvisible="false"` or by
+  inheriting hidden state from a parent module
+- the blueprint pipeline now includes hidden/faculty-facing material with a
+  visible note rather than silently dropping it
+- hidden HTML bodies are extracted when readable; hidden non-HTML files are
+  preserved as file references; hidden tool links are represented from manifest
+  evidence rather than deeply decoded
+- package-scope diagnostics summarize hidden manifest-linked files and unlinked
+  package files so large or indirect assets can be explained during QA
 
 ## Checklist Pattern We Can Reuse
 
@@ -90,6 +105,9 @@ for:
 - component-specific working packages
 
 Do not treat that lane as the raw evidence layer.
+
+For the blueprint bundle's normal review runs, generated output defaults to
+`workspace/review/<label>__blueprint_bundle/`.
 
 ## Working Rules For Package Edits
 
@@ -150,8 +168,8 @@ Keep those exports in a reference or example lane rather than mixing them into l
 
 Use these alongside this note when relevant:
 
-- `docs/project/QUIZ_PACKAGE_BUILD_AND_VALIDATION_METHOD.md`
-- `docs/QUIZ_POOL_REVIEW_WORKFLOW.md`
-- `docs/QUIZ_XML_EXPORT_INTAKE_CHECKLIST.md`
-- `docs/project/QUIZ_REVIEW_OUTPUT_SCHEMA_NOTE.md`
-- `docs/project/RUBRIC_PACKAGE_BUILD_AND_LINKING_NOTES.md`
+- `SCRIPT_PIPELINE_AND_PACKAGE_CONTEXT.md`
+- `HOW_EXTRACTION_MAPS_TO_BLUEPRINT.md`
+- `brightspace-export-triage_SKILL.md`
+- `../README.md`
+- `../AGENTS.md` for optional maintainer/assistant guidance
