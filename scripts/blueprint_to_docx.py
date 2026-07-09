@@ -398,6 +398,25 @@ def _emit_block(container, block: dict, *, previous_kind: str = "") -> None:
             if text:
                 para.add_run(text).bold = True
         return
+    if kind == "practice":
+        _space(para, before=6, after=5)
+        set_paragraph_background(para, "EEF7F2")
+        title = clean_text(runs[0].get("text", ""))
+        href = clean_text(runs[0].get("href", ""))
+        title_run = para.add_run(title)
+        title_run.bold = True
+        title_run.font.size = Pt(9)
+        if href:
+            note = para.add_run(f" ({href})")
+            note.font.size = Pt(8)
+            note.font.color.rgb = RGBColor(0x70, 0x70, 0x70)
+        summary = clean_text(block.get("meta", {}).get("summary", ""))
+        if summary:
+            para.add_run().add_break()
+            summary_run = para.add_run(summary)
+            summary_run.font.size = Pt(8)
+            summary_run.font.color.rgb = RGBColor(0x4D, 0x4D, 0x4D)
+        return
     if kind in {"visual", "dropdown", "embed", "image", "file", "hidden"}:
         label = {
             "visual": "Visual cue: ",
@@ -408,7 +427,15 @@ def _emit_block(container, block: dict, *, previous_kind: str = "") -> None:
             "hidden": "Hidden manifest item: ",
         }[kind]
         _space(para, before=6, after=4)
-        set_paragraph_background(para, "F7F9FB")
+        fill = {
+            "visual": "F2F6FA",
+            "dropdown": "F4F2FA",
+            "embed": "F7F9FB",
+            "image": "F7F9FB",
+            "file": "F7F9FB",
+            "hidden": "FFF4E5",
+        }[kind]
+        set_paragraph_background(para, fill)
         prefix = para.add_run(label)
         prefix.bold = True
         prefix.font.size = Pt(9)

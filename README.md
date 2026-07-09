@@ -117,12 +117,15 @@ Follows a stable review frame, populated from the export:
   attempts/time-limit settings, and section/question-count summaries; full
   question-bank/pool review remains outside this bundle. Creator+ practice
   iframes that point to local
-  `.practice.json` files are expanded as lightweight title/type/count/scoring
-  metadata plus authored instructions/prompts, but not answer-key review.
+  `.practice.json` files are expanded as compact practice cards with
+  title/type/count/scoring metadata plus authored instructions/prompts, but not
+  answer-key review.
   Source-page visual structure is carried as review cues when detected:
   callout/note/card-like containers, dropdown summaries, video/media embeds, and
   horizontal rules. The bundle preserves those cues without trying to reproduce
-  Brightspace CSS pixel-for-pixel.
+  Brightspace CSS pixel-for-pixel. Low-value nested wrappers such as repeated
+  timeline item/card containers are suppressed so the document does not become
+  a stream of visual wrapper labels.
   Separate D2L activity objects inside Assignment(s) and Discussion Board rows
   are divided visually, so multiple assignments, quizzes, or discussion topics
   remain distinct. This divider rule is object-based; it does not split
@@ -164,7 +167,9 @@ heading-driven mirroring).
 | `--label NAME`                                  | Output filename stem (defaults from the export name). |
 | `--output-dir DIR`                              | Base output directory (default `output/`).            |
 | `--skip-qa`                                     | Skip the QA report pass.                              |
+| `--check-external-links`                        | Opt in to live external URL checks in the QA report.  |
 | `--no-docx`                                     | Markdown + JSON only.                                 |
+| `--render-docx-check`                           | Render the generated DOCX to PDF/PNG pages in `render_qa/` for visual QA. |
 | `--docx-section-layout top\|left`                | DOCX section-label layout; `top` is the default.      |
 | `--quiet`                                       | Suppress sub-script chatter.                          |
 
@@ -179,6 +184,10 @@ warning and everything else still works.
 - Python packages in `requirements.txt`:
   - `openpyxl>=3.1,<4` for the course-activities workbook (`.xlsx`)
   - `python-docx>=1.1,<2` for DOCX blueprint rendering
+  - `pdf2image>=1.17,<2` for optional DOCX visual render QA
+- System tools for optional `--render-docx-check`:
+  - LibreOffice/`soffice`
+  - Poppler utilities available on `PATH`
 
 Run `bash bootstrap.sh` once after unzipping the bundle. It creates the local
 `.venv` and installs those packages. After that, `bash run_blueprint.sh ...`

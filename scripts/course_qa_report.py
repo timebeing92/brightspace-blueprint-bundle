@@ -31,11 +31,15 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import re
+import socket
 import sys
 from datetime import date, datetime
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 import xml.etree.ElementTree as ET
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -51,6 +55,7 @@ PLACEHOLDER_PATTERNS = [
     r"lorem ipsum",
 ]
 EXTERNAL_URL = re.compile(r"""https?://[^\s"'<>]+""", re.IGNORECASE)
+URL_TRAILING_PUNCTUATION = ".,;:)]"
 
 
 def parse_iso_date(value: str) -> date | None:
@@ -217,11 +222,118 @@ def check_week_rhythm(tree: list[dict], report: QaReport) -> None:
 def collect_external_urls(text_sources: list[tuple[str, str]]) -> list[str]:
     urls = set()
     for _, text in text_sources:
-        urls.update(EXTERNAL_URL.findall(text))
+        urls.update(html.unescape(url).rstrip(URL_TRAILING_PUNCTUATION) for url in EXTERNAL_URL.findall(text))
     return sorted(urls)
 
 
-def render_markdown(label: str, report: QaReport, summary: dict, external_urls: list[str]) -> str:
+def _format_refs(refs: list[str], *, limit: int = 3) -> str:
+    shown = refs[:limit]
+    suffix = f"; +{len(refs) - limit} more" if len(refs) > limit else ""
+    return ", ".join(shown) + suffix
+
+
+def image_alt_issue_summary(
+    folders: list[dict],
+    discussion_rows: list[dict],
+    quizzes: list[dict],
+    topics: list[dict],
+) -> tuple[int, list[str]]:
+    total = 0
+    details: list[str] = []
+    for folder in folders:
+        count = int(folder.get("images_missing_alt") or 0)
+        if not count:
+            continue
+        total += count
+        refs = structure_mod.missing_alt_image_refs(folder.get("instructions_html", ""))
+        detail = f"dropbox {folder.get('name', 'folder')!r} instructions"
+        details.append(f"{detail} -> {_format_refs(refs) if refs else f'{count} image(s)'}")
+    for row in discussion_rows:
+        count = int(row.get("images_missing_alt") or 0)
+        if not count:
+            continue
+        total += count
+        refs = structure_mod.missing_alt_image_refs(row.get("description_html", ""))
+        detail = f"discussion {row.get('title', 'topic')!r} description"
+        details.append(f"{detail} -> {_format_refs(refs) if refs else f'{count} image(s)'}")
+    for quiz in quizzes:
+        count = int(quiz.get("images_missing_alt") or 0)
+        if not count:
+            continue
+        total += count
+        refs = structure_mod.missing_alt_image_refs(quiz.get("instructions_html", ""))
+        detail = f"quiz {quiz.get('title', 'quiz')!r} instructions"
+        details.append(f"{detail} -> {_format_refs(refs) if refs else f'{count} image(s)'}")
+    for topic in topics:
+        count = int(topic.get("images_missing_alt") or 0)
+        if not count:
+            continue
+        total += count
+        refs = topic.get("images_missing_alt_refs", [])
+        source = topic.get("href") or topic.get("manifest_title") or "HTML topic"
+        details.append(f"{source} -> {_format_refs(refs) if refs else f'{count} image(s)'}")
+    return total, details
+
+
+def _external_url_request(url: str, method: str, timeout: float) -> tuple[int, str]:
+    headers = {"User-Agent": "brightspace-blueprint-bundle/1.0"}
+    if method == "GET":
+        headers["Range"] = "bytes=0-0"
+    request = Request(url, headers=headers, method=method)
+    with urlopen(request, timeout=timeout) as response:
+        return int(getattr(response, "status", 0) or response.getcode()), response.geturl()
+
+
+def check_external_urls(urls: list[str], timeout: float, report: QaReport) -> list[dict]:
+    checks: list[dict] = []
+    for url in urls:
+        if "{" in url or "}" in url:
+            result = {"url": url, "status": "skipped", "detail": "templated URL"}
+            checks.append(result)
+            report.add("notes", f"external URL check skipped for templated URL: {url}")
+            continue
+        try:
+            status, final_url = _external_url_request(url, "HEAD", timeout)
+        except HTTPError as exc:
+            if exc.code in {403, 405}:
+                try:
+                    status, final_url = _external_url_request(url, "GET", timeout)
+                except HTTPError as get_exc:
+                    status, final_url = get_exc.code, url
+                except (URLError, TimeoutError, socket.timeout) as get_exc:
+                    result = {"url": url, "status": "error", "detail": str(get_exc)}
+                    checks.append(result)
+                    report.add("warnings", f"external URL check failed: {url} ({get_exc})")
+                    continue
+            else:
+                status, final_url = exc.code, url
+        except (URLError, TimeoutError, socket.timeout) as exc:
+            result = {"url": url, "status": "error", "detail": str(exc)}
+            checks.append(result)
+            report.add("warnings", f"external URL check failed: {url} ({exc})")
+            continue
+        result = {"url": url, "status": status, "final_url": final_url}
+        checks.append(result)
+        if 200 <= status < 400:
+            suffix = f" -> {final_url}" if final_url != url else ""
+            report.add("notes", f"external URL ok ({status}): {url}{suffix}")
+        else:
+            report.add("warnings", f"external URL returned HTTP {status}: {url}")
+    return checks
+
+
+def render_markdown(
+    label: str,
+    report: QaReport,
+    summary: dict,
+    external_urls: list[str],
+    external_url_checks: list[dict],
+) -> str:
+    external_note = (
+        "External URLs were checked because --check-external-links was used."
+        if external_url_checks
+        else "External URLs are inventoried, not fetched."
+    )
     lines = [
         f"# Course QA Report — {label}",
         "",
@@ -231,8 +343,8 @@ def render_markdown(label: str, report: QaReport, summary: dict, external_urls: 
         "- Scope: " + ", ".join(f"{key}: {value}" for key, value in summary.items()),
         "",
         "Read-only diagnostics over the export. Breaks need a decision before",
-        "launch/import; warnings deserve a look; notes are context. External",
-        "URLs are inventoried, not fetched.",
+        "launch/import; warnings deserve a look; notes are context. "
+        + external_note,
         "",
         "## Breaks",
         "",
@@ -249,6 +361,15 @@ def render_markdown(label: str, report: QaReport, summary: dict, external_urls: 
             lines.append(f"- … and {len(external_urls) - 200} more (see JSON)")
     else:
         lines.append("- None found.")
+    if external_url_checks:
+        lines.extend(["", "## External URL Checks", ""])
+        for item in external_url_checks[:200]:
+            status = item.get("status", "")
+            detail = item.get("detail") or item.get("final_url") or ""
+            suffix = f" ({detail})" if detail and detail != item.get("url") else ""
+            lines.append(f"- {status}: {item.get('url', '')}{suffix}")
+        if len(external_url_checks) > 200:
+            lines.append(f"- … and {len(external_url_checks) - 200} more (see JSON)")
     lines.append("")
     return "\n".join(lines)
 
@@ -265,6 +386,17 @@ def main(argv: list[str] | None = None) -> int:
         help="Where to write outputs (default: <repo>/workspace/review)",
     )
     parser.add_argument("--fail-on-break", action="store_true", help="Exit 1 when any break is found")
+    parser.add_argument(
+        "--check-external-links",
+        action="store_true",
+        help="Opt in to fetching external URLs with HEAD/GET checks; default is inventory only",
+    )
+    parser.add_argument(
+        "--external-link-timeout",
+        type=float,
+        default=8.0,
+        help="Timeout in seconds for each URL when --check-external-links is used",
+    )
     args = parser.parse_args(argv)
 
     config = json.loads(args.config.read_text(encoding="utf-8")) if args.config else {}
@@ -321,13 +453,17 @@ def main(argv: list[str] | None = None) -> int:
             for organization in organizations:
                 tree.extend(structure_mod.walk_items(organization, resources, root, structure_diagnostics))
             topics = structure_mod.extract_html_topics(tree, root, structure_diagnostics)
+            structure_diagnostics.extend(structure_mod.package_scope_diagnostics(tree, root))
+            structure_diagnostics.extend(structure_mod.front_matter_source_diagnostics(root))
     else:
         report.add("breaks", "imsmanifest.xml missing from export")
     for diagnostic in structure_diagnostics:
         if (
             "body extraction skipped for non-HTML file" in diagnostic
             or "hidden content" in diagnostic
+            or "hidden module" in diagnostic
             or "Package scope:" in diagnostic
+            or "Front matter source:" in diagnostic
         ):
             severity = "notes"
         elif "page body is empty" in diagnostic:
@@ -377,15 +513,18 @@ def main(argv: list[str] | None = None) -> int:
     patterns = PLACEHOLDER_PATTERNS + config.get("extra_placeholder_patterns", [])
     check_placeholders(text_sources, patterns, report)
 
-    missing_alt = sum(f["images_missing_alt"] for f in folders)
-    missing_alt += sum(r["images_missing_alt"] for r in discussion_rows)
-    missing_alt += sum(q["images_missing_alt"] for q in quizzes)
-    missing_alt += sum(t["images_missing_alt"] for t in topics)
+    missing_alt, image_alt_details = image_alt_issue_summary(folders, discussion_rows, quizzes, topics)
     if missing_alt:
-        report.add("warnings", f"images missing alt text across activities and pages: {missing_alt}")
+        detail = "; ".join(image_alt_details[:10])
+        if len(image_alt_details) > 10:
+            detail += f"; +{len(image_alt_details) - 10} more locations"
+        report.add("warnings", f"images missing alt text across activities and pages: {missing_alt} ({detail})")
 
     check_week_rhythm(tree, report)
     external_urls = collect_external_urls(text_sources)
+    external_url_checks = []
+    if args.check_external_links:
+        external_url_checks = check_external_urls(external_urls, args.external_link_timeout, report)
 
     summary = {
         "dropbox_folders": len(folders),
@@ -395,6 +534,7 @@ def main(argv: list[str] | None = None) -> int:
         "manifest_items": sum(structure_mod.count_kinds(tree).values()),
         "html_topics": len(topics),
         "external_urls": len(external_urls),
+        "external_url_checks": len(external_url_checks),
     }
 
     output_dir = args.output_dir or (Path(__file__).resolve().parents[1] / "workspace" / "review")
@@ -402,7 +542,7 @@ def main(argv: list[str] | None = None) -> int:
     stem = f"{activities_mod.safe_label(label)}__course_qa"
     md_path = output_dir / f"{stem}.md"
     json_path = output_dir / f"{stem}.json"
-    md_path.write_text(render_markdown(label, report, summary, external_urls), encoding="utf-8")
+    md_path.write_text(render_markdown(label, report, summary, external_urls, external_url_checks), encoding="utf-8")
     json_path.write_text(
         json.dumps(
             {
@@ -414,6 +554,7 @@ def main(argv: list[str] | None = None) -> int:
                 "warnings": report.warnings,
                 "notes": report.notes,
                 "external_urls": external_urls,
+                "external_url_checks": external_url_checks,
             },
             indent=2,
         )

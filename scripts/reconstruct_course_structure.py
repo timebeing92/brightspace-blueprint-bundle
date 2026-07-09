@@ -42,6 +42,7 @@ URL_RCODE = re.compile(r"r[Cc]ode=([A-Za-z0-9._-]+)")
 REF_ATTR = re.compile(r"""(?:src|href)\s*=\s*["']([^"']+)["']""", re.IGNORECASE)
 IMG_TAG = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
 ALT_ATTR = re.compile(r"""\balt\s*=\s*("[^"]*[^"\s][^"]*"|'[^']*[^'\s][^']*')""", re.IGNORECASE)
+SRC_ATTR = re.compile(r"""\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))""", re.IGNORECASE)
 TITLE_TAG = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 HTML_TOPIC_SUFFIXES = {".html", ".htm", ".xhtml"}
 TEXT_TOPIC_SUFFIXES = {".txt", ".md", ".markdown"}
@@ -148,6 +149,26 @@ def _practice_text_block(text: str, href: str = "") -> dict | None:
     return {"kind": "p", "level": 0, "runs": [{"text": text, "href": href}]}
 
 
+def _practice_meta_key(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+
+
+def _practice_card_block(title: str, href: str, details: list[tuple[str, str]]) -> dict:
+    meta = {
+        _practice_meta_key(name): value
+        for name, value in details
+        if value
+    }
+    if details:
+        meta["summary"] = "; ".join(f"{name}: {value}" for name, value in details if value)
+    return {
+        "kind": "practice",
+        "level": 0,
+        "runs": [{"text": f"Creator+ practice: {title}", "href": href}],
+        "meta": meta,
+    }
+
+
 def _format_practice_number(value) -> str:
     if value is None or value == "":
         return ""
@@ -226,11 +247,6 @@ def _creator_practice_blocks(
         return [block for block in (first, source) if block]
 
     title = _clean_practice_text(payload.get("title")) or "Untitled Creator+ practice"
-    blocks: list[dict] = []
-    first = _practice_label_block(f"Creator+ practice: {title}", src)
-    if first:
-        blocks.append(first)
-
     details: list[tuple[str, str]] = []
     details.append(("Practice type", _practice_type_label(payload)))
     source_label = _practice_source_label(path, data_file, package_root)
@@ -255,10 +271,7 @@ def _creator_practice_blocks(
         else:
             details.append(("Scoring", "Not scored"))
 
-    for name, value in details:
-        block = _practice_label_block(f"{name}: {value}")
-        if block:
-            blocks.append(block)
+    blocks: list[dict] = [_practice_card_block(title, src, details)]
 
     seen_text: set[str] = set()
     for label, text in (
@@ -299,10 +312,12 @@ def _creator_practice_blocks(
 _SKIP_TAGS = {"script", "style", "noscript"}
 _BLOCK_BREAK_TAGS = {"p", "div", "br", "h5", "h6", "blockquote", "figure",
                      "figcaption", "tr", "table", "section", "article"}
-_ARTIFACT_TEXTS = {"basic page - no banner", "basic page", "no banner", "banner"}
+_ARTIFACT_TEXTS = {"basic page - no banner", "basic page", "no banner", "banner", "blank page"}
 _LIVE_SCHEMES = ("http://", "https://", "mailto:")
 _VIDEO_HOSTS = ("youtube.com", "youtu.be", "vimeo.com", "kaltura", "mediasite", "panopto")
 _VISUAL_CLASS_LABELS = (
+    ("d2l-callout-title", "Callout"),
+    ("accordion", "Accordion"),
     ("project-callout", "Project callout"),
     ("assessment-callout", "Assessment callout"),
     ("discussion-note", "Discussion note"),
@@ -324,6 +339,7 @@ _VISUAL_CLASS_LABELS = (
     ("note", "Note"),
     ("panel", "Panel"),
 )
+_NOISY_VISUAL_LABELS = {"Timeline item", "Timeline card"}
 _VISUAL_EXCLUDED_CLASSES = {
     "mceNonEditable",
     "placeholder",
@@ -400,6 +416,8 @@ def _visual_block_for(tag: str, attr_map: dict) -> dict | None:
             any(_matches_visual_class(key, token) for token in lowered)
             and not any(token.lower() in _VISUAL_EXCLUDED_CLASSES for token in tokens)
         ):
+            if label in _NOISY_VISUAL_LABELS:
+                return None
             return _block(
                 "visual",
                 label,
@@ -438,6 +456,19 @@ def _image_placeholder_block(attr_map: dict) -> dict | None:
     return _block("image", label, href, meta=meta)
 
 
+def missing_alt_image_refs(raw: str) -> list[str]:
+    refs: list[str] = []
+    for img in IMG_TAG.findall(raw or ""):
+        if ALT_ATTR.search(img):
+            continue
+        match = SRC_ATTR.search(img)
+        src = ""
+        if match:
+            src = next((group for group in match.groups() if group), "").strip()
+        refs.append(html.unescape(src) if src else "(image src not found)")
+    return refs
+
+
 class _BlockExtractor(HTMLParser):
     """Walk an HTML fragment and emit paragraph/list blocks with link-aware runs."""
 
@@ -456,6 +487,7 @@ class _BlockExtractor(HTMLParser):
         self._list_depth = 0
         self._href: list[str] = []
         self._skip = 0
+        self._skip_until: list[str] = []
         self.package_root = package_root
         self.html_dir = html_dir
         self.diagnostics = diagnostics
@@ -481,10 +513,16 @@ class _BlockExtractor(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         attr_map = dict(attrs)
+        tokens = _class_tokens(attr_map)
         if tag in _SKIP_TAGS:
             self._skip += 1
             return
         if self._skip:
+            return
+        if any(token.lower() in {"sr-only", "visually-hidden"} for token in tokens):
+            self._flush()
+            self._skip += 1
+            self._skip_until.append(tag)
             return
         if tag == "hr":
             self._flush()
@@ -539,6 +577,11 @@ class _BlockExtractor(HTMLParser):
             self._href.append(attr_map.get("href", ""))
 
     def handle_endtag(self, tag):
+        if self._skip_until and tag == self._skip_until[-1]:
+            self._skip_until.pop()
+            if self._skip:
+                self._skip -= 1
+            return
         if tag in _SKIP_TAGS:
             if self._skip:
                 self._skip -= 1
@@ -613,6 +656,7 @@ def _content_file_topic(node: dict, *, reason: str) -> dict:
         "missing_refs": [],
         "server_refs": [],
         "images_missing_alt": 0,
+        "images_missing_alt_refs": [],
         "skipped_body_extraction": True,
         "extraction_note": reason,
     }
@@ -629,40 +673,75 @@ def _hidden_item_type_label(node: dict) -> str:
     return kind.replace("_", " ") or "manifest item"
 
 
-def _hidden_manifest_topic(node: dict) -> dict:
+def _hidden_notice_block(node: dict, action: str) -> dict:
     href = node.get("href", "")
     title = clean(node.get("title", ""))
     item_type = _hidden_item_type_label(node)
     object_name = title or clean(href) or "hidden manifest item"
-    text = f"Object: {object_name}; type: {item_type}; hidden in the Brightspace manifest, so body extraction was skipped"
-    blocks = [
-        _block(
-            "hidden",
-            text,
-            href,
-            meta={
-                "object_name": object_name,
-                "item_type": item_type,
-                "manifest_kind": node.get("kind", ""),
-                "extraction": "hidden manifest item",
-            },
-        )
-    ]
+    text = (
+        f"Object: {object_name}; type: {item_type}; hidden/faculty-facing in the "
+        f"Brightspace manifest. {action}"
+    )
+    return _block(
+        "hidden",
+        text,
+        href,
+        meta={
+            "object_name": object_name,
+            "item_type": item_type,
+            "manifest_kind": node.get("kind", ""),
+            "extraction": "hidden/faculty-facing manifest item",
+        },
+    )
+
+
+def _prepend_hidden_notice(node: dict, segments: list[dict], action: str) -> list[dict]:
+    notice = _hidden_notice_block(node, action)
+    if not segments:
+        return [{"heading": "", "level": 0, "blocks": [notice], "text": blocks_to_text([notice])}]
+    first = dict(segments[0])
+    first_blocks = [notice, *first.get("blocks", [])]
+    first["blocks"] = first_blocks
+    first["text"] = blocks_to_text(first_blocks)
+    return [first, *segments[1:]]
+
+
+def _hidden_manifest_topic(
+    node: dict,
+    *,
+    body_segments: list[dict] | None = None,
+    action: str = "Body extraction was skipped; preserve this as a review note.",
+    skipped_body_extraction: bool = True,
+    extraction_note: str = "hidden/faculty-facing manifest item",
+) -> dict:
+    href = node.get("href", "")
+    title = clean(node.get("title", ""))
+    segments = _prepend_hidden_notice(node, body_segments or [], action)
+    blocks = [block for segment in segments for block in segment.get("blocks", [])]
     body_text = blocks_to_text(blocks)
     return {
         "manifest_title": title,
         "html_title": "",
         "href": href,
         "body_text": body_text,
-        "body_segments": [{"heading": "", "level": 0, "blocks": blocks, "text": body_text}],
+        "body_segments": segments,
         "empty_page": False,
         "missing_refs": [],
         "server_refs": [],
         "images_missing_alt": 0,
-        "skipped_body_extraction": True,
+        "images_missing_alt_refs": [],
+        "skipped_body_extraction": skipped_body_extraction,
         "hidden_manifest_item": True,
-        "extraction_note": "hidden manifest item",
+        "extraction_note": extraction_note,
     }
+
+
+def _hidden_description_segments(node: dict) -> list[dict]:
+    description = node.get("description", "")
+    if not description:
+        return []
+    blocks = html_fragment_to_blocks(description)
+    return [{"heading": "", "level": 0, "blocks": blocks, "text": blocks_to_text(blocks)}] if blocks else []
 
 
 def html_to_segments(
@@ -834,21 +913,143 @@ def descendant_count(node: dict) -> int:
 def extract_html_topics(nodes: list[dict], package_root: Path, diagnostics: list[str]) -> list[dict]:
     topics = []
 
+    def html_topic_from_node(node: dict, *, hidden: bool = False) -> dict | None:
+        rel = node["href"].replace("\\", "/").split("?")[0]
+        page_path = package_root / rel
+        try:
+            payload = page_path.read_bytes()
+        except OSError as exc:
+            diagnostics.append(f"html topic {node['title']!r}: unreadable: {exc}")
+            return None
+        if _looks_like_binary_payload(payload):
+            reason = "binary-like payload"
+            if hidden:
+                topics.append(
+                    _hidden_manifest_topic(
+                        node,
+                        action="The linked file looked binary-like, so the file body was not decoded.",
+                    )
+                )
+                diagnostics.append(
+                    f"hidden content {node['title']!r}: preserved as hidden/faculty-facing file reference "
+                    f"because payload looked binary-like: {node['href']}"
+                )
+            else:
+                topics.append(_content_file_topic(node, reason=reason))
+                diagnostics.append(
+                    f"html topic {node['title']!r}: body extraction skipped for binary-like payload: {node['href']}"
+                )
+            return None
+        raw = payload.decode("utf-8", errors="replace")
+        missing_refs = []
+        server_refs = []
+        for ref in REF_ATTR.findall(raw):
+            ref = ref.strip()
+            if not ref or ref.lower().startswith(URL_SCHEMES):
+                continue
+            target = html.unescape(unquote(ref)).replace("\\", "/").split("?")[0].split("#")[0]
+            if not target:
+                continue
+            if target.startswith("/"):
+                # Root-absolute paths (/shared/..., /d2l/..., /content/...)
+                # resolve against the Brightspace server at runtime, not
+                # the package — inventory, don't flag.
+                server_refs.append(ref)
+                continue
+            if not (page_path.parent / target).exists():
+                missing_refs.append(ref)
+        missing_alt_refs = missing_alt_image_refs(raw)
+        missing_alt = len(missing_alt_refs)
+        title_match = TITLE_TAG.search(raw)
+        body_text = html_to_text(raw)
+        body_segments = html_to_segments(
+            raw,
+            package_root=package_root,
+            html_dir=page_path.parent,
+            diagnostics=diagnostics,
+        )
+        topic = {
+            "manifest_title": node["title"],
+            "html_title": html_to_text(title_match.group(1)) if title_match else "",
+            "href": node["href"],
+            "body_text": body_text,
+            "body_segments": body_segments,
+            "empty_page": len(body_text) == 0,
+            "missing_refs": sorted(set(missing_refs)),
+            "server_refs": sorted(set(server_refs)),
+            "images_missing_alt": missing_alt,
+            "images_missing_alt_refs": sorted(set(missing_alt_refs)),
+        }
+        if hidden:
+            hidden_segments = _prepend_hidden_notice(
+                node,
+                body_segments,
+                "Body text was extracted below for review; keep in mind this item is hidden/faculty-facing.",
+            )
+            hidden_blocks = [block for segment in hidden_segments for block in segment.get("blocks", [])]
+            topic.update(
+                {
+                    "body_text": blocks_to_text(hidden_blocks),
+                    "body_segments": hidden_segments,
+                    "empty_page": False,
+                    "hidden_manifest_item": True,
+                    "extraction_note": "hidden/faculty-facing HTML body extracted",
+                }
+            )
+        for ref in sorted(set(missing_refs)):
+            diagnostics.append(f"html topic {node['title']!r}: broken relative reference: {ref}")
+        if not body_text:
+            diagnostics.append(f"html topic {node['title']!r}: page body is empty")
+        return topic
+
     def visit(node_list: list[dict]) -> None:
         for node in node_list:
             if node.get("is_hidden"):
                 if node["kind"] == "module":
-                    topics.append(_hidden_manifest_topic(node))
-                if node["kind"] in {"html_topic", CONTENT_FILE_KIND} and node.get("href"):
-                    topics.append(_hidden_manifest_topic(node))
-                    diagnostics.append(
-                        f"hidden content {node['title']!r}: body extraction skipped: {node['href']}"
+                    topics.append(
+                        _hidden_manifest_topic(
+                            node,
+                            action=(
+                                "The module itself has no page body; descendant items are preserved below "
+                                "as hidden/faculty-facing review content where possible."
+                            ),
+                        )
                     )
-                elif node.get("children"):
                     diagnostics.append(
-                        f"hidden module {node['title']!r}: body extraction skipped for "
+                        f"hidden module {node['title']!r}: included as hidden/faculty-facing section with "
                         f"{descendant_count(node)} descendant item(s)"
                     )
+                elif node["kind"] == "html_topic" and node.get("href") and "href missing from package" not in node["flags"]:
+                    topic = html_topic_from_node(node, hidden=True)
+                    if topic is not None:
+                        topics.append(topic)
+                        diagnostics.append(
+                            f"hidden content {node['title']!r}: included as hidden/faculty-facing HTML body: {node['href']}"
+                        )
+                elif node["kind"] == CONTENT_FILE_KIND and node.get("href"):
+                    topics.append(
+                        _hidden_manifest_topic(
+                            node,
+                            action="The linked course file is hidden/faculty-facing and was preserved as a file reference.",
+                        )
+                    )
+                    diagnostics.append(
+                        f"hidden content {node['title']!r}: preserved as hidden/faculty-facing file reference: {node['href']}"
+                    )
+                elif node.get("href") or node.get("description"):
+                    topics.append(
+                        _hidden_manifest_topic(
+                            node,
+                            body_segments=_hidden_description_segments(node),
+                            action=(
+                                "The manifest link is hidden/faculty-facing; any manifest description is "
+                                "included below."
+                            ),
+                            skipped_body_extraction=False,
+                            extraction_note="hidden/faculty-facing manifest link extracted",
+                        )
+                    )
+                    diagnostics.append(f"hidden content {node['title']!r}: included as hidden/faculty-facing manifest link")
                 visit(node["children"])
                 continue
             if node["kind"] == CONTENT_FILE_KIND and node["href"]:
@@ -857,64 +1058,9 @@ def extract_html_topics(nodes: list[dict], package_root: Path, diagnostics: list
                     f"content file {node['title']!r}: body extraction skipped for non-HTML file: {node['href']}"
                 )
             elif node["kind"] == "html_topic" and node["href"] and "href missing from package" not in node["flags"]:
-                rel = node["href"].replace("\\", "/").split("?")[0]
-                page_path = package_root / rel
-                try:
-                    payload = page_path.read_bytes()
-                except OSError as exc:
-                    diagnostics.append(f"html topic {node['title']!r}: unreadable: {exc}")
-                    visit(node["children"])
-                    continue
-                if _looks_like_binary_payload(payload):
-                    topics.append(_content_file_topic(node, reason="binary-like payload"))
-                    diagnostics.append(
-                        f"html topic {node['title']!r}: body extraction skipped for binary-like payload: {node['href']}"
-                    )
-                    visit(node["children"])
-                    continue
-                raw = payload.decode("utf-8", errors="replace")
-                missing_refs = []
-                server_refs = []
-                for ref in REF_ATTR.findall(raw):
-                    ref = ref.strip()
-                    if not ref or ref.lower().startswith(URL_SCHEMES):
-                        continue
-                    target = ref.replace("\\", "/").split("?")[0].split("#")[0]
-                    if not target:
-                        continue
-                    if target.startswith("/"):
-                        # Root-absolute paths (/shared/..., /d2l/..., /content/...)
-                        # resolve against the Brightspace server at runtime, not
-                        # the package — inventory, don't flag.
-                        server_refs.append(ref)
-                        continue
-                    if not (page_path.parent / target).exists():
-                        missing_refs.append(ref)
-                missing_alt = sum(1 for img in IMG_TAG.findall(raw) if not ALT_ATTR.search(img))
-                title_match = TITLE_TAG.search(raw)
-                body_text = html_to_text(raw)
-                topics.append(
-                    {
-                        "manifest_title": node["title"],
-                        "html_title": html_to_text(title_match.group(1)) if title_match else "",
-                        "href": node["href"],
-                        "body_text": body_text,
-                        "body_segments": html_to_segments(
-                            raw,
-                            package_root=package_root,
-                            html_dir=page_path.parent,
-                            diagnostics=diagnostics,
-                        ),
-                        "empty_page": len(body_text) == 0,
-                        "missing_refs": sorted(set(missing_refs)),
-                        "server_refs": sorted(set(server_refs)),
-                        "images_missing_alt": missing_alt,
-                    }
-                )
-                for ref in sorted(set(missing_refs)):
-                    diagnostics.append(f"html topic {node['title']!r}: broken relative reference: {ref}")
-                if not body_text:
-                    diagnostics.append(f"html topic {node['title']!r}: page body is empty")
+                topic = html_topic_from_node(node)
+                if topic is not None:
+                    topics.append(topic)
             visit(node["children"])
 
     visit(nodes)
@@ -977,7 +1123,10 @@ def manifest_linked_paths(nodes: list[dict]) -> tuple[set[str], set[str]]:
             if _is_local_href(href):
                 target = _href_path_part(href)
                 if target:
-                    (hidden if node.get("is_hidden") else visible).add(target)
+                    if node.get("is_hidden") and node.get("kind") == CONTENT_FILE_KIND:
+                        hidden.add(target)
+                    else:
+                        visible.add(target)
             visit(node.get("children", []))
 
     visit(nodes)
@@ -1019,7 +1168,7 @@ def package_scope_diagnostics(nodes: list[dict], package_root: Path) -> list[str
     }
     unlinked_paths = set(size_by_path) - visible_paths - hidden_paths - core_paths
     diagnostics: list[str] = []
-    hidden_summary = file_scope_summary("hidden manifest-linked files skipped from blueprint body extraction", hidden_paths, size_by_path)
+    hidden_summary = file_scope_summary("hidden manifest-linked non-HTML files preserved as references", hidden_paths, size_by_path)
     if hidden_summary:
         diagnostics.append(hidden_summary)
     unlinked_summary = file_scope_summary(
@@ -1033,6 +1182,23 @@ def package_scope_diagnostics(nodes: list[dict], package_root: Path) -> list[str
             + " (may include support assets referenced inside HTML pages)"
         )
     return diagnostics
+
+
+def front_matter_source_diagnostics(package_root: Path) -> list[str]:
+    path = package_root / "syllabus_d2l.xml"
+    if not path.exists():
+        return []
+    try:
+        root = ET.parse(path).getroot()
+    except ET.ParseError as exc:
+        return [f"Front matter source: syllabus_d2l.xml is not well-formed XML: {exc}"]
+    description = clean(attr(root, "description"))
+    homepage_file_id = clean(attr(root, "homepage_file_id"))
+    if not description and not homepage_file_id:
+        return ["Front matter source: syllabus_d2l.xml exists, but description and homepage_file_id are empty."]
+    if not description:
+        return ["Front matter source: syllabus_d2l.xml exists, but description is empty."]
+    return []
 
 
 def count_kinds(nodes: list[dict]) -> dict[str, int]:
@@ -1140,6 +1306,7 @@ def main(argv: list[str] | None = None) -> int:
     topics = extract_html_topics(tree, root, diagnostics) if args.extract_html else []
     if args.extract_html:
         diagnostics.extend(package_scope_diagnostics(tree, root))
+        diagnostics.extend(front_matter_source_diagnostics(root))
 
     output_dir = args.output_dir or (Path(__file__).resolve().parents[1] / "workspace" / "review")
     output_dir.mkdir(parents=True, exist_ok=True)

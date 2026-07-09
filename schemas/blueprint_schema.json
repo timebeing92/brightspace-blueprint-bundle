@@ -19,16 +19,16 @@
     },
     "block": {
       "type": "object",
-      "description": "A paragraph ('p'), list item ('li'), internal subsection label ('label'), or lightweight visual/media/file/hidden cue made of runs, preserving source formatting and page structure without parsing binary assets or hidden bodies.",
+      "description": "A paragraph ('p'), list item ('li'), internal subsection label ('label'), compact Creator+ practice card ('practice'), or lightweight visual/media/file/hidden cue made of runs, preserving source formatting and page structure without parsing binary assets or hidden bodies.",
       "required": ["kind", "level", "runs"],
       "additionalProperties": false,
       "properties": {
-        "kind": {"type": "string", "enum": ["p", "li", "label", "visual", "dropdown", "embed", "image", "file", "hidden", "divider"]},
+        "kind": {"type": "string", "enum": ["p", "li", "label", "practice", "visual", "dropdown", "embed", "image", "file", "hidden", "divider"]},
         "level": {"type": "integer", "description": "List nesting depth for 'li' (1-based); 0 for paragraphs, subsection labels, and visual/media/file/hidden cue blocks."},
         "runs": {"type": "array", "items": {"$ref": "#/definitions/run"}},
         "meta": {
           "type": "object",
-          "description": "Optional lightweight rendering/provenance hints for visual/media/file/hidden cue blocks, such as embed_type, classes, tag, source_style, src, alt, missing_alt, file_name, object_name, item_type, manifest_kind, or extraction.",
+          "description": "Optional lightweight rendering/provenance hints for practice/visual/media/file/hidden cue blocks, such as summary, practice_type, source_file, embed_type, classes, tag, source_style, src, alt, missing_alt, file_name, object_name, item_type, manifest_kind, or extraction.",
           "additionalProperties": {"type": "string"}
         }
       }

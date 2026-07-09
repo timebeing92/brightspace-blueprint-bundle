@@ -678,6 +678,33 @@ def find_front_matter(structure: dict, category: str) -> list[dict]:
     return []
 
 
+FRONT_MATTER_LABELS = {
+    "course_description": "Course Description",
+    "required_materials": "Textbook/s or Required Materials",
+    "course_learning_outcomes": "Course Learning Outcomes",
+    "course_introduction": "Course Introduction",
+}
+
+
+def front_matter_diagnostics(structure: dict, front_matter: dict[str, list[dict]]) -> list[str]:
+    source_notes = [
+        clean_text(item)
+        for item in structure.get("diagnostics", [])
+        if clean_text(item).startswith("Front matter source:")
+    ]
+    checked_sources = "extracted non-hidden course-level HTML topic titles and headings"
+    if source_notes:
+        checked_sources += "; " + " ".join(source_notes)
+    diagnostics: list[str] = []
+    for key, label in FRONT_MATTER_LABELS.items():
+        if front_matter.get(key):
+            continue
+        diagnostics.append(
+            f"Front matter: {label} not found in {checked_sources}; rendered as Needs review."
+        )
+    return diagnostics
+
+
 # --------------------------------------------------------------------------- #
 # Build the structured blueprint model
 # --------------------------------------------------------------------------- #
@@ -1022,6 +1049,7 @@ def build_blueprint_model(
     ]
 
     diagnostics = [f"Structure: {clean_text(item)}" for item in structure.get("diagnostics", [])]
+    diagnostics += front_matter_diagnostics(structure, front_matter)
     diagnostics += [f"Activities: {clean_text(item)}" for item in activities.get("diagnostics", [])]
     diagnostics += routing_diagnostics
     return {
@@ -1101,6 +1129,12 @@ def md_blocks(blocks: list[dict], fallback: str) -> str:
             parts.append(("file", f"**Attached course file:** {inline}"))
         elif kind == "hidden":
             parts.append(("hidden", f"**Hidden manifest item:** {inline}"))
+        elif kind == "practice":
+            summary = md_escape(block.get("meta", {}).get("summary", ""))
+            body = f"**{inline}**"
+            if summary:
+                body += f"<br>{summary}"
+            parts.append(("practice", body))
         else:
             parts.append(("p", inline))
     if not parts:
@@ -1112,8 +1146,8 @@ def md_blocks(blocks: list[dict], fallback: str) -> str:
                 (kind == "li" and parts[index - 1][0] == "li")
                 or (kind == "label" and parts[index - 1][0] == "label")
                 or (
-                    kind in {"visual", "dropdown", "embed", "image", "file", "hidden"}
-                    and parts[index - 1][0] in {"visual", "dropdown", "embed", "image", "file", "hidden"}
+                    kind in {"visual", "dropdown", "embed", "image", "file", "hidden", "practice"}
+                    and parts[index - 1][0] in {"visual", "dropdown", "embed", "image", "file", "hidden", "practice"}
                 )
             )
             out.append("<br>" if tight else "<br><br>")
@@ -1271,9 +1305,11 @@ def write_bundle_readme(
     blueprint_json: Path,
     blueprint_docx: Path | None,
     include_qa: bool,
+    render_qa_dir: Path | None = None,
 ) -> None:
     qa_line = "- course QA report" if include_qa else "- course QA report skipped by command option"
     docx_line = f"- `{blueprint_docx.name}`" if blueprint_docx else "- DOCX skipped (python-docx not installed)"
+    render_qa_line = f"- DOCX render QA in `{render_qa_dir.name}/`" if render_qa_dir else "- DOCX render QA not run"
     path.write_text(
         "\n".join(
             [
@@ -1292,6 +1328,7 @@ def write_bundle_readme(
                 "- course structure JSON/Markdown",
                 "- course activities JSON/Markdown/workbook",
                 qa_line,
+                render_qa_line,
                 "",
                 "Review note: the blueprint mirrors the exported course structure. It is "
                 "source-derived, not a final instructional-design approval. Rows marked "
@@ -1326,7 +1363,23 @@ def main(argv: list[str] | None = None) -> int:
         help="Optional format metadata stored in the JSON model for compatibility; not rendered",
     )
     parser.add_argument("--skip-qa", action="store_true", help="Do not run course_qa_report.py")
+    parser.add_argument(
+        "--check-external-links",
+        action="store_true",
+        help="Pass through to course_qa_report.py to fetch/check external URLs; default is inventory only",
+    )
+    parser.add_argument(
+        "--external-link-timeout",
+        type=float,
+        default=8.0,
+        help="Per-URL timeout in seconds when --check-external-links is used",
+    )
     parser.add_argument("--no-docx", action="store_true", help="Do not render the DOCX blueprint")
+    parser.add_argument(
+        "--render-docx-check",
+        action="store_true",
+        help="After DOCX generation, convert it to PDF/PNG pages in render_qa/ and summarize render status",
+    )
     parser.add_argument(
         "--docx-section-layout",
         choices=("top", "left"),
@@ -1351,7 +1404,10 @@ def main(argv: list[str] | None = None) -> int:
     run_workbench_script("reconstruct_course_structure.py", [*labeled, "--extract-html"], args.quiet)
     run_workbench_script("extract_course_activities.py", labeled, args.quiet)
     if not args.skip_qa:
-        run_workbench_script("course_qa_report.py", labeled, args.quiet)
+        qa_args = [*labeled]
+        if args.check_external_links:
+            qa_args.extend(["--check-external-links", "--external-link-timeout", str(args.external_link_timeout)])
+        run_workbench_script("course_qa_report.py", qa_args, args.quiet)
 
     structure_path = bundle_dir / f"{stem}__course_structure.json"
     activities_path = bundle_dir / f"{stem}__course_activities.json"
@@ -1402,6 +1458,37 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
 
+    render_qa_dir: Path | None = None
+    if args.render_docx_check:
+        if docx_written:
+            candidate_dir = bundle_dir / "render_qa"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT_DIR / "render_blueprint_docx.py"),
+                    str(docx_written),
+                    "--output-dir",
+                    str(candidate_dir),
+                    "--emit-pdf",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            if result.returncode == 0:
+                render_qa_dir = candidate_dir
+                if not args.quiet and result.stdout.strip():
+                    print(result.stdout.strip())
+            else:
+                print(
+                    "warning: DOCX render QA failed.\n"
+                    f"{result.stdout.strip()}\n{result.stderr.strip()}".strip(),
+                    file=sys.stderr,
+                )
+        else:
+            print("warning: --render-docx-check requested but no DOCX was written.", file=sys.stderr)
+
     write_bundle_readme(
         bundle_dir / "README.md",
         label=label,
@@ -1410,6 +1497,7 @@ def main(argv: list[str] | None = None) -> int:
         blueprint_json=blueprint_json,
         blueprint_docx=docx_written,
         include_qa=not args.skip_qa,
+        render_qa_dir=render_qa_dir,
     )
 
     print(f"bundle: {bundle_dir}")
