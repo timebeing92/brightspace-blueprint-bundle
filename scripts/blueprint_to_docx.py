@@ -376,7 +376,7 @@ def _emit_divider(container, *, before: int = 6, after: int = 6) -> None:
     p_pr.append(p_bdr)
 
 
-def _emit_block(container, block: dict, *, previous_kind: str = "") -> None:
+def _emit_block(container, block: dict, *, previous_kind: str = "", wrapper_fill: str = "") -> None:
     """Add one block as a paragraph; only list items get a bullet, paragraphs
     stay prose. Bullets become native Word lists: List Bullet styles when the
     style base defines them, else a numPr reference to the template's own
@@ -393,6 +393,8 @@ def _emit_block(container, block: dict, *, previous_kind: str = "") -> None:
     if kind == "label":
         before = 2 if previous_kind in {"section_label", "label"} else 8
         _space(para, before=before, after=2)
+        if wrapper_fill:
+            set_paragraph_background(para, wrapper_fill)
         for run in runs:
             text = clean_text(run.get("text", ""))
             if text:
@@ -400,7 +402,7 @@ def _emit_block(container, block: dict, *, previous_kind: str = "") -> None:
         return
     if kind == "practice":
         _space(para, before=6, after=5)
-        set_paragraph_background(para, "EEF7F2")
+        set_paragraph_background(para, wrapper_fill or "EEF7F2")
         title = clean_text(runs[0].get("text", ""))
         href = clean_text(runs[0].get("href", ""))
         title_run = para.add_run(title)
@@ -435,12 +437,17 @@ def _emit_block(container, block: dict, *, previous_kind: str = "") -> None:
             "file": "F7F9FB",
             "hidden": "FFF4E5",
         }[kind]
-        set_paragraph_background(para, fill)
+        set_paragraph_background(para, wrapper_fill or fill)
         prefix = para.add_run(label)
         prefix.bold = True
         prefix.font.size = Pt(9)
         prefix.font.color.rgb = RGBColor(0x4D, 0x4D, 0x4D)
         _emit_runs(para, runs)
+        if kind == "visual" and block.get("blocks"):
+            previous_child_kind = "visual"
+            for child in block["blocks"]:
+                _emit_block(container, child, previous_kind=previous_child_kind, wrapper_fill=fill)
+                previous_child_kind = child.get("kind", "")
         return
     if kind == "li":
         level = max(1, int(block.get("level") or 1))
@@ -456,6 +463,8 @@ def _emit_block(container, block: dict, *, previous_kind: str = "") -> None:
         _space(para, before=0, after=2)
     else:
         _space(para, before=0, after=6)
+    if wrapper_fill:
+        set_paragraph_background(para, wrapper_fill)
     _emit_runs(para, runs)
 
 

@@ -1117,7 +1117,16 @@ def md_blocks(blocks: list[dict], fallback: str) -> str:
         elif kind == "label":
             parts.append(("label", f"**{inline}**"))
         elif kind == "visual":
-            parts.append(("visual", f"**Visual cue: {inline}**"))
+            child_body = md_blocks(block.get("blocks", []), "")
+            if child_body:
+                body = (
+                    '<div style="background-color:#f2f6fa; border-left:4px solid #9bb3c9; '
+                    'padding:0.6rem 0.75rem;">'
+                    f"**Visual cue: {inline}**<br><br>{child_body}</div>"
+                )
+                parts.append(("visual", body))
+            else:
+                parts.append(("visual", f"**Visual cue: {inline}**"))
         elif kind == "dropdown":
             parts.append(("dropdown", f"**Dropdown / expandable section: {inline}**"))
         elif kind == "embed":

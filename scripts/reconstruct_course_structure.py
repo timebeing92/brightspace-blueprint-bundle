@@ -308,10 +308,13 @@ def _creator_practice_blocks(
 # Rather than flattening pages to one line, we parse them into blocks so that
 # paragraphs, bullet lists, links, and useful visual structure survive into the
 # blueprint. Each block is {"kind": str, "level": int, "runs": [...]}, with
-# optional lightweight "meta" for visual/embedded blocks.
+# optional lightweight "meta" for visual/embedded blocks. Visual blocks may also
+# carry nested "blocks" so callout/card styling can wrap the full source section.
 _SKIP_TAGS = {"script", "style", "noscript"}
 _BLOCK_BREAK_TAGS = {"p", "div", "br", "h5", "h6", "blockquote", "figure",
                      "figcaption", "tr", "table", "section", "article"}
+_VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link",
+              "meta", "param", "source", "track", "wbr"}
 _ARTIFACT_TEXTS = {"basic page - no banner", "basic page", "no banner", "banner", "blank page"}
 _LIVE_SCHEMES = ("http://", "https://", "mailto:")
 _VIDEO_HOSTS = ("youtube.com", "youtu.be", "vimeo.com", "kaltura", "mediasite", "panopto")
@@ -488,9 +491,49 @@ class _BlockExtractor(HTMLParser):
         self._href: list[str] = []
         self._skip = 0
         self._skip_until: list[str] = []
+        self._visual_stack: list[dict] = []
         self.package_root = package_root
         self.html_dir = html_dir
         self.diagnostics = diagnostics
+
+    def _append_block(self, block: dict) -> None:
+        if self._visual_stack:
+            self._visual_stack[-1]["blocks"].append(block)
+        else:
+            self.blocks.append(block)
+
+    def _extend_blocks(self, blocks: list[dict]) -> None:
+        for block in blocks:
+            self._append_block(block)
+
+    def _note_starttag(self, tag: str) -> None:
+        if tag in _VOID_TAGS:
+            return
+        for group in self._visual_stack:
+            group["depth"] += 1
+
+    def _finish_visual_groups(self) -> None:
+        while self._visual_stack and self._visual_stack[-1]["depth"] <= 0:
+            group = self._visual_stack.pop()
+            block = group["block"]
+            if group["blocks"]:
+                block["blocks"] = group["blocks"]
+            self._append_block(block)
+
+    def _note_endtag(self, tag: str) -> None:
+        if tag in _VOID_TAGS:
+            return
+        for group in self._visual_stack:
+            group["depth"] -= 1
+        self._finish_visual_groups()
+
+    def _close_visual_groups(self) -> None:
+        while self._visual_stack:
+            group = self._visual_stack.pop()
+            block = group["block"]
+            if group["blocks"]:
+                block["blocks"] = group["blocks"]
+            self._append_block(block)
 
     def _flush(self) -> None:
         runs = []
@@ -506,7 +549,7 @@ class _BlockExtractor(HTMLParser):
             runs[-1]["text"] = runs[-1]["text"].rstrip()
             combined = "".join(r["text"] for r in runs).strip().lower()
             if combined and combined not in _ARTIFACT_TEXTS:
-                self.blocks.append({"kind": self._kind, "level": self._level, "runs": runs})
+                self._append_block({"kind": self._kind, "level": self._level, "runs": runs})
         self._runs = []
         self._kind = "p"
         self._level = 0
@@ -524,9 +567,15 @@ class _BlockExtractor(HTMLParser):
             self._skip += 1
             self._skip_until.append(tag)
             return
+        visual = _visual_block_for(tag, attr_map)
+        if visual:
+            self._flush()
+            self._note_starttag(tag)
+            self._visual_stack.append({"tag": tag, "depth": 1, "block": visual, "blocks": []})
+            return
         if tag == "hr":
             self._flush()
-            self.blocks.append(_block("divider"))
+            self._append_block(_block("divider"))
             return
         if tag == "iframe":
             src = attr_map.get("src", "")
@@ -534,7 +583,7 @@ class _BlockExtractor(HTMLParser):
                 self._flush()
                 data_file = attr_map.get("data-file", "").strip()
                 if _looks_like_creator_practice(data_file, src):
-                    self.blocks.extend(
+                    self._extend_blocks(
                         _creator_practice_blocks(
                             data_file=data_file,
                             src=src,
@@ -546,22 +595,22 @@ class _BlockExtractor(HTMLParser):
                     return
                 title = attr_map.get("title", "").strip() or "Embedded media"
                 kind = _embed_kind(src)
-                self.blocks.append(_block("embed", title, src, meta={"embed_type": kind}))
+                self._append_block(_block("embed", title, src, meta={"embed_type": kind}))
+            self._skip += 1
+            self._skip_until.append(tag)
             return
         if tag == "summary":
             self._flush()
+            self._note_starttag(tag)
             self._kind = "dropdown"
             return
         if tag == "img":
             image_block = _image_placeholder_block(attr_map)
             if image_block:
                 self._flush()
-                self.blocks.append(image_block)
+                self._append_block(image_block)
             return
-        visual = _visual_block_for(tag, attr_map)
-        if visual:
-            self._flush()
-            self.blocks.append(visual)
+        self._note_starttag(tag)
         if tag in ("ul", "ol"):
             self._list_depth += 1
             return
@@ -590,17 +639,21 @@ class _BlockExtractor(HTMLParser):
             return
         if tag == "summary":
             self._flush()
+            self._note_endtag(tag)
             return
         if tag in ("ul", "ol"):
             if self._list_depth:
                 self._list_depth -= 1
+            self._note_endtag(tag)
             return
         if tag in ("p", "div", "li", "h5", "h6", "blockquote", "figure",
                    "figcaption", "table", "tr", "section", "article"):
             self._flush()
+            self._note_endtag(tag)
             return
         if tag == "a" and self._href:
             self._href.pop()
+        self._note_endtag(tag)
 
     def handle_data(self, data):
         if self._skip or not data:
@@ -610,6 +663,7 @@ class _BlockExtractor(HTMLParser):
     def close(self):
         super().close()
         self._flush()
+        self._close_visual_groups()
 
 
 def html_fragment_to_blocks(
@@ -631,7 +685,12 @@ def html_fragment_to_blocks(
 
 
 def blocks_to_text(blocks: list[dict]) -> str:
-    return clean(" ".join(run["text"] for block in blocks for run in block["runs"]))
+    parts: list[str] = []
+    for block in blocks:
+        parts.extend(run["text"] for run in block.get("runs", []))
+        if block.get("blocks"):
+            parts.append(blocks_to_text(block["blocks"]))
+    return clean(" ".join(parts))
 
 
 def _content_file_display_name(href: str, title: str) -> str:
