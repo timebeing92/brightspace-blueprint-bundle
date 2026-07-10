@@ -4,6 +4,45 @@ Implementation history for `brightspace-blueprint-bundle`. Newest first.
 
 ---
 
+## 2026-07-09 — Test suite, shared helpers, hardened pipeline, progress contract (done)
+
+**Tests.** New `tests/` pytest suite (install `requirements-dev.txt`): a golden
+run over `examples/sample_export.zip` compared artifact-by-artifact against the
+committed worked example (text, JSON, DOCX visible text, workbook cells, schema
+validation), unit tests for the shared helpers, a wrapped-folder export test,
+and a progress-event stream test. The suite immediately caught that the
+committed worked example predated the visual-QA and callout-wrapping commits;
+the example was regenerated from the current scripts and the golden test now
+pins that alignment.
+
+**Shared helpers.** `common_xml.py` now owns the previously copy-pasted
+`safe_label`, `load_export_root`, `html_to_text` (the two divergent copies are
+reconciled — script/style payloads are always dropped now, including in
+activity instructions), `xml_safe_text`/`clean_text`/`clean_label`, the
+image/alt/rcode regexes and alt-text helpers, and the renderer-lockstep
+`should_divide_labeled_sections` used by both the Markdown and DOCX renderers.
+
+**Wrapped exports.** New `find_manifest`/`resolve_export_root` locate
+`imsmanifest.xml` anywhere under the export root (shallowest wins; multiples
+warn instead of aborting) and re-root extraction at the manifest's folder, so
+re-zipped downloads with a wrapping folder now build instead of dying at step
+3; a diagnostic records the re-rooting.
+
+**Hardening.** `jsonschema` is now a runtime dependency and the assembled model
+is validated against `schemas/blueprint_schema.json` on every run (loud stderr
+warning on mismatch). Extraction subprocesses now honor `--step-timeout`
+(default 900 s; `0` disables). Dead imports removed from `export_inventory.py`.
+
+**Progress contract.** Each step prints a `== [3/7] … ==` banner by default.
+New `--progress-events` emits one NDJSON event per line
+(`coursecraft.progress/1`: `run_start` → `step_start`/`step_end` pairs →
+`run_end` with real output paths and summary counts). Contract:
+`schemas/progress_events_schema.json` + `knowledge/PROGRESS_EVENTS_CONTRACT.md`.
+Built for wrapper tools — the sibling `brightspace-blueprint-runner` wizard v2
+is the first consumer.
+
+---
+
 ## 2026-07-09 — Visual callout section wrapping (done)
 
 Source callout/card/highlight containers now preserve the full wrapped section

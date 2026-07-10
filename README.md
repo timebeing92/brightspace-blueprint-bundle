@@ -43,6 +43,7 @@ The wrapper reuses the bundle-local `.venv` on later runs. If `.venv` is missing
   - `openpyxl` for the activity workbook.
   - `python-docx` for DOCX rendering.
   - `pdf2image` for optional DOCX visual render QA.
+  - `jsonschema` to validate the generated model against the blueprint schema.
 - Optional render-QA system tools:
   - LibreOffice/`soffice` to convert DOCX to PDF.
   - Poppler utilities on `PATH` for PDF-to-PNG rendering.
@@ -154,6 +155,13 @@ bash run_blueprint.sh /path/to/export.zip \
 | `--render-docx-check` | Render the generated DOCX to PDF/PNG pages in `render_qa/`. |
 | `--docx-section-layout top\|left` | DOCX weekly section-label layout; `top` is the default. |
 | `--quiet` | Suppress companion script output. |
+| `--step-timeout N` | Per-step timeout in seconds (default 900; `0` disables). |
+| `--progress-events` | Emit NDJSON progress events (`coursecraft.progress/1`) instead of step banners. See `knowledge/PROGRESS_EVENTS_CONTRACT.md`. |
+
+During a normal run each step prints a one-line banner (`== [3/7] Reconstruct
+course structure ==`). Wrapper tools that want structured live progress should
+use `--progress-events` and read one JSON event per stdout line; the final
+`run_end` event carries the actual output paths and summary counts.
 
 ## How To Review A Run
 
@@ -181,13 +189,16 @@ brightspace-blueprint-bundle/
 ├── CHANGELOG.md               <- implementation history
 ├── AGENTS.md                  <- optional maintainer/assistant guidance
 ├── requirements.txt           <- Python dependencies for .venv
+├── requirements-dev.txt       <- adds pytest for the test suite
 ├── bootstrap.sh               <- macOS/Linux setup
 ├── bootstrap.ps1              <- Windows setup
 ├── run_blueprint.sh           <- normal pipeline wrapper
 ├── scripts/                   <- pipeline, model builder, renderers, QA tools
+├── tests/                     <- pytest suite (golden run over examples/ + unit tests)
 ├── knowledge/                 <- pipeline and Brightspace package references
 ├── schemas/blueprint_schema.json
-└── examples/                  <- worked sample output and config example
+├── schemas/progress_events_schema.json
+└── examples/                  <- sample export, worked output, config example
 ```
 
 Ignored local folders:
@@ -196,6 +207,19 @@ Ignored local folders:
 - `workspace/` - default generated run output.
 - `output/` - optional generated run output.
 - `__pycache__/`, `*.pyc`, `.DS_Store` - local runtime/system files.
+
+## Running The Tests
+
+```bash
+.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python -m pytest tests/
+```
+
+The suite runs the full pipeline against `examples/sample_export.zip` and
+compares every artifact to the committed worked example, then covers the
+shared helpers, wrapped-folder exports, and the progress-event stream. If an
+intentional pipeline change alters the outputs, regenerate the worked example
+with the command in `examples/README.md` and review the diff.
 
 ## Design Philosophy
 
@@ -235,7 +259,7 @@ recipient explicitly asked for them.
 
 If you find a bug, confusing output, or a workflow improvement while using the
 bundle, ask to push the improvement back to the repository. Proposed changes can
-then be reviewed and added to the roadmap.
+then be reviewed and added to `ROADMAP.md`.
 
 ## License
 
