@@ -112,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
     summary_path = output_dir / "render_summary.json"
     summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
 
-    print(f"render status: ok")
+    print("render status: ok")
     print(f"pages: {len(rendered_pages)}")
     print(f"output: {output_dir}")
     print(f"summary: {summary_path}")

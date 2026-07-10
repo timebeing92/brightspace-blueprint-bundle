@@ -43,6 +43,11 @@ is only done when a real run demonstrates it.
   variants that don't subclass `URLError` so one bad host can't crash QA.
 - **h5/h6 segmentation.** Deep semantic headings currently under-segment into
   Overview.
+- **Review the rest of the package-scope exclusion list.** `orgunitconfig.xml`
+  was added to `CORE_PACKAGE_FILES` 2026-07-10 (it was flagged as an unlinked
+  file in every package). `syllabus_d2l.xml` and `conditionalrelease_d2l.xml`
+  are also standard never-manifest-linked files the pipeline itself consumes —
+  decide whether they belong in the exclusion too.
 
 ## Runner (sibling repo)
 

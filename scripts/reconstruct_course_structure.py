@@ -62,6 +62,7 @@ CORE_PACKAGE_FILES = {
     "dropbox_d2l.xml",
     "checklist_d2l.xml",
     "questiondb.xml",
+    "orgunitconfig.xml",
 }
 
 
