@@ -3,13 +3,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import mimetypes
-import os
 import sys
 import zipfile
 from collections import Counter
 from pathlib import Path
-from typing import Iterable, List
 
 
 KNOWN_D2L_FILES = {

@@ -26,23 +26,30 @@ import html
 import json
 import re
 import sys
-import tempfile
-import zipfile
 from collections import Counter
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote
 import xml.etree.ElementTree as ET
 
-from common_xml import clean, local_name
+from common_xml import (
+    ALT_ATTR,
+    IMG_TAG,
+    SRC_ATTR,
+    URL_RCODE,
+    clean,
+    flatten_html_text as _flatten_text,
+    html_to_text,
+    load_export_root,
+    local_name,
+    missing_alt_image_refs,
+    resolve_export_root,
+    safe_label,
+)
 
 URL_SCHEMES = ("http://", "https://", "data:", "mailto:", "javascript:", "tel:", "#", "//")
 QUICKLINK_TYPE = re.compile(r"[?&]type=([A-Za-z]+)")
-URL_RCODE = re.compile(r"r[Cc]ode=([A-Za-z0-9._-]+)")
 REF_ATTR = re.compile(r"""(?:src|href)\s*=\s*["']([^"']+)["']""", re.IGNORECASE)
-IMG_TAG = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
-ALT_ATTR = re.compile(r"""\balt\s*=\s*("[^"]*[^"\s][^"]*"|'[^']*[^'\s][^']*')""", re.IGNORECASE)
-SRC_ATTR = re.compile(r"""\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))""", re.IGNORECASE)
 TITLE_TAG = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 HTML_TOPIC_SUFFIXES = {".html", ".htm", ".xhtml"}
 TEXT_TOPIC_SUFFIXES = {".txt", ".md", ".markdown"}
@@ -105,16 +112,6 @@ def attr(elem: ET.Element, name: str) -> str:
 
 
 HEADING_TAG = re.compile(r"<h([1-4])\b[^>]*>(.*?)</h\1>", re.IGNORECASE | re.DOTALL)
-
-
-def _flatten_text(raw: str) -> str:
-    stripped = re.sub(r"<[^>]+>", " ", raw)
-    return re.sub(r"\s+", " ", html.unescape(stripped)).strip()
-
-
-def html_to_text(raw: str) -> str:
-    raw = re.sub(r"<(script|style)\b.*?</\1>", " ", raw, flags=re.IGNORECASE | re.DOTALL)
-    return _flatten_text(raw)
 
 
 PRACTICE_TYPE_LABELS = {
@@ -457,19 +454,6 @@ def _image_placeholder_block(attr_map: dict) -> dict | None:
     if not alt:
         meta["missing_alt"] = "true"
     return _block("image", label, href, meta=meta)
-
-
-def missing_alt_image_refs(raw: str) -> list[str]:
-    refs: list[str] = []
-    for img in IMG_TAG.findall(raw or ""):
-        if ALT_ATTR.search(img):
-            continue
-        match = SRC_ATTR.search(img)
-        src = ""
-        if match:
-            src = next((group for group in match.groups() if group), "").strip()
-        refs.append(html.unescape(src) if src else "(image src not found)")
-    return refs
 
 
 class _BlockExtractor(HTMLParser):
@@ -849,18 +833,6 @@ def html_to_segments(
         if seg:
             segments.append(seg)
     return segments
-
-
-def load_export_root(path: Path, holder: list) -> Path:
-    if path.is_dir():
-        return path
-    if path.is_file() and zipfile.is_zipfile(path):
-        tmp = tempfile.TemporaryDirectory(prefix="course_structure_")
-        holder.append(tmp)
-        with zipfile.ZipFile(path) as archive:
-            archive.extractall(tmp.name)
-        return Path(tmp.name)
-    raise SystemExit(f"error: not an export directory or zip: {path}")
 
 
 def load_resources(manifest_root: ET.Element) -> dict[str, dict]:
@@ -1324,10 +1296,6 @@ def render_markdown(label: str, tree: list[dict], topics: list[dict], diagnostic
     return "\n".join(lines)
 
 
-def safe_label(name: str) -> str:
-    return re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("_") or "export"
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("export", type=Path, help="Unpacked export directory or export ZIP")
@@ -1346,9 +1314,14 @@ def main(argv: list[str] | None = None) -> int:
     label = args.label or safe_label(args.export.stem if args.export.is_file() else args.export.name)
 
     diagnostics: list[str] = []
-    manifest_path = root / "imsmanifest.xml"
-    if not manifest_path.exists():
-        raise SystemExit(f"error: no imsmanifest.xml in {root}")
+    unpacked_root = root
+    root, manifest_path = resolve_export_root(root)
+    if manifest_path is None:
+        raise SystemExit(f"error: no imsmanifest.xml in {unpacked_root}")
+    if root != unpacked_root:
+        diagnostics.append(
+            f"imsmanifest.xml found below the export root; using '{root.name}/' as the export root"
+        )
     try:
         manifest_root = ET.parse(manifest_path).getroot()
     except ET.ParseError as exc:

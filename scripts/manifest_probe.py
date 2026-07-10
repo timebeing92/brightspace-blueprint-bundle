@@ -17,12 +17,16 @@ def find_manifest_path(path: Path) -> Path:
     candidate = path / "imsmanifest.xml"
     if candidate.exists():
         return candidate
-    matches = list(path.rglob("imsmanifest.xml"))
-    if len(matches) == 1:
-        return matches[0]
+    matches = sorted(path.rglob("imsmanifest.xml"), key=lambda p: (len(p.parts), str(p)))
     if not matches:
         raise FileNotFoundError("Could not find imsmanifest.xml beneath the supplied path.")
-    raise FileExistsError("Found multiple imsmanifest.xml files; point directly to the desired one.")
+    if len(matches) > 1:
+        others = ", ".join(str(m) for m in matches[1:])
+        sys.stderr.write(
+            f"warning: multiple imsmanifest.xml files found; using shallowest "
+            f"({matches[0]}); others: {others}\n"
+        )
+    return matches[0]
 
 
 def should_ignore_zip_member(name: str) -> bool:
@@ -42,11 +46,16 @@ def find_manifest_in_zip(zip_path: Path) -> str:
             and not should_ignore_zip_member(name)
         )
 
-    if len(matches) == 1:
-        return matches[0]
     if not matches:
         raise FileNotFoundError("Could not find imsmanifest.xml inside the supplied ZIP.")
-    raise FileExistsError("Found multiple imsmanifest.xml files inside the ZIP; unpack and point directly.")
+    matches.sort(key=lambda name: (len(Path(name).parts), name))
+    if len(matches) > 1:
+        others = ", ".join(matches[1:])
+        sys.stderr.write(
+            f"warning: multiple imsmanifest.xml files found in ZIP; using shallowest "
+            f"({matches[0]}); others: {others}\n"
+        )
+    return matches[0]
 
 
 def iter_elements(root: ET.Element, wanted: str):

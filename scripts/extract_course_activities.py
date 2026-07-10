@@ -28,37 +28,26 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import html
 import json
 import re
 import sys
-import tempfile
-import zipfile
 from collections import Counter
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
 from openpyxl import Workbook
 
-from common_xml import clean, local_name
+from common_xml import (
+    URL_RCODE,
+    clean,
+    html_to_text,
+    images_missing_alt,
+    load_export_root,
+    local_name,
+    resolve_export_root,
+    safe_label,
+)
 from reconstruct_course_structure import html_fragment_to_blocks
-
-URL_RCODE = re.compile(r"r[Cc]ode=([A-Za-z0-9._-]+)")
-IMG_TAG = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
-ALT_ATTR = re.compile(r"""\balt\s*=\s*("[^"]*[^"\s][^"]*"|'[^']*[^'\s][^']*')""", re.IGNORECASE)
-
-
-def html_to_text(raw: str) -> str:
-    stripped = re.sub(r"<[^>]+>", " ", raw)
-    return re.sub(r"\s+", " ", html.unescape(stripped)).strip()
-
-
-def images_missing_alt(raw_html: str) -> int:
-    count = 0
-    for img in IMG_TAG.findall(raw_html):
-        if not ALT_ATTR.search(img):
-            count += 1
-    return count
 
 
 def children_by_name(elem: ET.Element, name: str) -> list[ET.Element]:
@@ -95,18 +84,6 @@ def parse_xml(path: Path, diagnostics: list[str]) -> ET.Element | None:
     except ET.ParseError as exc:
         diagnostics.append(f"{path.name} is not well-formed XML: {exc}")
         return None
-
-
-def load_export_root(path: Path, holder: list) -> Path:
-    if path.is_dir():
-        return path
-    if path.is_file() and zipfile.is_zipfile(path):
-        tmp = tempfile.TemporaryDirectory(prefix="extract_activities_")
-        holder.append(tmp)
-        with zipfile.ZipFile(path) as archive:
-            archive.extractall(tmp.name)
-        return Path(tmp.name)
-    raise SystemExit(f"error: not an export directory or zip: {path}")
 
 
 # --- reference layers (joins resolve against these) ---------------------------
@@ -829,10 +806,6 @@ def render_markdown(
     return "\n".join(lines)
 
 
-def safe_label(name: str) -> str:
-    return re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("_") or "export"
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("export", type=Path, help="Unpacked export directory or export ZIP")
@@ -847,6 +820,7 @@ def main(argv: list[str] | None = None) -> int:
 
     holder: list = []
     root = load_export_root(args.export.expanduser().resolve(), holder)
+    root, _manifest_path = resolve_export_root(root)
     label = args.label or safe_label(args.export.stem if args.export.is_file() else args.export.name)
 
     diagnostics: list[str] = []

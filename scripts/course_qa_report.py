@@ -46,6 +46,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import extract_course_activities as activities_mod
 import reconstruct_course_structure as structure_mod
+from common_xml import resolve_export_root
 
 PLACEHOLDER_PATTERNS = [
     r"\[insert[^\]]*\]",
@@ -402,6 +403,7 @@ def main(argv: list[str] | None = None) -> int:
     config = json.loads(args.config.read_text(encoding="utf-8")) if args.config else {}
     holder: list = []
     root = activities_mod.load_export_root(args.export.expanduser().resolve(), holder)
+    root, _manifest_path = resolve_export_root(root)
     label = args.label or activities_mod.safe_label(
         args.export.stem if args.export.is_file() else args.export.name
     )

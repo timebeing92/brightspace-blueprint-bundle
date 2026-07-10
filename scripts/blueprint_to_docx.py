@@ -38,6 +38,8 @@ import json
 import sys
 from pathlib import Path
 
+from common_xml import clean_label, clean_text, should_divide_labeled_sections, xml_safe_text
+
 try:
     from docx import Document
     from docx.opc.constants import RELATIONSHIP_TYPE
@@ -82,33 +84,6 @@ OUTCOMES_LABEL = "COURSE LEARNING OUTCOMES"
 # --------------------------------------------------------------------------- #
 # Style helpers
 # --------------------------------------------------------------------------- #
-def clean_label(value: str) -> str:
-    """Normalize a display label before the renderer adds its own trailing colon."""
-    return clean_text(value).rstrip(":").strip()
-
-
-def clean_text(value: str) -> str:
-    return " ".join(xml_safe_text(value).split())
-
-
-def xml_safe_text(value: str) -> str:
-    """Remove characters that cannot appear in WordprocessingML XML text."""
-    return "".join(
-        char if is_xml_compatible_char(char) else " "
-        for char in str(value or "")
-    )
-
-
-def is_xml_compatible_char(char: str) -> bool:
-    code = ord(char)
-    return (
-        code in (0x09, 0x0A, 0x0D)
-        or 0x20 <= code <= 0xD7FF
-        or 0xE000 <= code <= 0xFFFD
-        or 0x10000 <= code <= 0x10FFFF
-    )
-
-
 def style_or_none(doc: "Document", name: str):
     """Return a style by name if the document defines it, else None."""
     try:
@@ -481,20 +456,6 @@ def write_blocks(container, blocks: list[dict], *, missing: str) -> None:
 
 def _add_section_divider(container) -> None:
     _emit_divider(container)
-
-
-def should_divide_labeled_sections(previous: dict | None, current: dict, divider: bool | str) -> bool:
-    if not previous or not divider:
-        return False
-    if divider == "page":
-        previous_page = clean_text(previous.get("source_page", ""))
-        current_page = clean_text(current.get("source_page", ""))
-        if previous_page and current_page:
-            return previous_page != current_page
-        return False
-    if divider == "object":
-        return True
-    return True
 
 
 def write_value_labeled(container, sections: list[dict], *, missing: str, divider: bool | str = False) -> None:
