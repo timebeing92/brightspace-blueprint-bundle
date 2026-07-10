@@ -35,7 +35,16 @@ import json
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
+
+from common_xml import (
+    clean_label,
+    clean_text,
+    safe_label,
+    should_divide_labeled_sections,
+    xml_safe_text,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_DIR = REPO_ROOT / "scripts"
@@ -67,24 +76,6 @@ LESSON_KEYS = ("lesson", "lecture")
 # --------------------------------------------------------------------------- #
 # Small helpers
 # --------------------------------------------------------------------------- #
-def safe_label(name: str) -> str:
-    return re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("_") or "export"
-
-
-def is_xml_compatible_char(char: str) -> bool:
-    code = ord(char)
-    return (
-        code in (0x09, 0x0A, 0x0D)
-        or 0x20 <= code <= 0xD7FF
-        or 0xE000 <= code <= 0xFFFD
-        or 0x10000 <= code <= 0x10FFFF
-    )
-
-
-def xml_safe_text(value: str) -> str:
-    return "".join(char if is_xml_compatible_char(char) else " " for char in str(value or ""))
-
-
 def sanitize_json_strings(value):
     if isinstance(value, dict):
         return {key: sanitize_json_strings(item) for key, item in value.items()}
@@ -106,24 +97,23 @@ def write_text_if_changed(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def clean_text(value: str) -> str:
-    """Collapse runs of whitespace; keep a single readable line of text."""
-    return re.sub(r"\s+", " ", xml_safe_text(value)).strip()
-
-
-def clean_label(value: str) -> str:
-    """Normalize a display label before renderers add their own trailing colon."""
-    return clean_text(value).rstrip(":").strip()
-
-
-def run_workbench_script(script_name: str, args: list[str], quiet: bool = False) -> None:
-    result = subprocess.run(
-        [sys.executable, str(SCRIPT_DIR / script_name), *args],
-        cwd=REPO_ROOT,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+def run_workbench_script(
+    script_name: str, args: list[str], quiet: bool = False, timeout: float | None = None
+) -> None:
+    try:
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT_DIR / script_name), *args],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        raise SystemExit(
+            f"{script_name} timed out after {timeout:.0f}s. Rerun with a larger "
+            f"--step-timeout, or --step-timeout 0 to disable the limit."
+        )
     if result.returncode != 0:
         raise SystemExit(
             f"{script_name} failed with exit code {result.returncode}\n"
@@ -133,6 +123,97 @@ def run_workbench_script(script_name: str, args: list[str], quiet: bool = False)
         print(result.stdout.strip())
     if not quiet and result.stderr.strip():
         print(result.stderr.strip(), file=sys.stderr)
+
+
+def validate_model(model: dict) -> None:
+    """Validate the assembled model against schemas/blueprint_schema.json.
+
+    Validation failure is a producer bug, not a reviewer problem, so it warns
+    loudly on stderr but does not fail the run — the outputs are still useful.
+    """
+    schema_path = REPO_ROOT / "schemas" / "blueprint_schema.json"
+    try:
+        import jsonschema
+    except ImportError:
+        print(
+            "note: jsonschema is not installed; skipping blueprint model validation",
+            file=sys.stderr,
+        )
+        return
+    try:
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"warning: could not load blueprint schema for validation: {exc}", file=sys.stderr)
+        return
+    validator = jsonschema.Draft7Validator(schema)
+    errors = sorted(validator.iter_errors(model), key=lambda err: list(err.absolute_path))
+    if not errors:
+        return
+    print(
+        f"warning: blueprint model failed schema validation ({len(errors)} issue(s)):",
+        file=sys.stderr,
+    )
+    for err in errors[:10]:
+        location = "/".join(str(part) for part in err.absolute_path) or "(root)"
+        print(f"  - {location}: {err.message}", file=sys.stderr)
+    if len(errors) > 10:
+        print(f"  ... and {len(errors) - 10} more", file=sys.stderr)
+
+
+def _emit_event(payload: dict) -> None:
+    print(json.dumps(payload, ensure_ascii=False), flush=True)
+
+
+class StepProgress:
+    """Step banners for humans; NDJSON events (coursecraft.progress/1) for tools.
+
+    With ``--progress-events`` each milestone is one JSON object per stdout
+    line and the human banners are suppressed; consumers treat any non-JSON
+    line as pass-through step output. See schemas/progress_events_schema.json.
+    """
+
+    def __init__(self, labels: list[str], *, events: bool, run_label: str) -> None:
+        self.labels = labels
+        self.events = events
+        self.index = 0
+        self._started = 0.0
+        if events:
+            _emit_event(
+                {
+                    "event": "run_start",
+                    "schema": "coursecraft.progress/1",
+                    "label": run_label,
+                    "total": len(labels),
+                    "steps": labels,
+                }
+            )
+
+    def start(self, label: str) -> None:
+        self.index += 1
+        self._started = time.monotonic()
+        if self.events:
+            _emit_event(
+                {
+                    "event": "step_start",
+                    "index": self.index,
+                    "total": len(self.labels),
+                    "label": label,
+                }
+            )
+        else:
+            print(f"== [{self.index}/{len(self.labels)}] {label} ==", flush=True)
+
+    def end(self, status: str = "ok", **extra) -> None:
+        if self.events:
+            _emit_event(
+                {
+                    "event": "step_end",
+                    "index": self.index,
+                    "status": status,
+                    "seconds": round(time.monotonic() - self._started, 2),
+                    **extra,
+                }
+            )
 
 
 # --------------------------------------------------------------------------- #
@@ -1168,20 +1249,6 @@ def md_field(blocks: list[dict]) -> str:
     return md_blocks(blocks, NOT_FOUND_FIELD)
 
 
-def should_divide_labeled_sections(previous: dict | None, current: dict, divider: bool | str) -> bool:
-    if not previous or not divider:
-        return False
-    if divider == "page":
-        previous_page = clean_text(previous.get("source_page", ""))
-        current_page = clean_text(current.get("source_page", ""))
-        if previous_page and current_page:
-            return previous_page != current_page
-        return False
-    if divider == "object":
-        return True
-    return True
-
-
 def md_labeled(sections: list[dict], fallback: str = NOT_FOUND_LIST, *, divider: bool | str = False) -> str:
     parts = []
     previous: dict | None = None
@@ -1396,6 +1463,17 @@ def main(argv: list[str] | None = None) -> int:
         help="DOCX weekly section label layout: shaded top rows (default) or shaded left column.",
     )
     parser.add_argument("--quiet", action="store_true", help="Suppress companion script stdout")
+    parser.add_argument(
+        "--step-timeout",
+        type=float,
+        default=900.0,
+        help="Per-step timeout in seconds for the extraction scripts (0 disables; default 900)",
+    )
+    parser.add_argument(
+        "--progress-events",
+        action="store_true",
+        help="Emit one NDJSON progress event per line (coursecraft.progress/1) instead of step banners",
+    )
     args = parser.parse_args(argv)
 
     export = args.export.expanduser().resolve()
@@ -1406,42 +1484,92 @@ def main(argv: list[str] | None = None) -> int:
     bundle_dir = args.bundle_dir or (args.output_dir / f"{stem}__blueprint_bundle")
     bundle_dir.mkdir(parents=True, exist_ok=True)
 
+    step_timeout = args.step_timeout if args.step_timeout and args.step_timeout > 0 else None
+
+    step_labels = [
+        "Inventory export files",
+        "Probe manifest",
+        "Reconstruct course structure",
+        "Extract course activities",
+    ]
+    if not args.skip_qa:
+        step_labels.append("Run QA report")
+    step_labels.append("Assemble blueprint model and Markdown")
+    if not args.no_docx:
+        step_labels.append("Render DOCX")
+    if args.render_docx_check:
+        step_labels.append("DOCX visual render check")
+    progress = StepProgress(step_labels, events=args.progress_events, run_label=stem)
+
+    def run_step(label, fn):
+        progress.start(label)
+        try:
+            result = fn()
+        except SystemExit as exc:
+            progress.end(status="error", message=str(exc))
+            if progress.events:
+                _emit_event({"event": "run_end", "status": "error", "message": str(exc)})
+            raise
+        progress.end()
+        return result
+
     common = [str(export), "--output-dir", str(bundle_dir)]
     labeled = [*common, "--label", label]
-    run_workbench_script("export_inventory.py", common, args.quiet)
-    run_workbench_script("manifest_probe.py", common, args.quiet)
-    run_workbench_script("reconstruct_course_structure.py", [*labeled, "--extract-html"], args.quiet)
-    run_workbench_script("extract_course_activities.py", labeled, args.quiet)
+    run_step(
+        "Inventory export files",
+        lambda: run_workbench_script("export_inventory.py", common, args.quiet, timeout=step_timeout),
+    )
+    run_step(
+        "Probe manifest",
+        lambda: run_workbench_script("manifest_probe.py", common, args.quiet, timeout=step_timeout),
+    )
+    run_step(
+        "Reconstruct course structure",
+        lambda: run_workbench_script(
+            "reconstruct_course_structure.py", [*labeled, "--extract-html"], args.quiet, timeout=step_timeout
+        ),
+    )
+    run_step(
+        "Extract course activities",
+        lambda: run_workbench_script("extract_course_activities.py", labeled, args.quiet, timeout=step_timeout),
+    )
     if not args.skip_qa:
         qa_args = [*labeled]
         if args.check_external_links:
             qa_args.extend(["--check-external-links", "--external-link-timeout", str(args.external_link_timeout)])
-        run_workbench_script("course_qa_report.py", qa_args, args.quiet)
+        run_step(
+            "Run QA report",
+            lambda: run_workbench_script("course_qa_report.py", qa_args, args.quiet, timeout=step_timeout),
+        )
 
     structure_path = bundle_dir / f"{stem}__course_structure.json"
     activities_path = bundle_dir / f"{stem}__course_activities.json"
-    model = build_blueprint_model(
-        read_json(structure_path),
-        read_json(activities_path),
-        label=label,
-        course_number=args.course_number,
-        course_title=args.course_title,
-        term=args.term,
-        template_reference=args.template_reference,
-    )
 
     blueprint_json = bundle_dir / f"{stem}__blueprint.json"
     blueprint_md = bundle_dir / f"{stem}__blueprint.md"
     legacy_blueprint_md = bundle_dir / f"{stem}__cps_blueprint.md"
     blueprint_docx = bundle_dir / f"{stem}__blueprint.docx"
 
-    blueprint_json.write_text(json.dumps(model, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    rendered_markdown = render_markdown(model)
-    write_text_if_changed(blueprint_md, rendered_markdown)
-    write_text_if_changed(legacy_blueprint_md, rendered_markdown)
+    def assemble():
+        model = build_blueprint_model(
+            read_json(structure_path),
+            read_json(activities_path),
+            label=label,
+            course_number=args.course_number,
+            course_title=args.course_title,
+            term=args.term,
+            template_reference=args.template_reference,
+        )
+        validate_model(model)
+        blueprint_json.write_text(json.dumps(model, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        rendered = render_markdown(model)
+        write_text_if_changed(blueprint_md, rendered)
+        write_text_if_changed(legacy_blueprint_md, rendered)
+        return model, rendered
 
-    docx_written: Path | None = None
-    if not args.no_docx:
+    model, rendered_markdown = run_step("Assemble blueprint model and Markdown", assemble)
+
+    def render_docx():
         docx_args = [
             str(blueprint_json),
             "--output",
@@ -1449,28 +1577,36 @@ def main(argv: list[str] | None = None) -> int:
             "--section-layout",
             args.docx_section_layout,
         ]
-        result = subprocess.run(
-            [sys.executable, str(SCRIPT_DIR / "blueprint_to_docx.py"), *docx_args],
-            cwd=REPO_ROOT,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        try:
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT_DIR / "blueprint_to_docx.py"), *docx_args],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=step_timeout,
+            )
+        except subprocess.TimeoutExpired:
+            print("warning: DOCX rendering timed out and was skipped.", file=sys.stderr)
+            return None
         if result.returncode == 0:
-            docx_written = blueprint_docx
             if not args.quiet and result.stdout.strip():
                 print(result.stdout.strip())
-        else:
-            print(
-                "warning: DOCX rendering skipped.\n"
-                f"{result.stdout.strip()}\n{result.stderr.strip()}".strip(),
-                file=sys.stderr,
-            )
+            return blueprint_docx
+        print(
+            "warning: DOCX rendering skipped.\n"
+            f"{result.stdout.strip()}\n{result.stderr.strip()}".strip(),
+            file=sys.stderr,
+        )
+        return None
 
-    render_qa_dir: Path | None = None
-    if args.render_docx_check:
-        if docx_written:
-            candidate_dir = bundle_dir / "render_qa"
+    docx_written: Path | None = None
+    if not args.no_docx:
+        docx_written = run_step("Render DOCX", render_docx)
+
+    def render_check():
+        candidate_dir = bundle_dir / "render_qa"
+        try:
             result = subprocess.run(
                 [
                     sys.executable,
@@ -1484,17 +1620,26 @@ def main(argv: list[str] | None = None) -> int:
                 text=True,
                 capture_output=True,
                 check=False,
+                timeout=step_timeout,
             )
-            if result.returncode == 0:
-                render_qa_dir = candidate_dir
-                if not args.quiet and result.stdout.strip():
-                    print(result.stdout.strip())
-            else:
-                print(
-                    "warning: DOCX render QA failed.\n"
-                    f"{result.stdout.strip()}\n{result.stderr.strip()}".strip(),
-                    file=sys.stderr,
-                )
+        except subprocess.TimeoutExpired:
+            print("warning: DOCX render QA timed out.", file=sys.stderr)
+            return None
+        if result.returncode == 0:
+            if not args.quiet and result.stdout.strip():
+                print(result.stdout.strip())
+            return candidate_dir
+        print(
+            "warning: DOCX render QA failed.\n"
+            f"{result.stdout.strip()}\n{result.stderr.strip()}".strip(),
+            file=sys.stderr,
+        )
+        return None
+
+    render_qa_dir: Path | None = None
+    if args.render_docx_check:
+        if docx_written:
+            render_qa_dir = run_step("DOCX visual render check", render_check)
         else:
             print("warning: --render-docx-check requested but no DOCX was written.", file=sys.stderr)
 
@@ -1508,6 +1653,37 @@ def main(argv: list[str] | None = None) -> int:
         include_qa=not args.skip_qa,
         render_qa_dir=render_qa_dir,
     )
+
+    if progress.events:
+        qa_counts = None
+        qa_json = bundle_dir / f"{stem}__course_qa.json"
+        if qa_json.exists():
+            try:
+                qa_data = json.loads(qa_json.read_text(encoding="utf-8"))
+                qa_counts = {key: len(qa_data.get(key, [])) for key in ("breaks", "warnings", "notes")}
+            except json.JSONDecodeError:
+                qa_counts = None
+        _emit_event(
+            {
+                "event": "run_end",
+                "status": "ok",
+                "bundle_dir": str(bundle_dir),
+                "outputs": {
+                    "markdown": str(blueprint_md),
+                    "json": str(blueprint_json),
+                    "docx": str(docx_written) if docx_written else None,
+                    "workbook": str(bundle_dir / f"{stem}__course_activities.xlsx"),
+                    "qa_report": str(bundle_dir / f"{stem}__course_qa.md") if not args.skip_qa else None,
+                    "render_qa_dir": str(render_qa_dir) if render_qa_dir else None,
+                },
+                "summary": {
+                    "weeks": len(model.get("weeks", [])),
+                    "diagnostics": len(model.get("diagnostics", [])),
+                    "needs_review": rendered_markdown.count(NOT_FOUND_FIELD),
+                    "qa": qa_counts,
+                },
+            }
+        )
 
     print(f"bundle: {bundle_dir}")
     print(f"blueprint (markdown): {blueprint_md}")
