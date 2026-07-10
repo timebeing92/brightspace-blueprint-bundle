@@ -32,8 +32,8 @@ Item kinds: checklist_link: 1, content_file: 2, discussion_link: 2, dropbox_link
 
 ## Extracted content topics
 
-- Topics extracted: 14
-- Non-HTML course files preserved as references: 3
+- Topics extracted: 15
+- Non-HTML course files preserved as references: 2
 - Pages with broken relative references: 0
 - Empty pages: 0
 - Images missing alt text: 1
@@ -44,7 +44,8 @@ Verbatim body text is preserved for HTML/text topics; non-HTML course files are 
 ## Diagnostics
 
 - content file 'Case Packet PDF': body extraction skipped for non-HTML file: files/week1-case-packet.pdf
-- hidden content 'Instructor Notes Draft': body extraction skipped: files/hidden-instructor-notes.docx
-- hidden content 'Hidden Faculty Setup Page': body extraction skipped: pages/hidden-faculty-setup.html
-- Package scope: hidden manifest-linked files skipped from blueprint body extraction: 2 file(s), 178 B total; by type: html: 1 / 140 B, document: 1 / 38 B; largest: pages/hidden-faculty-setup.html (140 B), files/hidden-instructor-notes.docx (38 B)
+- hidden content 'Draft Quiz - Hidden': included as hidden/faculty-facing manifest link
+- hidden content 'Instructor Notes Draft': preserved as hidden/faculty-facing file reference: files/hidden-instructor-notes.docx
+- hidden content 'Hidden Faculty Setup Page': included as hidden/faculty-facing HTML body: pages/hidden-faculty-setup.html
+- Package scope: hidden manifest-linked non-HTML files preserved as references: 1 file(s), 38 B total; by type: document: 1 / 38 B; largest: files/hidden-instructor-notes.docx (38 B)
 - Package scope: files not directly linked from the visible manifest: 8 file(s), 971 B total; by type: frontend_support: 1 / 585 B, xml: 3 / 234 B, image: 3 / 112 B, document: 1 / 40 B; largest: practice/week1-sort.practice.json (585 B), conditionalrelease_d2l.xml (108 B), survey_d2l_1.xml (78 B), links_d2l.xml (48 B), assets/equation-screenshot.png (47 B), files/unlinked-faculty-deck.pptx (40 B), assets/planning-cycle.png (35 B), assets/unused-diagram.png (30 B) (may include support assets referenced inside HTML pages)

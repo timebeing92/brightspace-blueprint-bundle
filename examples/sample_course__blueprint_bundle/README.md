@@ -1,6 +1,6 @@
 # Blueprint Bundle - sample_course
 
-Source export: `examples/sample_export.zip`
+Source export: `/Users/ehanson8/Documents/D2l & Coursebuilding Tools /brightspace-blueprint-bundle/examples/sample_export.zip`
 
 Primary outputs:
 - `sample_course__blueprint.md`
@@ -13,5 +13,6 @@ Companion artifacts:
 - course structure JSON/Markdown
 - course activities JSON/Markdown/workbook
 - course QA report
+- DOCX render QA not run
 
 Review note: the blueprint mirrors the exported course structure. It is source-derived, not a final instructional-design approval. Rows marked `Needs review` had no clear extracted source in the package.

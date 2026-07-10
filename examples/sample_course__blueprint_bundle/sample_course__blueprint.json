@@ -310,15 +310,17 @@
           "meta": {
             "tag": "aside",
             "classes": "callout"
-          }
-        },
-        {
-          "kind": "p",
-          "level": 0,
-          "runs": [
+          },
+          "blocks": [
             {
-              "text": "Visual callout cue: reviewers should see this as a callout marker, not exact Brightspace styling.",
-              "href": ""
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Visual callout cue: reviewers should see this as a callout marker, not exact Brightspace styling.",
+                  "href": ""
+                }
+              ]
             }
           ]
         },
@@ -649,27 +651,6 @@
               ]
             }
           ]
-        },
-        {
-          "label": "Quiz: Draft Quiz - Hidden",
-          "blocks": [
-            {
-              "kind": "hidden",
-              "level": 0,
-              "runs": [
-                {
-                  "text": "Object: Draft Quiz - Hidden; type: quiz link; hidden in the Brightspace manifest, so details were not extracted",
-                  "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=quiz&rCode=CODE-QH"
-                }
-              ],
-              "meta": {
-                "object_name": "Draft Quiz - Hidden",
-                "item_type": "quiz link",
-                "manifest_kind": "quiz_link",
-                "extraction": "hidden manifest item"
-              }
-            }
-          ]
         }
       ],
       "discussions": [
@@ -786,74 +767,23 @@
           "label": "Creator+ Practice",
           "blocks": [
             {
-              "kind": "label",
+              "kind": "practice",
               "level": 0,
               "runs": [
                 {
                   "text": "Creator+ practice: Sort Course Evidence",
                   "href": "https://practices.lcs.brightspace.com/player"
                 }
-              ]
-            },
-            {
-              "kind": "label",
-              "level": 0,
-              "runs": [
-                {
-                  "text": "Practice type: Sorting",
-                  "href": ""
-                }
-              ]
-            },
-            {
-              "kind": "label",
-              "level": 0,
-              "runs": [
-                {
-                  "text": "Source file: practice/week1-sort.practice.json",
-                  "href": ""
-                }
-              ]
-            },
-            {
-              "kind": "label",
-              "level": 0,
-              "runs": [
-                {
-                  "text": "Practice id: sample-sort-1",
-                  "href": ""
-                }
-              ]
-            },
-            {
-              "kind": "label",
-              "level": 0,
-              "runs": [
-                {
-                  "text": "Items: 3",
-                  "href": ""
-                }
-              ]
-            },
-            {
-              "kind": "label",
-              "level": 0,
-              "runs": [
-                {
-                  "text": "Categories/slots: 3",
-                  "href": ""
-                }
-              ]
-            },
-            {
-              "kind": "label",
-              "level": 0,
-              "runs": [
-                {
-                  "text": "Scoring: 3 pts",
-                  "href": ""
-                }
-              ]
+              ],
+              "meta": {
+                "practice_type": "Sorting",
+                "source_file": "practice/week1-sort.practice.json",
+                "practice_id": "sample-sort-1",
+                "items": "3",
+                "categories_slots": "3",
+                "scoring": "3 pts",
+                "summary": "Practice type: Sorting; Source file: practice/week1-sort.practice.json; Practice id: sample-sort-1; Items: 3; Categories/slots: 3; Scoring: 3 pts"
+              }
             },
             {
               "kind": "label",
@@ -935,15 +865,17 @@
               "meta": {
                 "tag": "section",
                 "classes": "case-card"
-              }
-            },
-            {
-              "kind": "p",
-              "level": 0,
-              "runs": [
+              },
+              "blocks": [
                 {
-                  "text": "A sample stakeholder asks whether a course export preserves its weekly organization.",
-                  "href": ""
+                  "kind": "p",
+                  "level": 0,
+                  "runs": [
+                    {
+                      "text": "A sample stakeholder asks whether a course export preserves its weekly organization.",
+                      "href": ""
+                    }
+                  ]
                 }
               ]
             }
@@ -979,6 +911,29 @@
           "level": 2
         },
         {
+          "label": "Draft Quiz - Hidden",
+          "blocks": [
+            {
+              "kind": "hidden",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "Object: Draft Quiz - Hidden; type: quiz link; hidden/faculty-facing in the Brightspace manifest. The manifest link is hidden/faculty-facing; any manifest description is included below.",
+                  "href": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=quiz&rCode=CODE-QH"
+                }
+              ],
+              "meta": {
+                "object_name": "Draft Quiz - Hidden",
+                "item_type": "quiz link",
+                "manifest_kind": "quiz_link",
+                "extraction": "hidden/faculty-facing manifest item"
+              }
+            }
+          ],
+          "source_page": "Draft Quiz - Hidden",
+          "level": 0
+        },
+        {
           "label": "Instructor Notes Draft",
           "blocks": [
             {
@@ -986,7 +941,7 @@
               "level": 0,
               "runs": [
                 {
-                  "text": "Object: Instructor Notes Draft; type: DOCX course file; hidden in the Brightspace manifest, so body extraction was skipped",
+                  "text": "Object: Instructor Notes Draft; type: DOCX course file; hidden/faculty-facing in the Brightspace manifest. The linked course file is hidden/faculty-facing and was preserved as a file reference.",
                   "href": "files/hidden-instructor-notes.docx"
                 }
               ],
@@ -994,7 +949,7 @@
                 "object_name": "Instructor Notes Draft",
                 "item_type": "DOCX course file",
                 "manifest_kind": "content_file",
-                "extraction": "hidden manifest item"
+                "extraction": "hidden/faculty-facing manifest item"
               }
             }
           ],
@@ -1140,14 +1095,14 @@
           "level": 2
         },
         {
-          "label": "Hidden Faculty Setup Page",
+          "label": "Hidden Faculty Setup Page › Hidden Setup",
           "blocks": [
             {
               "kind": "hidden",
               "level": 0,
               "runs": [
                 {
-                  "text": "Object: Hidden Faculty Setup Page; type: HTML content page; hidden in the Brightspace manifest, so body extraction was skipped",
+                  "text": "Object: Hidden Faculty Setup Page; type: HTML content page; hidden/faculty-facing in the Brightspace manifest. Body text was extracted below for review; keep in mind this item is hidden/faculty-facing.",
                   "href": "pages/hidden-faculty-setup.html"
                 }
               ],
@@ -1155,12 +1110,22 @@
                 "object_name": "Hidden Faculty Setup Page",
                 "item_type": "HTML content page",
                 "manifest_kind": "html_topic",
-                "extraction": "hidden manifest item"
+                "extraction": "hidden/faculty-facing manifest item"
               }
+            },
+            {
+              "kind": "p",
+              "level": 0,
+              "runs": [
+                {
+                  "text": "This body should not be unpacked because the manifest item is hidden.",
+                  "href": ""
+                }
+              ]
             }
           ],
           "source_page": "Hidden Faculty Setup Page",
-          "level": 0
+          "level": 1
         }
       ]
     }
@@ -1213,9 +1178,10 @@
   },
   "diagnostics": [
     "Structure: content file 'Case Packet PDF': body extraction skipped for non-HTML file: files/week1-case-packet.pdf",
-    "Structure: hidden content 'Instructor Notes Draft': body extraction skipped: files/hidden-instructor-notes.docx",
-    "Structure: hidden content 'Hidden Faculty Setup Page': body extraction skipped: pages/hidden-faculty-setup.html",
-    "Structure: Package scope: hidden manifest-linked files skipped from blueprint body extraction: 2 file(s), 178 B total; by type: html: 1 / 140 B, document: 1 / 38 B; largest: pages/hidden-faculty-setup.html (140 B), files/hidden-instructor-notes.docx (38 B)",
+    "Structure: hidden content 'Draft Quiz - Hidden': included as hidden/faculty-facing manifest link",
+    "Structure: hidden content 'Instructor Notes Draft': preserved as hidden/faculty-facing file reference: files/hidden-instructor-notes.docx",
+    "Structure: hidden content 'Hidden Faculty Setup Page': included as hidden/faculty-facing HTML body: pages/hidden-faculty-setup.html",
+    "Structure: Package scope: hidden manifest-linked non-HTML files preserved as references: 1 file(s), 38 B total; by type: document: 1 / 38 B; largest: files/hidden-instructor-notes.docx (38 B)",
     "Structure: Package scope: files not directly linked from the visible manifest: 8 file(s), 971 B total; by type: frontend_support: 1 / 585 B, xml: 3 / 234 B, image: 3 / 112 B, document: 1 / 40 B; largest: practice/week1-sort.practice.json (585 B), conditionalrelease_d2l.xml (108 B), survey_d2l_1.xml (78 B), links_d2l.xml (48 B), assets/equation-screenshot.png (47 B), files/unlinked-faculty-deck.pptx (40 B), assets/planning-cycle.png (35 B), assets/unused-diagram.png (30 B) (may include support assets referenced inside HTML pages)",
     "Routing: Week 1: resource-like heading 'Required Resources' from overview page 'Week 1 Overview' kept in Overview because the module also has a separate resources/materials page."
   ]

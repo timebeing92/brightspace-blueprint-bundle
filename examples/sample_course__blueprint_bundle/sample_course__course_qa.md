@@ -2,12 +2,11 @@
 
 - Breaks: 0
 - Warnings: 2
-- Notes: 4
-- Scope: dropbox_folders: 4, discussion_topics: 3, quizzes: 1, grade_items: 8, manifest_items: 25, html_topics: 14, external_urls: 0
+- Notes: 7
+- Scope: dropbox_folders: 4, discussion_topics: 3, quizzes: 1, grade_items: 8, manifest_items: 25, html_topics: 15, external_urls: 0, external_url_checks: 0
 
 Read-only diagnostics over the export. Breaks need a decision before
-launch/import; warnings deserve a look; notes are context. External
-URLs are inventoried, not fetched.
+launch/import; warnings deserve a look; notes are context. External URLs are inventoried, not fetched.
 
 ## Breaks
 
@@ -16,13 +15,16 @@ URLs are inventoried, not fetched.
 ## Warnings
 
 - grade item with no linked activity: 'Standalone Participation'
-- images missing alt text across activities and pages: 1
+- images missing alt text across activities and pages: 1 (pages/week1-overview.html -> ../assets/equation-screenshot.png)
 
 ## Notes
 
 - content file 'Case Packet PDF': body extraction skipped for non-HTML file: files/week1-case-packet.pdf
-- hidden content 'Instructor Notes Draft': body extraction skipped: files/hidden-instructor-notes.docx
-- hidden content 'Hidden Faculty Setup Page': body extraction skipped: pages/hidden-faculty-setup.html
+- hidden content 'Draft Quiz - Hidden': included as hidden/faculty-facing manifest link
+- hidden content 'Instructor Notes Draft': preserved as hidden/faculty-facing file reference: files/hidden-instructor-notes.docx
+- hidden content 'Hidden Faculty Setup Page': included as hidden/faculty-facing HTML body: pages/hidden-faculty-setup.html
+- Package scope: hidden manifest-linked non-HTML files preserved as references: 1 file(s), 38 B total; by type: document: 1 / 38 B; largest: files/hidden-instructor-notes.docx (38 B)
+- Package scope: files not directly linked from the visible manifest: 8 file(s), 971 B total; by type: frontend_support: 1 / 585 B, xml: 3 / 234 B, image: 3 / 112 B, document: 1 / 40 B; largest: practice/week1-sort.practice.json (585 B), conditionalrelease_d2l.xml (108 B), survey_d2l_1.xml (78 B), links_d2l.xml (48 B), assets/equation-screenshot.png (47 B), files/unlinked-faculty-deck.pptx (40 B), assets/planning-cycle.png (35 B), assets/unused-diagram.png (30 B) (may include support assets referenced inside HTML pages)
 - gradebook countable total: 73 (set expected_total in --config to enforce)
 
 ## External URLs (inventory only)

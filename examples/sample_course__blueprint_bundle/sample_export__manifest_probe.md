@@ -1,6 +1,6 @@
 # Manifest Probe — sample_export
 
-- Manifest: `examples/sample_export.zip!imsmanifest.xml`
+- Manifest: `/Users/ehanson8/Documents/D2l & Coursebuilding Tools /brightspace-blueprint-bundle/examples/sample_export.zip!imsmanifest.xml`
 - Resources: **25**
 - Items: **25**
 - Items with `identifierref`: **25**

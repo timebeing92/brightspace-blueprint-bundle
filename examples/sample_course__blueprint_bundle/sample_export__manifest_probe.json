@@ -1,6 +1,6 @@
 {
   "label": "sample_export",
-  "manifest_path": "examples/sample_export.zip!imsmanifest.xml",
+  "manifest_path": "/Users/ehanson8/Documents/D2l & Coursebuilding Tools /brightspace-blueprint-bundle/examples/sample_export.zip!imsmanifest.xml",
   "resource_count": 25,
   "item_count": 25,
   "items_with_identifierref": 25,
