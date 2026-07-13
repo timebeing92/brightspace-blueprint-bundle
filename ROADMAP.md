@@ -6,10 +6,6 @@ is only done when a real run demonstrates it.
 
 ## Output & UX
 
-- **Quiet the step dumps.** `export_inventory.py` and `manifest_probe.py`
-  print their entire markdown reports (every file/resource/item) to stdout
-  during a pipeline run. Default should be a short summary — the full
-  documents already land in the bundle folder. Keep a `--print-full` opt-in.
 - **End-of-run summary in plain runs.** The `run_end` progress event carries
   weeks / QA counts / needs-review; print the same summary as text at the end
   of a default (banner-mode) run.
@@ -24,6 +20,24 @@ is only done when a real run demonstrates it.
 - **Unify `--label`/output-dir behavior** of `export_inventory.py` and
   `manifest_probe.py` with the other scripts (today one bundle mixes
   `sample_export__*` and `sample_course__*` stems).
+
+## Delivery
+
+(Decision record 2026-07-13 in the workbench `DEVELOPMENT_ROADMAP.md`: the
+local/TUI runner and a web version are dual-track peers — neither replaces
+the other.)
+
+- **Web version.** A hosted upload-export → download-blueprint app wrapping
+  this pipeline — likely Hugging Face Spaces with Gradio (a Docker Space if
+  LibreOffice render QA is wanted) — so colleagues get zero-install use.
+  Decide the privacy posture first: course exports are institutional
+  content (private Space? access? retention?).
+- **One-download install for the local runner.** Publish a release zip with
+  the runner + this bundle as sibling folders so download → unzip →
+  double-click `Blueprint Wizard.command`/`.bat` is the whole setup — the
+  wizard's first-run doctor already creates the venv and installs
+  dependencies. Alternative: a downloadable installer script that clones
+  both repos; blocked while the repos are private.
 
 ## Extraction quality
 
@@ -48,8 +62,3 @@ is only done when a real run demonstrates it.
   file in every package). `syllabus_d2l.xml` and `conditionalrelease_d2l.xml`
   are also standard never-manifest-linked files the pipeline itself consumes —
   decide whether they belong in the exclusion too.
-
-## Runner (sibling repo)
-
-- Windows launcher (`blueprint_wizard.ps1`) — the wizard itself is pure
-  Python and already computes the Windows venv path.
