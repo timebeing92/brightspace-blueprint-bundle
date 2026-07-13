@@ -27,17 +27,33 @@ is only done when a real run demonstrates it.
 local/TUI runner and a web version are dual-track peers — neither replaces
 the other.)
 
-- **Web version.** A hosted upload-export → download-blueprint app wrapping
-  this pipeline — likely Hugging Face Spaces with Gradio (a Docker Space if
-  LibreOffice render QA is wanted) — so colleagues get zero-install use.
-  Decide the privacy posture first: course exports are institutional
-  content (private Space? access? retention?).
-- **One-download install for the local runner.** Publish a release zip with
-  the runner + this bundle as sibling folders so download → unzip →
-  double-click `Blueprint Wizard.command`/`.bat` is the whole setup — the
-  wizard's first-run doctor already creates the venv and installs
-  dependencies. Alternative: a downloadable installer script that clones
-  both repos; blocked while the repos are private.
+- **Web version — decision deferred until an avenues review (user request
+  2026-07-13).** Before committing to a stack, review the options across
+  configuration, UX/UI, and pipeline hosting: Gradio on Hugging Face Spaces
+  is one candidate; the previously discussed split (Hugging Face for script
+  execution + GitHub Pages for the UX/UI front end) is another; aesthetics
+  matter — produce a mockup for review before any decision. Also open, for
+  BOTH web and TUI: one central multi-tool hub vs separate single-tool
+  interfaces as more functionality (beyond blueprints) folds in later.
+  Privacy posture review (private hosting, no retention — course exports
+  are institutional content) happens when the web track starts.
+- **LibreOffice streamlining.** LibreOffice is needed only for the optional
+  DOCX visual render QA (DOCX→PDF; Poppler rasterizes). No faithful
+  pure-Python DOCX renderer exists. Plan: web version bakes soffice into
+  its container image (zero user install); the TUI keeps the current
+  optional prompt-gated install; candidate improvement for both — a
+  pure-Python structural DOCX QA (python-docx read-back: styles, tables,
+  hyperlinks, images) as a lightweight default so the visual pass is rarely
+  needed.
+- **One-download install — tooling DONE 2026-07-13 (runner-side).**
+  `scripts/make_release_bundle.py` builds `dist/blueprint-wizard-vX.Y.zip`
+  from both repos' git HEADs (sibling folders, top-level double-click
+  launchers, START_HERE.txt); verified end-to-end from a fresh unzip incl.
+  first-run venv + dependency installs. `install_blueprint_wizard.sh` is the
+  curl-able alternative (clones both repos, ff-only update on re-run);
+  runner README documents all three install pathways with rationale.
+  Remaining: push and cut the GitHub release; the installer becomes broadly
+  useful if the repos go public (user open to this).
 
 ## Extraction quality
 
