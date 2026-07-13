@@ -167,6 +167,19 @@ def markdown_report(data: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def summary_report(data: dict, report_path: Path | None = None) -> str:
+    lines = [
+        f"Manifest probe — {data['label']}: {data['resource_count']} resources, "
+        f"{data['item_count']} items ({data['items_with_identifierref']} with identifierref).",
+        f"  Likely quiz resources: {len(data['likely_quiz_resources'])} · "
+        f"likely HTML: {len(data['likely_html_resources'])} · "
+        f"missing href: {len(data['resources_missing_href'])}",
+    ]
+    if report_path is not None:
+        lines.append(f"  Full report: {report_path}")
+    return "\n".join(lines)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Probe a Brightspace imsmanifest.xml for quick review.")
     parser.add_argument(
@@ -174,6 +187,11 @@ def main() -> int:
         help="Path to a Brightspace export ZIP, unpacked folder, or imsmanifest.xml",
     )
     parser.add_argument("--output-dir", default=None, help="Optional directory for markdown/json outputs")
+    parser.add_argument(
+        "--print-full",
+        action="store_true",
+        help="Print the full markdown report to stdout (default: a short summary)",
+    )
     args = parser.parse_args()
 
     try:
@@ -186,14 +204,16 @@ def main() -> int:
     data = parse_manifest(root, manifest_ref, label)
     md = markdown_report(data)
 
+    md_path = None
     if args.output_dir:
         output_dir = Path(args.output_dir).expanduser().resolve()
         output_dir.mkdir(parents=True, exist_ok=True)
         stem = data["label"] or "manifest"
         (output_dir / f"{stem}__manifest_probe.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
-        (output_dir / f"{stem}__manifest_probe.md").write_text(md, encoding="utf-8")
+        md_path = output_dir / f"{stem}__manifest_probe.md"
+        md_path.write_text(md, encoding="utf-8")
 
-    print(md)
+    print(md if args.print_full else summary_report(data, md_path))
     return 0
 
 

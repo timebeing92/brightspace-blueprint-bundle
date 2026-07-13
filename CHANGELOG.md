@@ -4,6 +4,20 @@ Implementation history for `brightspace-blueprint-bundle`. Newest first.
 
 ---
 
+## 2026-07-13 — Quiet step stdout (done)
+
+`export_inventory.py` and `manifest_probe.py` no longer print their entire
+markdown reports to stdout on every pipeline run. The default is now a short
+summary (counts plus the path of the full report when `--output-dir` is set);
+`--print-full` restores the old full-report stdout. Written artifacts are
+unchanged. Graduated from the ROADMAP "Quiet the step dumps" item; a
+representative runner log shrank from 725 to 49 lines. Both scripts are
+mirror-policy files — the same change landed in the workbench originals and
+the staged snapshot (drift check: 0 actionable on both bundles; workbench 86
+and bundle 38 tests green).
+
+---
+
 ## 2026-07-09 — Test suite, shared helpers, hardened pipeline, progress contract (done)
 
 **Tests.** New `tests/` pytest suite (install `requirements-dev.txt`): a golden

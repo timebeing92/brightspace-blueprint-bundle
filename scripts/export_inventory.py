@@ -130,10 +130,29 @@ def markdown_report(inv: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def summary_report(inv: dict, report_path: Path | None = None) -> str:
+    counts = " · ".join(f"{value} {key}" for key, value in inv["counts"].items())
+    lines = [
+        f"Export inventory — {inv['label']}: {inv['total_files']} files.",
+        f"  {counts}",
+        f"  D2L components: {len(inv['d2l_components'])} · "
+        f"likely quiz files: {len(inv['likely_quiz_files'])} · "
+        f"HTML topics: {len(inv['likely_html_topics'])}",
+    ]
+    if report_path is not None:
+        lines.append(f"  Full report: {report_path}")
+    return "\n".join(lines)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Create a lightweight inventory of a Brightspace export ZIP or folder.")
     parser.add_argument("source", help="Path to a ZIP or unpacked folder")
     parser.add_argument("--output-dir", default=None, help="Optional directory for markdown/json outputs")
+    parser.add_argument(
+        "--print-full",
+        action="store_true",
+        help="Print the full markdown report to stdout (default: a short summary)",
+    )
     args = parser.parse_args()
 
     source = Path(args.source).expanduser().resolve()
@@ -149,14 +168,16 @@ def main() -> int:
     inv = build_inventory(source, rel_paths)
     md = markdown_report(inv)
 
+    md_path = None
     if args.output_dir:
         output_dir = Path(args.output_dir).expanduser().resolve()
         output_dir.mkdir(parents=True, exist_ok=True)
         stem = course_name(source)
         (output_dir / f"{stem}__inventory.json").write_text(json.dumps(inv, indent=2), encoding="utf-8")
-        (output_dir / f"{stem}__inventory.md").write_text(md, encoding="utf-8")
+        md_path = output_dir / f"{stem}__inventory.md"
+        md_path.write_text(md, encoding="utf-8")
 
-    print(md)
+    print(md if args.print_full else summary_report(inv, md_path))
     return 0
 
 
