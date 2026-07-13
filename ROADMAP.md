@@ -29,10 +29,12 @@ the other.)
 
 - **Web version — DECIDED 2026-07-13 after the avenues review** (mockups +
   matrix delivered; full record in the workbench `DEVELOPMENT_ROADMAP.md`
-  addendum): **Gradio on a Hugging Face Docker Space**, wrapping this
-  bundle's CLI as a subprocess and streaming `coursecraft.progress/1` into a
-  themed step board. Docker from day one (pins Python, bakes LibreOffice,
-  FastAPI escape hatch from the same Space). Registers: midnight for the
+  addendum): **Gradio on a Hugging Face Space** (amended 2026-07-13: plain
+  SDK Space first, Docker on record as the custom-front-end/hard-pinning
+  escape hatch), wrapping this bundle's CLI as a subprocess and streaming
+  `coursecraft.progress/1` into a themed step board. The Space pins a
+  bundle **release tag** (first tag: v1.0.0) and fetches it at startup —
+  no vendored pipeline copies. Registers: midnight for the
   wizard tool page, vellum for the hub shell. Hub: web = one Space with the
   "CourseCraft Workshop" hub shell from day one (blueprint bench first);
   TUI = separate wizards sharing `ui.py`, launcher deferred to the Textual
