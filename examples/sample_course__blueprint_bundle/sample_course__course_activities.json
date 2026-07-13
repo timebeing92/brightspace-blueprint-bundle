@@ -1,6 +1,23 @@
 {
   "export": "/Users/ehanson8/Documents/D2l & Coursebuilding Tools /brightspace-blueprint-bundle/examples/sample_export.zip",
   "label": "sample_course",
+  "export_identity": {
+    "source_name": "sample_export.zip",
+    "org_unit_id": null,
+    "course_code": null,
+    "export_timestamp": null,
+    "orgunit_identifier": null,
+    "orgunit_code": null,
+    "orgunit_name": null
+  },
+  "condition_sets": [
+    {
+      "resource_code": "COND-OPEN",
+      "tool": "",
+      "operator": "",
+      "conditions": []
+    }
+  ],
   "dropbox_folders": [
     {
       "id": "1",

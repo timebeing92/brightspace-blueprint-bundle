@@ -164,6 +164,100 @@ def load_condition_sets(root: Path, diagnostics: list[str]) -> set[str]:
     return codes
 
 
+# Condition targets reference other objects by resource_code through an attribute
+# named for the tool; the set below is what the evidence corpus shows (CHEM 1020:
+# quiz/dropbox/grade_object/group) plus the analogous tool names we may meet later.
+# Unknown attributes are still preserved verbatim in each condition's `attributes`.
+CONDITION_TARGET_KEYS = (
+    "quiz",
+    "dropbox",
+    "grade_object",
+    "group",
+    "discussion",
+    "content_topic",
+    "checklist",
+    "survey",
+)
+
+
+def extract_condition_sets(root: Path, diagnostics: list[str]) -> list[dict]:
+    """Verbatim conditional-release internals; condition_type ids are NOT interpreted."""
+    cr_path = root / "conditionalrelease_d2l.xml"
+    if not cr_path.exists():
+        return []
+    cr_root = parse_xml(cr_path, diagnostics)
+    if cr_root is None:
+        return []
+    sets: list[dict] = []
+    for condition_set in cr_root.iter():
+        if local_name(condition_set.tag) != "condition_set":
+            continue
+        conditions: list[dict] = []
+        for condition in condition_set.iter():
+            if local_name(condition.tag) != "condition":
+                continue
+            attributes = {local_name(key): clean(value) for key, value in condition.attrib.items()}
+            references = [
+                {"kind": key, "value": attributes[key]}
+                for key in CONDITION_TARGET_KEYS
+                if attributes.get(key)
+            ]
+            conditions.append(
+                {
+                    "condition_type": attributes.get("condition_type", ""),
+                    "operator": attributes.get("operator", ""),
+                    "attributes": attributes,
+                    "references": references,
+                }
+            )
+        sets.append(
+            {
+                "resource_code": condition_set.attrib.get("resource_code", ""),
+                "tool": condition_set.attrib.get("tool", ""),
+                "operator": condition_set.attrib.get("operator", ""),
+                "conditions": conditions,
+            }
+        )
+    return sets
+
+
+# D2LExport_<orgunitid>_<code>_<timestamp>[_<suffix>]; the code segment may itself
+# contain underscores, so the timestamp is the first 8-14 digit run after it.
+EXPORT_NAME_PATTERN = re.compile(
+    r"D2LExport_(?P<org_unit_id>\d+)_(?P<course_code>.+?)_(?P<timestamp>\d{8,14})(?:_|$|\.)",
+    re.IGNORECASE,
+)
+
+
+def load_export_identity(export_arg: Path, root: Path, diagnostics: list[str]) -> dict:
+    """Course identity assembled from what is already on disk; fields stay null when absent."""
+    identity: dict = {
+        "source_name": export_arg.name,
+        "org_unit_id": None,
+        "course_code": None,
+        "export_timestamp": None,
+        "orgunit_identifier": None,
+        "orgunit_code": None,
+        "orgunit_name": None,
+    }
+    candidates = [export_arg.stem if export_arg.is_file() else export_arg.name, root.name]
+    for candidate in candidates:
+        match = EXPORT_NAME_PATTERN.search(candidate or "")
+        if match:
+            identity["org_unit_id"] = match.group("org_unit_id")
+            identity["course_code"] = match.group("course_code")
+            identity["export_timestamp"] = match.group("timestamp")
+            break
+    ou_path = root / "orgunitconfig" / "orgunitconfig.xml"
+    if ou_path.exists():
+        ou_root = parse_xml(ou_path, diagnostics)
+        if ou_root is not None and local_name(ou_root.tag) == "orgunit":
+            identity["orgunit_identifier"] = attr_by_local(ou_root, "identifier") or None
+            identity["orgunit_code"] = child_text(ou_root, "code") or None
+            identity["orgunit_name"] = child_text(ou_root, "name") or None
+    return identity
+
+
 def load_quicklink_codes(root: Path, diagnostics: list[str]) -> dict[str, int]:
     """resource_code -> number of manifest quicklinks referencing it (rcode/rCode)."""
     manifest_path = root / "imsmanifest.xml"
@@ -824,9 +918,11 @@ def main(argv: list[str] | None = None) -> int:
     label = args.label or safe_label(args.export.stem if args.export.is_file() else args.export.name)
 
     diagnostics: list[str] = []
+    export_identity = load_export_identity(args.export.expanduser().resolve(), root, diagnostics)
     grade_items, grade_by_code = load_grade_items(root, diagnostics)
     rubric_names = load_rubric_names(root, diagnostics)
     condition_codes = load_condition_sets(root, diagnostics)
+    condition_sets = extract_condition_sets(root, diagnostics)
     quicklinks = load_quicklink_codes(root, diagnostics)
     folders = extract_dropbox(root, diagnostics)
     discussion_rows = extract_discussions(root, diagnostics)
@@ -850,6 +946,8 @@ def main(argv: list[str] | None = None) -> int:
             {
                 "export": str(args.export),
                 "label": label,
+                "export_identity": export_identity,
+                "condition_sets": condition_sets,
                 "dropbox_folders": folders,
                 "discussions": discussion_rows,
                 "checklists": checklists,
