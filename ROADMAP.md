@@ -27,16 +27,27 @@ is only done when a real run demonstrates it.
 local/TUI runner and a web version are dual-track peers — neither replaces
 the other.)
 
-- **Web version — decision deferred until an avenues review (user request
-  2026-07-13).** Before committing to a stack, review the options across
-  configuration, UX/UI, and pipeline hosting: Gradio on Hugging Face Spaces
-  is one candidate; the previously discussed split (Hugging Face for script
-  execution + GitHub Pages for the UX/UI front end) is another; aesthetics
-  matter — produce a mockup for review before any decision. Also open, for
-  BOTH web and TUI: one central multi-tool hub vs separate single-tool
-  interfaces as more functionality (beyond blueprints) folds in later.
-  Privacy posture review (private hosting, no retention — course exports
-  are institutional content) happens when the web track starts.
+- **Web version — DECIDED 2026-07-13 after the avenues review** (mockups +
+  matrix delivered; full record in the workbench `DEVELOPMENT_ROADMAP.md`
+  addendum): **Gradio on a Hugging Face Docker Space**, wrapping this
+  bundle's CLI as a subprocess and streaming `coursecraft.progress/1` into a
+  themed step board. Docker from day one (pins Python, bakes LibreOffice,
+  FastAPI escape hatch from the same Space). Registers: midnight for the
+  wizard tool page, vellum for the hub shell. Hub: web = one Space with the
+  "CourseCraft Workshop" hub shell from day one (blueprint bench first);
+  TUI = separate wizards sharing `ui.py`, launcher deferred to the Textual
+  trigger. Access model open: leaning PUBLIC Space (no HF accounts needed;
+  portfolio-friendly; flippable to private), final call pending.
+- **Alternatives on record (revision paths, user request 2026-07-13):**
+  (a) self-hosted FastAPI — university VM (best institutional privacy) or
+  small VPS; progress contract maps to SSE; doubles as the localhost-web
+  fallback. (b) Pyodide fully client-side — privacy endgame, $0 static
+  hosting, export never leaves the browser; blocker: the orchestrator is
+  subprocess-per-step (WASM has no subprocess) so it needs an in-process
+  step adapter; no LibreOffice ever (structural DOCX QA still works).
+  (c) Rejected permanently: HF-for-scripts + GitHub-Pages-for-UI split —
+  a private Space API needs a token that cannot live in static JS, and a
+  custom front end can be served from the Space itself.
 - **LibreOffice streamlining.** LibreOffice is needed only for the optional
   DOCX visual render QA (DOCX→PDF; Poppler rasterizes). No faithful
   pure-Python DOCX renderer exists. **Structural DOCX QA landed 2026-07-13**
