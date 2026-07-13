@@ -71,6 +71,8 @@ files are:
 - `<label>__course_structure.md` and `.json` - reconstructed module/topic tree.
 - `<export>__inventory.md` and `.json` - package file inventory.
 - `<export>__manifest_probe.md` and `.json` - manifest/resource inspection.
+- `<label>__docx_structure.md` and `.json` - structural check of the rendered
+  DOCX (relationships, hyperlinks, tables, titles); pure Python, on by default.
 - `README.md` - short per-run guide to the generated files.
 - `render_qa/` - optional PDF/PNG render check output when requested.
 
@@ -91,7 +93,8 @@ steps below in order:
 | 5 | `course_qa_report.py` | Produce QA warnings and notes; external URL fetching is opt-in. |
 | 6 | `build_blueprint_bundle.py` | Assemble the `coursecraft.blueprint/4` JSON model. |
 | 7 | `blueprint_to_docx.py` | Render DOCX from the same model used for Markdown. |
-| 8 | `render_blueprint_docx.py` | Optional visual check: DOCX to PDF/PNG pages plus render summary. |
+| 8 | `docx_structure_qa.py` | Structural check of the rendered DOCX against the model (relationships, hyperlinks, tables, titles). Pure Python, on by default; `--skip-docx-structure-check` opts out. |
+| 9 | `render_blueprint_docx.py` | Optional visual deep check: DOCX to PDF/PNG pages plus render summary (needs LibreOffice + Poppler). |
 
 Markdown is always produced. DOCX is produced when `python-docx` is available.
 Detected source callouts, notes, cards, and styled highlight sections are kept

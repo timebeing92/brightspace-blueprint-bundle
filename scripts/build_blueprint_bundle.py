@@ -1452,6 +1452,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--no-docx", action="store_true", help="Do not render the DOCX blueprint")
     parser.add_argument(
+        "--skip-docx-structure-check",
+        action="store_true",
+        help="Skip the pure-Python structural check of the rendered DOCX (docx_structure_qa.py)",
+    )
+    parser.add_argument(
         "--render-docx-check",
         action="store_true",
         help="After DOCX generation, convert it to PDF/PNG pages in render_qa/ and summarize render status",
@@ -1497,6 +1502,8 @@ def main(argv: list[str] | None = None) -> int:
     step_labels.append("Assemble blueprint model and Markdown")
     if not args.no_docx:
         step_labels.append("Render DOCX")
+        if not args.skip_docx_structure_check:
+            step_labels.append("Check DOCX structure")
     if args.render_docx_check:
         step_labels.append("DOCX visual render check")
     progress = StepProgress(step_labels, events=args.progress_events, run_label=stem)
@@ -1603,6 +1610,22 @@ def main(argv: list[str] | None = None) -> int:
     docx_written: Path | None = None
     if not args.no_docx:
         docx_written = run_step("Render DOCX", render_docx)
+
+    if docx_written and not args.skip_docx_structure_check:
+        run_step(
+            "Check DOCX structure",
+            lambda: run_workbench_script(
+                "docx_structure_qa.py",
+                [
+                    str(docx_written),
+                    "--model", str(blueprint_json),
+                    "--section-layout", args.docx_section_layout,
+                    "--output-dir", str(bundle_dir),
+                ],
+                args.quiet,
+                timeout=step_timeout,
+            ),
+        )
 
     def render_check():
         candidate_dir = bundle_dir / "render_qa"

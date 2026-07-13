@@ -4,6 +4,26 @@ Implementation history for `brightspace-blueprint-bundle`. Newest first.
 
 ---
 
+## 2026-07-13 — Structural DOCX QA (done)
+
+New `scripts/docx_structure_qa.py`: a pure-Python (python-docx) structural
+check of the rendered DOCX against its blueprint model — the package opens,
+every `r:id`/`r:embed` relationship reference resolves, every hyperlink
+target is a URL the model actually contains (with a count comparison that
+mirrors the renderer's link-emission rules), the table census and per-week
+table shape match the section layout, and the course/week titles survive as
+body paragraphs. Runs by default as pipeline step "Check DOCX structure"
+immediately after Render DOCX (`--skip-docx-structure-check` opts out);
+writes `<label>__docx_structure.{md,json}`; breaks fail the step, warnings
+do not. This makes the LibreOffice/Poppler visual render QA a rarely-needed
+deep pass rather than the only DOCX verification — zero extra installs.
+Worked example regenerated with the new artifacts. Four new tests (golden
+pass, dangling-relationship break, wrong-layout warning, model-mismatch
+break); suites green (bundle 44, workbench 86); drift 0 after the
+orchestrator divergence re-pin.
+
+---
+
 ## 2026-07-13 — Quiet step stdout (done)
 
 `export_inventory.py` and `manifest_probe.py` no longer print their entire

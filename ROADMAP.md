@@ -39,12 +39,11 @@ the other.)
   are institutional content) happens when the web track starts.
 - **LibreOffice streamlining.** LibreOffice is needed only for the optional
   DOCX visual render QA (DOCX→PDF; Poppler rasterizes). No faithful
-  pure-Python DOCX renderer exists. Plan: web version bakes soffice into
-  its container image (zero user install); the TUI keeps the current
-  optional prompt-gated install; candidate improvement for both — a
-  pure-Python structural DOCX QA (python-docx read-back: styles, tables,
-  hyperlinks, images) as a lightweight default so the visual pass is rarely
-  needed.
+  pure-Python DOCX renderer exists. **Structural DOCX QA landed 2026-07-13**
+  (`docx_structure_qa.py`, default-on — see CHANGELOG), so the visual pass
+  is now a rarely-needed deep check. Remaining: the web version bakes
+  soffice into its container image (zero user install); the TUI keeps the
+  optional prompt-gated install for the visual pass.
 - **One-download install — tooling DONE 2026-07-13 (runner-side).**
   `scripts/make_release_bundle.py` builds `dist/blueprint-wizard-vX.Y.zip`
   from both repos' git HEADs (sibling folders, top-level double-click

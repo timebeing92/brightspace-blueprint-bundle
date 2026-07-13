@@ -16,6 +16,7 @@ TEXT_ARTIFACTS = [
     "sample_course__course_structure.md",
     "sample_course__course_activities.md",
     "sample_course__course_qa.md",
+    "sample_course__docx_structure.md",
     "sample_export__inventory.md",
     "sample_export__manifest_probe.md",
 ]
@@ -25,6 +26,7 @@ JSON_ARTIFACTS = [
     "sample_course__course_structure.json",
     "sample_course__course_activities.json",
     "sample_course__course_qa.json",
+    "sample_course__docx_structure.json",
     "sample_export__inventory.json",
     "sample_export__manifest_probe.json",
 ]
