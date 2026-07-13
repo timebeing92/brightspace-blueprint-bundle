@@ -1,6 +1,6 @@
 # Blueprint Bundle - sample_course
 
-Source export: `/Users/ehanson8/Documents/D2l & Coursebuilding Tools /brightspace-blueprint-bundle/examples/sample_export.zip`
+Source export: `examples/sample_export.zip`
 
 Primary outputs:
 - `sample_course__blueprint.md`

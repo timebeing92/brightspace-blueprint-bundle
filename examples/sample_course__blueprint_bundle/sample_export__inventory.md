@@ -1,6 +1,6 @@
 # Export Inventory — sample_export
 
-- Source: `/Users/ehanson8/Documents/D2l & Coursebuilding Tools /brightspace-blueprint-bundle/examples/sample_export.zip`
+- Source: `examples/sample_export.zip`
 - Total files: **30**
 
 ## Counts

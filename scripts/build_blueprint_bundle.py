@@ -101,9 +101,10 @@ def run_workbench_script(
     script_name: str, args: list[str], quiet: bool = False, timeout: float | None = None
 ) -> None:
     try:
+        # Inherit the caller's cwd so step scripts interpret as-given relative
+        # paths (export, --output-dir) exactly as this process does.
         result = subprocess.run(
             [sys.executable, str(SCRIPT_DIR / script_name), *args],
-            cwd=REPO_ROOT,
             text=True,
             capture_output=True,
             check=False,
@@ -1481,6 +1482,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    # The resolved path is used only for file access and label derivation;
+    # provenance (step-script outputs, bundle README) records the export path
+    # exactly as given on the CLI so committed bundles stay machine-portable.
+    export_arg = str(args.export)
     export = args.export.expanduser().resolve()
     if not export.exists():
         raise SystemExit(f"error: export not found: {export}")
@@ -1520,7 +1525,7 @@ def main(argv: list[str] | None = None) -> int:
         progress.end()
         return result
 
-    common = [str(export), "--output-dir", str(bundle_dir)]
+    common = [export_arg, "--output-dir", str(bundle_dir)]
     labeled = [*common, "--label", label]
     run_step(
         "Inventory export files",
@@ -1587,7 +1592,6 @@ def main(argv: list[str] | None = None) -> int:
         try:
             result = subprocess.run(
                 [sys.executable, str(SCRIPT_DIR / "blueprint_to_docx.py"), *docx_args],
-                cwd=REPO_ROOT,
                 text=True,
                 capture_output=True,
                 check=False,
@@ -1639,7 +1643,6 @@ def main(argv: list[str] | None = None) -> int:
                     str(candidate_dir),
                     "--emit-pdf",
                 ],
-                cwd=REPO_ROOT,
                 text=True,
                 capture_output=True,
                 check=False,
@@ -1669,7 +1672,7 @@ def main(argv: list[str] | None = None) -> int:
     write_bundle_readme(
         bundle_dir / "README.md",
         label=label,
-        export=export,
+        export=args.export,
         blueprint_md=blueprint_md,
         blueprint_json=blueprint_json,
         blueprint_docx=docx_written,

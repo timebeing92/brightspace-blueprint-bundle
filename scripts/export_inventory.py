@@ -70,7 +70,7 @@ def course_name(path: Path) -> str:
     return path.stem if path.is_file() else path.name
 
 
-def build_inventory(source: Path, relative_paths: list[str]) -> dict:
+def build_inventory(source: Path, relative_paths: list[str], display_source: str | None = None) -> dict:
     counts = Counter(classify(p) for p in relative_paths)
     d2l_components = sorted(
         p for p in relative_paths
@@ -86,7 +86,7 @@ def build_inventory(source: Path, relative_paths: list[str]) -> dict:
     )
 
     return {
-        "source": str(source.resolve()),
+        "source": display_source if display_source is not None else str(source),
         "label": course_name(source),
         "total_files": len(relative_paths),
         "counts": dict(sorted(counts.items())),
@@ -165,7 +165,9 @@ def main() -> int:
     else:
         rel_paths = normalize_paths_from_zip(source)
 
-    inv = build_inventory(source, rel_paths)
+    # Provenance records the path as given on the CLI; the resolved path is
+    # used only for file access, so committed outputs stay machine-portable.
+    inv = build_inventory(source, rel_paths, display_source=args.source)
     md = markdown_report(inv)
 
     md_path = None

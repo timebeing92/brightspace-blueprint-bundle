@@ -12,6 +12,10 @@ BUNDLE_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = BUNDLE_ROOT / "scripts"
 EXAMPLES_DIR = BUNDLE_ROOT / "examples"
 SAMPLE_EXPORT = EXAMPLES_DIR / "sample_export.zip"
+# The export path exactly as the documented command gives it, relative to the
+# bundle root (the pipeline's cwd below). Provenance fields record the CLI
+# path as given, so the golden run must use this machine-independent form.
+SAMPLE_EXPORT_ARG = Path("examples") / "sample_export.zip"
 EXPECTED_BUNDLE = EXAMPLES_DIR / "sample_course__blueprint_bundle"
 
 # The exact command documented in examples/README.md, minus the venv wrapper.
@@ -24,7 +28,7 @@ SAMPLE_ARGS = [
 
 
 def run_pipeline(output_dir: Path, extra_args: list[str] | None = None,
-                 export: Path = SAMPLE_EXPORT) -> subprocess.CompletedProcess[str]:
+                 export: Path = SAMPLE_EXPORT_ARG) -> subprocess.CompletedProcess[str]:
     cmd = [
         sys.executable,
         str(SCRIPTS_DIR / "build_blueprint_bundle.py"),

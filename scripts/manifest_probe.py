@@ -64,18 +64,27 @@ def iter_elements(root: ET.Element, wanted: str):
             yield elem
 
 
-def load_manifest_root(source: Path) -> tuple[ET.Element, str, str]:
+def load_manifest_root(source: Path, display: str | None = None) -> tuple[ET.Element, str, str]:
+    # `source` is used for file access; `display` (the path as given on the
+    # CLI) is what gets recorded in outputs, so they stay machine-portable.
+    shown = display if display is not None else str(source)
     if source.is_file() and source.suffix.lower() == ".zip":
         member = find_manifest_in_zip(source)
         with ZipFile(source, "r") as zf:
             with zf.open(member, "r") as manifest_file:
                 tree = ET.parse(manifest_file)
-        return tree.getroot(), f"{source}!{member}", source.stem
+        return tree.getroot(), f"{shown}!{member}", source.stem
 
     manifest_path = find_manifest_path(source)
     tree = ET.parse(manifest_path)
     label = manifest_path.parent.name or "manifest"
-    return tree.getroot(), str(manifest_path), label
+    if display is None:
+        manifest_ref = str(manifest_path)
+    elif manifest_path == source:
+        manifest_ref = display
+    else:
+        manifest_ref = str(Path(display) / manifest_path.relative_to(source))
+    return tree.getroot(), manifest_ref, label
 
 
 def parse_manifest(root: ET.Element, manifest_ref: str, label: str) -> dict:
@@ -196,7 +205,7 @@ def main() -> int:
 
     try:
         source = Path(args.source).expanduser().resolve()
-        root, manifest_ref, label = load_manifest_root(source)
+        root, manifest_ref, label = load_manifest_root(source, display=args.source)
     except Exception as exc:
         print(str(exc), file=sys.stderr)
         return 2

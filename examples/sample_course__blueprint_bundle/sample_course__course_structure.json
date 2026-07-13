@@ -1,5 +1,5 @@
 {
-  "export": "/Users/ehanson8/Documents/D2l & Coursebuilding Tools /brightspace-blueprint-bundle/examples/sample_export.zip",
+  "export": "examples/sample_export.zip",
   "label": "sample_course",
   "kind_counts": {
     "module": 3,

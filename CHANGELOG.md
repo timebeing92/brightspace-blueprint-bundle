@@ -4,6 +4,32 @@ Implementation history for `brightspace-blueprint-bundle`. Newest first.
 
 ---
 
+## 2026-07-13 — Portable provenance (done)
+
+Provenance fields no longer embed absolute machine paths. Every recorded
+source/export path — `source` in the inventory, `manifest_path` in the
+manifest probe, `export` in the structure/activities/QA JSON, and the
+"Source export" line of the bundle README — now carries the path exactly as
+given on the CLI; paths are resolved only for file access. Concretely:
+`export_inventory.build_inventory()` gained a `display_source` parameter,
+`manifest_probe.load_manifest_root()` a `display` parameter, and the
+orchestrator passes the as-given export through to the step scripts (its
+subprocesses now inherit the caller's cwd instead of pinning the repo root,
+so as-given relative paths mean the same thing in every process). The worked
+example was regenerated with the documented command, so
+`examples/sample_course__blueprint_bundle/` records
+`examples/sample_export.zip` instead of a `/Users/...` home-directory path —
+previously a public-release leak — and the golden suite (conftest now feeds
+the same relative path) passes on any machine at any checkout location
+instead of being bound to one absolute path. `export_inventory.py` and
+`manifest_probe.py` are mirror-policy files — the same change landed in the
+workbench originals and the staged snapshot; the orchestrator divergence was
+re-pinned (drift check: 0 actionable on both bundles; bundle 44 and
+workbench 86 tests green). Closes the portable-provenance follow-up flagged
+2026-07-13 in the workbench development roadmap.
+
+---
+
 ## 2026-07-13 — Structural DOCX QA (done)
 
 New `scripts/docx_structure_qa.py`: a pure-Python (python-docx) structural
