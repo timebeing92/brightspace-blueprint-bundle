@@ -36,8 +36,11 @@ the other.)
   wizard tool page, vellum for the hub shell. Hub: web = one Space with the
   "CourseCraft Workshop" hub shell from day one (blueprint bench first);
   TUI = separate wizards sharing `ui.py`, launcher deferred to the Textual
-  trigger. Access model open: leaning PUBLIC Space (no HF accounts needed;
-  portfolio-friendly; flippable to private), final call pending.
+  trigger. Access model DECIDED: PUBLIC Space (no HF accounts needed for
+  anyone; portfolio-friendly; uploads stay session-scoped/unretained;
+  flippable to private if posture changes). Build note: include a
+  "try it with the sample course" demo button using the committed sample
+  export.
 - **Alternatives on record (revision paths, user request 2026-07-13):**
   (a) self-hosted FastAPI — university VM (best institutional privacy) or
   small VPS; progress contract maps to SSE; doubles as the localhost-web
