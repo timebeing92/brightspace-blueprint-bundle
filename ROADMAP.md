@@ -119,6 +119,27 @@ Backlog items needed before broad catalog intake:
   structure facts with provenance. Rich vendor/tool semantics belong only after
   upstream evidence exists; downstream catalog views can label the stubs.
 
+Rubric promotion handling note, 2026-07-14: treat this as a small contract
+release, not a drive-by script copy. It affects the local TUI runner, the hosted
+web app, catalog intake, progress events, golden examples, and workbench/bundle
+drift governance. Recommended release checklist:
+
+1. Add `extract_rubrics_to_workbook.py` and `rubrics_schema.json` from the
+   workbench into the bundle with focused tests.
+2. Add an optional orchestrator step that emits `<label>__rubrics.json` and the
+   rubric workbook when `rubrics_d2l.xml` is present; skip cleanly when absent.
+3. Add `rubrics_json` and `rubrics_workbook` to `coursecraft.progress/1`
+   `run_end.outputs`, updating the schema, progress contract note, and feature
+   test together. This is an additive `coursecraft.progress/1` change only if no
+   fields are renamed or removed.
+4. Regenerate bundle examples/golden outputs and update README/CHANGELOG.
+5. Run bundle tests, then run the workbench drift check so the promoted script
+   stays coherent upstream and downstream.
+6. Cut or bump the bundle release tag, then update any web app pin and verify a
+   sample run through the web surface.
+7. Only after this should the catalog Archivist/Catalog Wizard assume the
+   standalone bundle provides rubric JSON.
+
 ## Extraction quality
 
 - **Log dedupe suppressions.** `topic_skip_match_key` drops a weekly topic at
