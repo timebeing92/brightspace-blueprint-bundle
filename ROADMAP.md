@@ -45,9 +45,16 @@ the other.)
   the rail wizard as a real progress indicator (his table's blueprint
   fills with step completion under a spectral aura), and a rebuilt
   results card. Verified end-to-end locally against the real v1.0.0 tag
-  (success + failure paths). Deploy to
-  hf.co/spaces/timebeing92/coursecraft-workshop pending an `hf auth login`
-  on the user's machine. Registers: midnight for the
+  (success + failure paths). **DEPLOYED 2026-07-13:**
+  hf.co/spaces/timebeing92/coursecraft-workshop (private; flip public =
+  launch). Live E2E verified through the Space API: sample course ran all
+  8 steps on the Space, bundle v1.0.0 fetched from GitHub inside the
+  container, blueprint zip (DOCX included) downloaded back through the
+  API. Deploy note for the record: HF's free tier now hosts ONLY ZeroGPU
+  hardware (cpu-basic is PRO-gated), and ZeroGPU's supervisor kills any
+  app with no `@spaces.GPU` function — the app registers a never-called
+  probe function to satisfy the watchdog; the pipeline itself runs pure
+  CPU and consumes no GPU quota. Registers: midnight for the
   wizard tool page, vellum for the hub shell. Hub: web = one Space with the
   "CourseCraft Workshop" hub shell from day one (blueprint bench first);
   TUI = separate wizards sharing `ui.py`, launcher deferred to the Textual
