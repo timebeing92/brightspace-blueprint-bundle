@@ -90,6 +90,35 @@ the other.)
   Remaining: push and cut the GitHub release; the installer becomes broadly
   useful if the repos go public (user open to this).
 
+## Catalog Support Contracts
+
+Decision note 2026-07-14: `../coursecraft-catalog/` is moving toward a
+user-friendly Catalog Reader plus Archivist/Catalog Wizard, with this bundle as
+the portable extraction engine. The bundle should expose stable facts and
+progress; it should not own catalog tags, relation judgments, program maps, or
+reader UI.
+
+Backlog items needed before broad catalog intake:
+
+- **Promote rubric JSON into the bundle.** The workbench
+  `extract_rubrics_to_workbook.py --json` path exists, but this standalone
+  bundle does not yet ship the rubric extractor. Add the script, schema, tests,
+  and orchestrator step so `<label>__rubrics.json` is produced beside the other
+  catalog inputs.
+- **Version activity and structure contracts.** Catalog ingest depends directly
+  on `<label>__course_activities.json` and `<label>__course_structure.json`.
+  Add schemas or an explicit contract note for those shapes, and bump versions
+  when breaking fields change.
+- **Make artifact discovery explicit.** Ensure `coursecraft.progress/1`
+  `run_end.outputs` includes every catalog-relevant artifact path, including
+  rubric JSON once added, so intake tools do not glob.
+- **Expose script or release identity.** Provide enough version data for the
+  catalog `ingest_runs.script_versions` field: bundle release tag and/or script
+  git SHA, plus any workbench-origin contract version.
+- **Keep LTI honest.** Continue surfacing LTI/external-tool links as typed
+  structure facts with provenance. Rich vendor/tool semantics belong only after
+  upstream evidence exists; downstream catalog views can label the stubs.
+
 ## Extraction quality
 
 - **Log dedupe suppressions.** `topic_skip_match_key` drops a weekly topic at
