@@ -34,11 +34,18 @@ the other.)
   escape hatch), wrapping this bundle's CLI as a subprocess and streaming
   `coursecraft.progress/1` into a themed step board. The Space pins a
   bundle **release tag** (first tag: v1.0.0) and fetches it at startup —
-  no vendored pipeline copies. **Space v1 BUILT 2026-07-13** (local repo
-  `coursecraft-workshop-space/`, sibling of this one): hub + wizard bench,
-  live step board from progress events, sample-course demo run, zip
-  download, failure card; verified end-to-end locally against the real
-  v1.0.0 tag (success + failure paths). Deploy to
+  no vendored pipeline copies. **Space v1 BUILT 2026-07-13** (repo
+  `coursecraft-workshop-space/`, sibling of this one; pushed to the
+  private github.com/timebeing92/coursecraft-workshop-space so any
+  machine can pull it): hub + wizard bench, live step board from progress
+  events, sample-course demo run, zip download, failure card; then four
+  design passes the same evening — full-screen journey UX (hero splash
+  whose plan lines draft themselves, sticky rail, phased reveal, upload
+  peek card with title prefill), TUI-style step pacing (≥1.7 s dwell),
+  the rail wizard as a real progress indicator (his table's blueprint
+  fills with step completion under a spectral aura), and a rebuilt
+  results card. Verified end-to-end locally against the real v1.0.0 tag
+  (success + failure paths). Deploy to
   hf.co/spaces/timebeing92/coursecraft-workshop pending an `hf auth login`
   on the user's machine. Registers: midnight for the
   wizard tool page, vellum for the hub shell. Hub: web = one Space with the
