@@ -98,6 +98,12 @@ the portable extraction engine. The bundle should expose stable facts and
 progress; it should not own catalog tags, relation judgments, program maps, or
 reader UI.
 
+Macro ecosystem note 2026-07-15: `../ECOSYSTEM.md` now records the cross-repo
+map, evolutionary contract posture, run-identity target, release/pin checklist,
+and future tool branches. For this repo, the next coherence work is to make
+catalog-relevant artifact contracts explicit without freezing current package
+shapes too early.
+
 Course-as-a-whole catalog note, 2026-07-14: the catalog reader should be able to
 assemble a whole-course evidence view from bundle outputs: modules, activities,
 grade items, rubrics, resources, LTI stubs, release conditions, QA diagnostics,
@@ -118,17 +124,24 @@ Backlog items needed before broad catalog intake:
   also emits `<label>__rubrics.docx`. `coursecraft.progress/1` exposes
   `outputs.rubrics_docx`, so runner/web/catalog intake can find the document
   without deriving filenames.
-- **Version activity and structure contracts.** Catalog ingest depends directly
-  on `<label>__course_activities.json` and `<label>__course_structure.json`.
-  Add schemas or an explicit contract note for those shapes, and bump versions
-  when breaking fields change.
+- **Version activity and structure contracts without over-freezing them.**
+  Catalog ingest depends directly on `<label>__course_activities.json` and
+  `<label>__course_structure.json`. Add schemas or explicit contract notes for
+  those shapes, but keep the contracts evolutionary: version the envelope, keep
+  required fields minimal, allow additive optional fields and extension objects,
+  document unknown/diagnostic/stub behavior, and bump versions only when field
+  meaning, join semantics, or required structure changes in a downstream-breaking
+  way.
 - **Make artifact discovery explicit.** Continue expanding
   `coursecraft.progress/1` `run_end.outputs` when new catalog-relevant
   artifacts are added, so intake tools do not glob. Rubric paths are now
   explicit.
-- **Expose script or release identity.** Provide enough version data for the
-  catalog `ingest_runs.script_versions` field: bundle release tag and/or script
-  git SHA, plus any workbench-origin contract version.
+- **Expose run identity.** Provide enough version data for the catalog
+  `ingest_runs.script_versions` field and future refresh matching: bundle
+  release tag and/or git SHA, schema versions, source export/package identity,
+  emitted artifact list, optional step status, and any workbench-origin contract
+  version. This can be a separate `run_identity.json`, an explicit
+  `coursecraft.progress/1` `run_end` block, or both.
 - **Keep LTI honest.** Continue surfacing LTI/external-tool links as typed
   structure facts with provenance. Rich vendor/tool semantics belong only after
   upstream evidence exists; downstream catalog views can label the stubs.
