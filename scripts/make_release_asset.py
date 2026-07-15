@@ -11,6 +11,7 @@ import tarfile
 import tempfile
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_FILES = (
@@ -40,6 +41,21 @@ def resolve_commit(repo: Path, ref: str) -> str:
 def require_clean(repo: Path) -> None:
     if run_git(repo, "status", "--porcelain"):
         raise RuntimeError(f"release repo is dirty: {repo}")
+
+
+def normalized_remote(value: str) -> str:
+    text = value.strip()
+    if text.startswith("git@") and ":" in text:
+        host_path = text.split("@", 1)[1]
+        host, path = host_path.split(":", 1)
+        return f"https://{host}/{path}"
+    if text.startswith(("http://", "https://")):
+        parts = urlsplit(text)
+        host = parts.hostname or parts.netloc
+        if parts.port:
+            host += f":{parts.port}"
+        return urlunsplit((parts.scheme, host, parts.path, parts.query, parts.fragment))
+    return text
 
 
 def export_ref(repo: Path, commit: str, destination: Path) -> None:
@@ -135,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
     version = run_git(REPO_ROOT, "show", f"{commit}:VERSION").strip()
     if not version:
         raise SystemExit(f"VERSION is empty at {commit}")
-    remote = run_git(REPO_ROOT, "remote", "get-url", "origin")
+    remote = normalized_remote(run_git(REPO_ROOT, "remote", "get-url", "origin"))
     release_name = f"brightspace-blueprint-bundle-v{version}"
     output_dir = args.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)

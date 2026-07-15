@@ -16,6 +16,12 @@ SPEC.loader.exec_module(release)
 
 
 class BundleReleaseAssetTests(unittest.TestCase):
+    def test_remote_normalization_removes_credentials(self) -> None:
+        self.assertEqual(
+            release.normalized_remote("https://token@github.com/example/repo.git"),
+            "https://github.com/example/repo.git",
+        )
+
     def test_normalized_archive_is_reproducible(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
