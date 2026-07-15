@@ -35,8 +35,8 @@ the other.)
   `coursecraft.progress/1` into a themed step board. The Space fetches a
   named bundle release asset from `bundle_pin.json`, verifies its SHA-256 and
   embedded release manifest, and caches it by checksum — no vendored pipeline
-  copies. **Verified pin mechanism implemented locally 2026-07-15 for v1.1.0;
-  release publication and Space deployment remain.** **Space v1 BUILT
+  copies. **Verified pin mechanism deployed 2026-07-15 with v1.1.0; the live
+  Space reports the new revision and passed its built-in sample run.** **Space v1 BUILT
   2026-07-13** (repo
   `coursecraft-workshop-space/`, sibling of this one; pushed to the
   private github.com/timebeing92/coursecraft-workshop-space so any
@@ -88,8 +88,8 @@ the other.)
   from explicit clean runner and bundle refs. The ZIP contains both commit
   identities and contract hashes in `RELEASE_MANIFEST.json`; the builder also
   writes a sidecar SHA-256 checksum. The sibling folders, top-level
-  double-click launchers, and START_HERE.txt remain unchanged. Remaining: push
-  and publish the v2.5 GitHub release asset.
+  double-click launchers, and START_HERE.txt remain unchanged. **Published
+  2026-07-15 as runner v2.5**, with both asset digests verified after upload.
 
 ## Catalog Support Contracts
 
@@ -151,8 +151,9 @@ Rubric promotion handling note, 2026-07-15: the contract release is implemented
 in the bundle, staged in the local TUI runner as progress/output display, and
 aligned with the catalog's existing `coursecraft.rubrics/1` ingest path. The
 DOCX review layer is now present in both the main blueprint and a standalone
-rubric document. A reproducible v1.1.0 tarball with source and contract receipts
-has been built locally; publication and the hosted pin deployment remain.
+rubric document. **Bundle v1.1.0 was published 2026-07-15** with the source and
+contract receipt inside the tarball and an attached checksum; the workshop pin
+was deployed and verified against the live asset.
 
 ## Extraction quality
 

@@ -8,6 +8,8 @@
   ref, commit, schema versions, and schema hashes.
 - The builder refuses dirty worktrees by default, normalizes archive metadata,
   and writes a sidecar SHA-256 checksum.
+- Published `v1.1.0`; the hosted workshop now verifies and runs that exact
+  release asset by commit and checksum.
 
 Implementation history for `brightspace-blueprint-bundle`. Newest first.
 
