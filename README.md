@@ -174,6 +174,19 @@ use `--progress-events` and read one JSON event per stdout line; the final
 `run_end` event carries the actual output paths and summary counts, including
 rubric JSON/workbook/DOCX paths when rubric XML was present.
 
+## Maintainer Release Asset
+
+Build a release tarball from one explicit, committed ref:
+
+```bash
+python3 scripts/make_release_asset.py --ref <full-bundle-commit>
+```
+
+The command refuses a dirty worktree by default. It writes a reproducible
+`dist/brightspace-blueprint-bundle-vX.Y.Z.tar.gz`, a sidecar SHA-256 file, and
+an embedded `RELEASE_MANIFEST.json` recording the source commit and contract
+hashes.
+
 ## How To Review A Run
 
 Start with the generated DOCX or Markdown blueprint. Then check the QA report:

@@ -32,9 +32,12 @@ the other.)
   addendum): **Gradio on a Hugging Face Space** (amended 2026-07-13: plain
   SDK Space first, Docker on record as the custom-front-end/hard-pinning
   escape hatch), wrapping this bundle's CLI as a subprocess and streaming
-  `coursecraft.progress/1` into a themed step board. The Space pins a
-  bundle **release tag** (first tag: v1.0.0) and fetches it at startup —
-  no vendored pipeline copies. **Space v1 BUILT 2026-07-13** (repo
+  `coursecraft.progress/1` into a themed step board. The Space fetches a
+  named bundle release asset from `bundle_pin.json`, verifies its SHA-256 and
+  embedded release manifest, and caches it by checksum — no vendored pipeline
+  copies. **Verified pin mechanism implemented locally 2026-07-15 for v1.1.0;
+  release publication and Space deployment remain.** **Space v1 BUILT
+  2026-07-13** (repo
   `coursecraft-workshop-space/`, sibling of this one; pushed to the
   private github.com/timebeing92/coursecraft-workshop-space so any
   machine can pull it): hub + wizard bench, live step board from progress
@@ -80,15 +83,13 @@ the other.)
   is now a rarely-needed deep check. Remaining: the web version bakes
   soffice into its container image (zero user install); the TUI keeps the
   optional prompt-gated install for the visual pass.
-- **One-download install — tooling DONE 2026-07-13 (runner-side).**
+- **One-download install — provenance-hardened 2026-07-15 (runner-side).**
   `scripts/make_release_bundle.py` builds `dist/blueprint-wizard-vX.Y.zip`
-  from both repos' git HEADs (sibling folders, top-level double-click
-  launchers, START_HERE.txt); verified end-to-end from a fresh unzip incl.
-  first-run venv + dependency installs. `install_blueprint_wizard.sh` is the
-  curl-able alternative (clones both repos, ff-only update on re-run);
-  runner README documents all three install pathways with rationale.
-  Remaining: push and cut the GitHub release; the installer becomes broadly
-  useful if the repos go public (user open to this).
+  from explicit clean runner and bundle refs. The ZIP contains both commit
+  identities and contract hashes in `RELEASE_MANIFEST.json`; the builder also
+  writes a sidecar SHA-256 checksum. The sibling folders, top-level
+  double-click launchers, and START_HERE.txt remain unchanged. Remaining: push
+  and publish the v2.5 GitHub release asset.
 
 ## Catalog Support Contracts
 
@@ -150,9 +151,8 @@ Rubric promotion handling note, 2026-07-15: the contract release is implemented
 in the bundle, staged in the local TUI runner as progress/output display, and
 aligned with the catalog's existing `coursecraft.rubrics/1` ingest path. The
 DOCX review layer is now present in both the main blueprint and a standalone
-rubric document. Remaining release hygiene: run the workbench drift check after
-staged-snapshot sync, then cut or bump the bundle release tag and update any
-hosted/web pins.
+rubric document. A reproducible v1.1.0 tarball with source and contract receipts
+has been built locally; publication and the hosted pin deployment remain.
 
 ## Extraction quality
 
