@@ -45,11 +45,12 @@ This is extraction and review, not instructional-content generation.
 2. `manifest_probe.py`
 3. `reconstruct_course_structure.py --extract-html`
 4. `extract_course_activities.py`
-5. `course_qa_report.py` unless `--skip-qa` is used
-6. model assembly into `coursecraft.blueprint/4`
-7. Markdown rendering
-8. DOCX rendering unless `--no-docx` is used
-9. optional DOCX render QA when `--render-docx-check` is used
+5. `extract_rubrics_to_workbook.py --json` when `rubrics_d2l.xml` is present
+6. `course_qa_report.py` unless `--skip-qa` is used
+7. model assembly into `coursecraft.blueprint/4`
+8. Markdown rendering
+9. DOCX rendering unless `--no-docx` is used
+10. optional DOCX render QA when `--render-docx-check` is used
 
 External URLs are inventoried by default. Fetching/checking them requires
 `--check-external-links`.

@@ -1,7 +1,8 @@
 # Brightspace Blueprint Bundle
 
 Turn a Brightspace/D2L course export into a source-traceable course blueprint:
-Markdown, DOCX, JSON, activity workbook, inventory files, and QA reports.
+Markdown, DOCX, JSON, activity workbook, optional rubric grids, inventory files,
+and QA reports.
 
 This bundle can run entirely from normal command-line scripts. No AI service is
 required to use it. You can also point an agent at the bundle and ask it to run
@@ -67,6 +68,8 @@ files are:
 - `<label>__blueprint.md` - flat Markdown version of the same blueprint.
 - `<label>__blueprint.json` - structured model used by both renderers.
 - `<label>__course_activities.xlsx` - extracted activities workbook.
+- `<label>__rubrics.xlsx` and `<label>__rubrics.json` - rubric review workbook
+  and canonical `coursecraft.rubrics/1` grids when `rubrics_d2l.xml` is present.
 - `<label>__course_qa.md` and `.json` - QA warnings, notes, and diagnostics.
 - `<label>__course_structure.md` and `.json` - reconstructed module/topic tree.
 - `<export>__inventory.md` and `.json` - package file inventory.
@@ -90,11 +93,12 @@ steps below in order:
 | 2 | `manifest_probe.py` | Inspect `imsmanifest.xml`, resources, visibility, and links. |
 | 3 | `reconstruct_course_structure.py --extract-html` | Rebuild the module/topic structure and extract HTML page content, headings, visual cues, styled callout/card sections, media placeholders, file placeholders, image alt evidence, hidden/faculty-facing notices and content where readable, and Creator+ practice metadata. |
 | 4 | `extract_course_activities.py` | Extract assignments, discussions, quiz-level settings/instructions, checklists, grade/rubric joins, and activity metadata. |
-| 5 | `course_qa_report.py` | Produce QA warnings and notes; external URL fetching is opt-in. |
-| 6 | `build_blueprint_bundle.py` | Assemble the `coursecraft.blueprint/4` JSON model. |
-| 7 | `blueprint_to_docx.py` | Render DOCX from the same model used for Markdown. |
-| 8 | `docx_structure_qa.py` | Structural check of the rendered DOCX against the model (relationships, hyperlinks, tables, titles). Pure Python, on by default; `--skip-docx-structure-check` opts out. |
-| 9 | `render_blueprint_docx.py` | Optional visual deep check: DOCX to PDF/PNG pages plus render summary (needs LibreOffice + Poppler). |
+| 5 | `extract_rubrics_to_workbook.py` | Optional: extract rubric grids to `<label>__rubrics.xlsx` and `<label>__rubrics.json` when `rubrics_d2l.xml` is present. |
+| 6 | `course_qa_report.py` | Produce QA warnings and notes; external URL fetching is opt-in. |
+| 7 | `build_blueprint_bundle.py` | Assemble the `coursecraft.blueprint/4` JSON model. |
+| 8 | `blueprint_to_docx.py` | Render DOCX from the same model used for Markdown. |
+| 9 | `docx_structure_qa.py` | Structural check of the rendered DOCX against the model (relationships, hyperlinks, tables, titles). Pure Python, on by default; `--skip-docx-structure-check` opts out. |
+| 10 | `render_blueprint_docx.py` | Optional visual deep check: DOCX to PDF/PNG pages plus render summary (needs LibreOffice + Poppler). |
 
 Markdown is always produced. DOCX is produced when `python-docx` is available.
 Detected source callouts, notes, cards, and styled highlight sections are kept
@@ -164,7 +168,8 @@ bash run_blueprint.sh /path/to/export.zip \
 During a normal run each step prints a one-line banner (`== [3/7] Reconstruct
 course structure ==`). Wrapper tools that want structured live progress should
 use `--progress-events` and read one JSON event per stdout line; the final
-`run_end` event carries the actual output paths and summary counts.
+`run_end` event carries the actual output paths and summary counts, including
+rubric JSON/workbook paths when rubric XML was present.
 
 ## How To Review A Run
 
@@ -201,6 +206,7 @@ brightspace-blueprint-bundle/
 ├── knowledge/                 <- pipeline and Brightspace package references
 ├── schemas/blueprint_schema.json
 ├── schemas/progress_events_schema.json
+├── schemas/rubrics_schema.json
 └── examples/                  <- sample export, worked output, config example
 ```
 
@@ -282,3 +288,4 @@ blueprint-specific builder, DOCX renderer, schema, knowledge notes, and setup
 wrappers needed for a standalone share bundle.
 
 Current blueprint model schema: `coursecraft.blueprint/4`.
+Current rubric grid schema: `coursecraft.rubrics/1`.

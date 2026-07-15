@@ -41,6 +41,8 @@ from pathlib import Path
 from common_xml import (
     clean_label,
     clean_text,
+    load_export_root,
+    resolve_export_root,
     safe_label,
     should_divide_labeled_sections,
     xml_safe_text,
@@ -124,6 +126,25 @@ def run_workbench_script(
         print(result.stdout.strip())
     if not quiet and result.stderr.strip():
         print(result.stderr.strip(), file=sys.stderr)
+
+
+def export_has_rubrics_xml(export: Path) -> bool:
+    """Check for rubrics_d2l.xml without making it a required artifact."""
+    temp_dirs: list[object] = []
+    export_root = load_export_root(export, temp_dirs, prefix="blueprint_rubric_probe_")
+    effective_root, _manifest = resolve_export_root(export_root)
+    return (effective_root / "rubrics_d2l.xml").is_file()
+
+
+def rubrics_count(path: Path | None) -> int:
+    if path is None or not path.exists():
+        return 0
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return 0
+    rubrics = payload.get("rubrics")
+    return len(rubrics) if isinstance(rubrics, list) else 0
 
 
 def validate_model(model: dict) -> None:
@@ -1381,11 +1402,20 @@ def write_bundle_readme(
     blueprint_md: Path,
     blueprint_json: Path,
     blueprint_docx: Path | None,
+    rubrics_json: Path | None = None,
+    rubrics_workbook: Path | None = None,
     include_qa: bool,
     render_qa_dir: Path | None = None,
 ) -> None:
     qa_line = "- course QA report" if include_qa else "- course QA report skipped by command option"
     docx_line = f"- `{blueprint_docx.name}`" if blueprint_docx else "- DOCX skipped (python-docx not installed)"
+    rubric_lines = []
+    if rubrics_json:
+        rubric_lines.append(f"- `{rubrics_json.name}` (rubric grids)")
+    if rubrics_workbook:
+        rubric_lines.append(f"- `{rubrics_workbook.name}` (rubric review workbook)")
+    if not rubric_lines:
+        rubric_lines.append("- rubric grids not present in this export")
     render_qa_line = f"- DOCX render QA in `{render_qa_dir.name}/`" if render_qa_dir else "- DOCX render QA not run"
     path.write_text(
         "\n".join(
@@ -1404,6 +1434,7 @@ def write_bundle_readme(
                 "- manifest probe",
                 "- course structure JSON/Markdown",
                 "- course activities JSON/Markdown/workbook",
+                *rubric_lines,
                 qa_line,
                 render_qa_line,
                 "",
@@ -1489,6 +1520,7 @@ def main(argv: list[str] | None = None) -> int:
     export = args.export.expanduser().resolve()
     if not export.exists():
         raise SystemExit(f"error: export not found: {export}")
+    has_rubrics_xml = export_has_rubrics_xml(export)
     label = args.label or safe_label(export.stem if export.is_file() else export.name)
     stem = safe_label(label)
     bundle_dir = args.bundle_dir or (args.output_dir / f"{stem}__blueprint_bundle")
@@ -1502,6 +1534,8 @@ def main(argv: list[str] | None = None) -> int:
         "Reconstruct course structure",
         "Extract course activities",
     ]
+    if has_rubrics_xml:
+        step_labels.append("Extract rubrics")
     if not args.skip_qa:
         step_labels.append("Run QA report")
     step_labels.append("Assemble blueprint model and Markdown")
@@ -1545,6 +1579,28 @@ def main(argv: list[str] | None = None) -> int:
         "Extract course activities",
         lambda: run_workbench_script("extract_course_activities.py", labeled, args.quiet, timeout=step_timeout),
     )
+
+    rubrics_json: Path | None = None
+    rubrics_workbook: Path | None = None
+    if has_rubrics_xml:
+        candidate_json = bundle_dir / f"{stem}__rubrics.json"
+        candidate_workbook = bundle_dir / f"{stem}__rubrics.xlsx"
+        run_step(
+            "Extract rubrics",
+            lambda: run_workbench_script(
+                "extract_rubrics_to_workbook.py",
+                [
+                    export_arg,
+                    "--output", str(candidate_workbook),
+                    "--json",
+                    "--json-output", str(candidate_json),
+                ],
+                args.quiet,
+                timeout=step_timeout,
+            ),
+        )
+        rubrics_json = candidate_json if candidate_json.exists() else None
+        rubrics_workbook = candidate_workbook if candidate_workbook.exists() else None
     if not args.skip_qa:
         qa_args = [*labeled]
         if args.check_external_links:
@@ -1676,6 +1732,8 @@ def main(argv: list[str] | None = None) -> int:
         blueprint_md=blueprint_md,
         blueprint_json=blueprint_json,
         blueprint_docx=docx_written,
+        rubrics_json=rubrics_json,
+        rubrics_workbook=rubrics_workbook,
         include_qa=not args.skip_qa,
         render_qa_dir=render_qa_dir,
     )
@@ -1699,11 +1757,14 @@ def main(argv: list[str] | None = None) -> int:
                     "json": str(blueprint_json),
                     "docx": str(docx_written) if docx_written else None,
                     "workbook": str(bundle_dir / f"{stem}__course_activities.xlsx"),
+                    "rubrics_json": str(rubrics_json) if rubrics_json else None,
+                    "rubrics_workbook": str(rubrics_workbook) if rubrics_workbook else None,
                     "qa_report": str(bundle_dir / f"{stem}__course_qa.md") if not args.skip_qa else None,
                     "render_qa_dir": str(render_qa_dir) if render_qa_dir else None,
                 },
                 "summary": {
                     "weeks": len(model.get("weeks", [])),
+                    "rubrics": rubrics_count(rubrics_json),
                     "diagnostics": len(model.get("diagnostics", [])),
                     "needs_review": rendered_markdown.count(NOT_FOUND_FIELD),
                     "qa": qa_counts,
@@ -1717,6 +1778,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"blueprint (json):     {blueprint_json}")
     if docx_written:
         print(f"blueprint (docx):     {docx_written}")
+    if rubrics_json:
+        print(f"rubrics (json):       {rubrics_json}")
+    if rubrics_workbook:
+        print(f"rubrics (workbook):   {rubrics_workbook}")
     return 0
 
 

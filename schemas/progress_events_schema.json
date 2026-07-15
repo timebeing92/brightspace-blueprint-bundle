@@ -62,6 +62,8 @@
             "json": {"type": "string"},
             "docx": {"type": ["string", "null"]},
             "workbook": {"type": "string"},
+            "rubrics_json": {"type": ["string", "null"]},
+            "rubrics_workbook": {"type": ["string", "null"]},
             "qa_report": {"type": ["string", "null"]},
             "render_qa_dir": {"type": ["string", "null"]}
           }
@@ -71,6 +73,7 @@
           "additionalProperties": false,
           "properties": {
             "weeks": {"type": "integer", "minimum": 0},
+            "rubrics": {"type": "integer", "minimum": 0},
             "diagnostics": {"type": "integer", "minimum": 0},
             "needs_review": {"type": "integer", "minimum": 0, "description": "Count of 'Needs review' field fallbacks in the rendered Markdown"},
             "qa": {

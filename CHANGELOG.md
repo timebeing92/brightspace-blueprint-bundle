@@ -4,6 +4,22 @@ Implementation history for `brightspace-blueprint-bundle`. Newest first.
 
 ---
 
+## 2026-07-15 — Rubric layer promotion (done)
+
+Promoted rubric-grid extraction into the standalone blueprint bundle. The
+pipeline now detects `rubrics_d2l.xml` and, when present, runs
+`extract_rubrics_to_workbook.py` as its own optional step, producing
+`<label>__rubrics.xlsx` and `<label>__rubrics.json` beside the blueprint,
+activity, structure, inventory, manifest, and QA artifacts. The JSON uses the
+vendored `coursecraft.rubrics/1` schema, matching the downstream
+`coursecraft-catalog` ingest contract. `coursecraft.progress/1` now exposes
+`rubrics_json`, `rubrics_workbook`, and a `summary.rubrics` count as additive
+fields so the runner/TUI can display rubric outputs without globbing or
+parsing D2L XML. Worked examples and tests were updated with the rubric
+artifacts.
+
+---
+
 ## 2026-07-13 — Portable provenance (done)
 
 Provenance fields no longer embed absolute machine paths. Every recorded

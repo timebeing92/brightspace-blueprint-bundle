@@ -1,0 +1,94 @@
+{
+  "schema": "coursecraft.rubrics/1",
+  "source_file": "rubrics_d2l.xml",
+  "rubrics": [
+    {
+      "id": "RUB-1",
+      "resource_code": "RUBRIC-PLANNING-MEMO",
+      "name": "Planning Memo Rubric",
+      "scoring_method": "3",
+      "attributes": {
+        "id": "RUB-1",
+        "resource_code": "RUBRIC-PLANNING-MEMO",
+        "name": "Planning Memo Rubric",
+        "type": "1",
+        "scoring_method": "3",
+        "uses_overall_score": "True"
+      },
+      "description": "Rubric used to evaluate the planning memo.",
+      "levels": [
+        {
+          "level_id": "RUB-1-L1",
+          "name": "Achieving",
+          "sort_order": 1,
+          "score_band": "90%+"
+        },
+        {
+          "level_id": "RUB-1-L2",
+          "name": "Developing",
+          "sort_order": 2,
+          "score_band": "50%+"
+        }
+      ],
+      "criteria": [
+        {
+          "name": "Planning clarity",
+          "sort_order": 1,
+          "cells": [
+            {
+              "level_id": "RUB-1-L1",
+              "level_name": "Achieving",
+              "points": 10.0,
+              "points_raw": "10.000000000",
+              "description": "Explains the planning problem and next action clearly."
+            },
+            {
+              "level_id": "RUB-1-L2",
+              "level_name": "Developing",
+              "points": 5.0,
+              "points_raw": "5.000000000",
+              "description": "Identifies the planning problem but needs more actionable detail."
+            }
+          ]
+        },
+        {
+          "name": "Evidence use",
+          "sort_order": 2,
+          "cells": [
+            {
+              "level_id": "RUB-1-L1",
+              "level_name": "Achieving",
+              "points": 10.0,
+              "points_raw": "10.000000000",
+              "description": "Uses course evidence to justify the recommendation."
+            },
+            {
+              "level_id": "RUB-1-L2",
+              "level_name": "Developing",
+              "points": 5.0,
+              "points_raw": "5.000000000",
+              "description": "References course evidence but does not fully connect it to the recommendation."
+            }
+          ]
+        }
+      ],
+      "overall_levels": [
+        {
+          "name": "Achieving",
+          "sort_order": 1,
+          "range_start_value": 90.0,
+          "description": "Meets expectations.",
+          "feedback": ""
+        },
+        {
+          "name": "Developing",
+          "sort_order": 2,
+          "range_start_value": 50.0,
+          "description": "Partially meets expectations.",
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "diagnostics": []
+}

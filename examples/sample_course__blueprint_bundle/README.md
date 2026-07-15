@@ -12,6 +12,8 @@ Companion artifacts:
 - manifest probe
 - course structure JSON/Markdown
 - course activities JSON/Markdown/workbook
+- `sample_course__rubrics.json` (rubric grids)
+- `sample_course__rubrics.xlsx` (rubric review workbook)
 - course QA report
 - DOCX render QA not run
 
