@@ -80,10 +80,13 @@ order:
 | 2 | `manifest_probe.py` | Read `imsmanifest.xml`, summarize organizations/items/resources, identifierref usage, likely quiz resources, and suspicious hrefs. | `*__manifest_probe.json`, `*__manifest_probe.md` |
 | 3 | `reconstruct_course_structure.py --extract-html` | Rebuild the module/topic tree, resolve manifest items to resources, read HTML pages, split page bodies by real headings, preserve paragraphs/lists/links plus lightweight visual cues as blocks, and expand Creator+ practice iframes from local `.practice.json` metadata when available. | `<label>__course_structure.json`, `<label>__course_structure.md` |
 | 4 | `extract_course_activities.py` | Read assignment/dropbox, discussion, quiz-level instructions/settings, checklist, grade, rubric, condition, and quicklink evidence; resolve joins by `resource_code` where possible. | `<label>__course_activities.json`, `.md`, `.xlsx` |
-| 5 | `course_qa_report.py` | Run read-only integrity checks over joins, missing files, malformed XML, dated fields, image alt text with specific locations, package-scope notes, front-matter source diagnostics, and other review risks. External URLs are inventoried by default and fetched only with `--check-external-links`. | `<label>__course_qa.json`, `<label>__course_qa.md` |
-| 6 | `build_blueprint_bundle.py` model builder | Combine course structure + activities into the blueprint model. | `<label>__blueprint.json` |
-| 7 | Markdown renderer + `blueprint_to_docx.py` | Render the model into human-readable review outputs. | `<label>__blueprint.md`, `<label>__blueprint.docx` |
-| 8 | `render_blueprint_docx.py` | Optional visual QA when `--render-docx-check` is used: convert the generated DOCX to PDF/PNG pages and write a render summary. | `render_qa/` |
+| 5 | `extract_rubrics_to_workbook.py` | Optional: read `rubrics_d2l.xml` and preserve rubric grids as canonical JSON plus workbook review surface. | `<label>__rubrics.json`, `<label>__rubrics.xlsx` |
+| 6 | `course_qa_report.py` | Run read-only integrity checks over joins, missing files, malformed XML, dated fields, image alt text with specific locations, package-scope notes, front-matter source diagnostics, and other review risks. External URLs are inventoried by default and fetched only with `--check-external-links`. | `<label>__course_qa.json`, `<label>__course_qa.md` |
+| 7 | `build_blueprint_bundle.py` model builder | Combine course structure + activities into the blueprint model. | `<label>__blueprint.json` |
+| 8 | Markdown renderer + `blueprint_to_docx.py` | Render the model into human-readable review outputs; the DOCX includes a Rubric Appendix when rubric JSON exists. | `<label>__blueprint.md`, `<label>__blueprint.docx` |
+| 9 | `rubrics_to_docx.py` | Optional: render a standalone human-readable rubric grid document from the same rubric JSON. | `<label>__rubrics.docx` |
+| 10 | `docx_structure_qa.py` | Check the generated DOCX package, relationships, hyperlinks, table count, headings, and optional rubric appendix structure. | `<label>__docx_structure.json`, `<label>__docx_structure.md` |
+| 11 | `render_blueprint_docx.py` | Optional visual QA when `--render-docx-check` is used: convert the generated DOCX to PDF/PNG pages and write a render summary. | `render_qa/` |
 
 Markdown and DOCX both render from the same JSON model. If those two views ever
 disagree, treat that as a renderer problem, not as two separate sources of

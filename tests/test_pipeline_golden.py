@@ -35,6 +35,7 @@ JSON_ARTIFACTS = [
 BINARY_ARTIFACTS = [
     "sample_course__blueprint.docx",
     "sample_course__course_activities.xlsx",
+    "sample_course__rubrics.docx",
     "sample_course__rubrics.xlsx",
 ]
 
@@ -89,6 +90,18 @@ def test_docx_text_matches_golden(golden_run):
     produced = _docx_visible_text(golden_run.bundle_dir / "sample_course__blueprint.docx")
     expected = _docx_visible_text(EXPECTED_BUNDLE / "sample_course__blueprint.docx")
     assert produced == expected
+    assert "Rubric: RUB-1: Planning Memo Rubric" in produced
+    assert "Rubric Appendix" in produced
+    assert "Planning Memo Rubric" in produced
+
+
+def test_rubrics_docx_text_matches_golden(golden_run):
+    produced = _docx_visible_text(golden_run.bundle_dir / "sample_course__rubrics.docx")
+    expected = _docx_visible_text(EXPECTED_BUNDLE / "sample_course__rubrics.docx")
+    assert produced == expected
+    assert "Planning Memo Rubric" in produced
+    assert any(line.startswith("Used by:") for line in produced)
+    assert any("Assignment: Planning Memo" in line for line in produced)
 
 
 def _workbook_cells(path: Path) -> dict[str, list[list[object]]]:

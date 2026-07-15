@@ -64,6 +64,7 @@
             "workbook": {"type": "string"},
             "rubrics_json": {"type": ["string", "null"]},
             "rubrics_workbook": {"type": ["string", "null"]},
+            "rubrics_docx": {"type": ["string", "null"]},
             "qa_report": {"type": ["string", "null"]},
             "render_qa_dir": {"type": ["string", "null"]}
           }

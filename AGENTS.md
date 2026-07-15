@@ -49,8 +49,11 @@ This is extraction and review, not instructional-content generation.
 6. `course_qa_report.py` unless `--skip-qa` is used
 7. model assembly into `coursecraft.blueprint/4`
 8. Markdown rendering
-9. DOCX rendering unless `--no-docx` is used
-10. optional DOCX render QA when `--render-docx-check` is used
+9. DOCX rendering unless `--no-docx` is used; rubric JSON, when present, is
+   appended as a Rubric Appendix in the blueprint DOCX
+10. standalone rubric DOCX rendering unless `--no-docx` is used
+11. structural DOCX QA unless `--skip-docx-structure-check` is used
+12. optional DOCX visual render QA when `--render-docx-check` is used
 
 External URLs are inventoried by default. Fetching/checking them requires
 `--check-external-links`.

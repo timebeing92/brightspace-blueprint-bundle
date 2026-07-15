@@ -703,6 +703,8 @@ def format_quiz(quiz: dict | None, link_node: dict | None = None) -> dict:
         details.append(("Points", f"{format_points(quiz['grade_item_out_of'])} pts"))
     if quiz.get("grade_item_name"):
         details.append(("Gradebook item", quiz["grade_item_name"]))
+    if quiz.get("rubrics_resolved"):
+        details.append(("Rubric", quiz["rubrics_resolved"]))
     if quiz.get("attempts_allowed"):
         details.append(("Attempts allowed", quiz["attempts_allowed"]))
     time_limit = clean_text(quiz.get("time_limit_minutes", ""))
@@ -1404,6 +1406,7 @@ def write_bundle_readme(
     blueprint_docx: Path | None,
     rubrics_json: Path | None = None,
     rubrics_workbook: Path | None = None,
+    rubrics_docx: Path | None = None,
     include_qa: bool,
     render_qa_dir: Path | None = None,
 ) -> None:
@@ -1414,6 +1417,8 @@ def write_bundle_readme(
         rubric_lines.append(f"- `{rubrics_json.name}` (rubric grids)")
     if rubrics_workbook:
         rubric_lines.append(f"- `{rubrics_workbook.name}` (rubric review workbook)")
+    if rubrics_docx:
+        rubric_lines.append(f"- `{rubrics_docx.name}` (rubric grids DOCX)")
     if not rubric_lines:
         rubric_lines.append("- rubric grids not present in this export")
     render_qa_line = f"- DOCX render QA in `{render_qa_dir.name}/`" if render_qa_dir else "- DOCX render QA not run"
@@ -1541,6 +1546,8 @@ def main(argv: list[str] | None = None) -> int:
     step_labels.append("Assemble blueprint model and Markdown")
     if not args.no_docx:
         step_labels.append("Render DOCX")
+        if has_rubrics_xml:
+            step_labels.append("Render rubrics DOCX")
         if not args.skip_docx_structure_check:
             step_labels.append("Check DOCX structure")
     if args.render_docx_check:
@@ -1617,6 +1624,7 @@ def main(argv: list[str] | None = None) -> int:
     blueprint_md = bundle_dir / f"{stem}__blueprint.md"
     legacy_blueprint_md = bundle_dir / f"{stem}__cps_blueprint.md"
     blueprint_docx = bundle_dir / f"{stem}__blueprint.docx"
+    rubrics_docx = bundle_dir / f"{stem}__rubrics.docx"
 
     def assemble():
         model = build_blueprint_model(
@@ -1645,6 +1653,9 @@ def main(argv: list[str] | None = None) -> int:
             "--section-layout",
             args.docx_section_layout,
         ]
+        if rubrics_json:
+            docx_args.extend(["--rubrics-json", str(rubrics_json)])
+            docx_args.extend(["--activities-json", str(activities_path)])
         try:
             result = subprocess.run(
                 [sys.executable, str(SCRIPT_DIR / "blueprint_to_docx.py"), *docx_args],
@@ -1671,17 +1682,58 @@ def main(argv: list[str] | None = None) -> int:
     if not args.no_docx:
         docx_written = run_step("Render DOCX", render_docx)
 
+    rubrics_docx_written: Path | None = None
+
+    def render_rubrics_docx():
+        if not rubrics_json:
+            return None
+        cmd = [
+            sys.executable,
+            str(SCRIPT_DIR / "rubrics_to_docx.py"),
+            str(rubrics_json),
+            "--output", str(rubrics_docx),
+            "--activities-json", str(activities_path),
+            "--title", f"{args.course_title or label} Rubrics",
+        ]
+        try:
+            result = subprocess.run(
+                cmd,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=step_timeout,
+            )
+        except subprocess.TimeoutExpired:
+            print("warning: rubric DOCX rendering timed out and was skipped.", file=sys.stderr)
+            return None
+        if result.returncode == 0:
+            if not args.quiet and result.stdout.strip():
+                print(result.stdout.strip())
+            return rubrics_docx
+        print(
+            "warning: rubric DOCX rendering skipped.\n"
+            f"{result.stdout.strip()}\n{result.stderr.strip()}".strip(),
+            file=sys.stderr,
+        )
+        return None
+
+    if not args.no_docx and rubrics_json:
+        rubrics_docx_written = run_step("Render rubrics DOCX", render_rubrics_docx)
+
     if docx_written and not args.skip_docx_structure_check:
+        qa_args = [
+            str(docx_written),
+            "--model", str(blueprint_json),
+            "--section-layout", args.docx_section_layout,
+            "--output-dir", str(bundle_dir),
+        ]
+        if rubrics_json:
+            qa_args.extend(["--rubrics-json", str(rubrics_json)])
         run_step(
             "Check DOCX structure",
             lambda: run_workbench_script(
                 "docx_structure_qa.py",
-                [
-                    str(docx_written),
-                    "--model", str(blueprint_json),
-                    "--section-layout", args.docx_section_layout,
-                    "--output-dir", str(bundle_dir),
-                ],
+                qa_args,
                 args.quiet,
                 timeout=step_timeout,
             ),
@@ -1734,6 +1786,7 @@ def main(argv: list[str] | None = None) -> int:
         blueprint_docx=docx_written,
         rubrics_json=rubrics_json,
         rubrics_workbook=rubrics_workbook,
+        rubrics_docx=rubrics_docx_written,
         include_qa=not args.skip_qa,
         render_qa_dir=render_qa_dir,
     )
@@ -1759,6 +1812,7 @@ def main(argv: list[str] | None = None) -> int:
                     "workbook": str(bundle_dir / f"{stem}__course_activities.xlsx"),
                     "rubrics_json": str(rubrics_json) if rubrics_json else None,
                     "rubrics_workbook": str(rubrics_workbook) if rubrics_workbook else None,
+                    "rubrics_docx": str(rubrics_docx_written) if rubrics_docx_written else None,
                     "qa_report": str(bundle_dir / f"{stem}__course_qa.md") if not args.skip_qa else None,
                     "render_qa_dir": str(render_qa_dir) if render_qa_dir else None,
                 },
@@ -1782,6 +1836,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"rubrics (json):       {rubrics_json}")
     if rubrics_workbook:
         print(f"rubrics (workbook):   {rubrics_workbook}")
+    if rubrics_docx_written:
+        print(f"rubrics (docx):       {rubrics_docx_written}")
     return 0
 
 

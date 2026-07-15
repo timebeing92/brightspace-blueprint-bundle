@@ -4,6 +4,23 @@ Implementation history for `brightspace-blueprint-bundle`. Newest first.
 
 ---
 
+## 2026-07-15 — Rubric DOCX appendix and review document (done)
+
+Rubric grids now render into human-review DOCX surfaces. When
+`rubrics_d2l.xml` is present and DOCX output is enabled, the main
+`<label>__blueprint.docx` includes a Rubric Appendix generated from
+`coursecraft.rubrics/1`, and the pipeline also emits a standalone
+`<label>__rubrics.docx`. Both surfaces use the same renderer as the rubric
+JSON/XLSX extraction path and include "Used by" lines when course activity
+joins expose assignment, discussion, or quiz rubric associations.
+`coursecraft.progress/1` adds `outputs.rubrics_docx`; the DOCX structure QA
+now validates the appendix table count and rubric headings instead of treating
+the extra tables as drift. Quiz metadata now mirrors assignments/discussions
+by showing the brief `Rubric:` line beside points and gradebook item when a
+quiz rubric association is present.
+
+---
+
 ## 2026-07-15 — Rubric layer promotion (done)
 
 Promoted rubric-grid extraction into the standalone blueprint bundle. The

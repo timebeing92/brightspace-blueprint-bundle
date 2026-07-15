@@ -59,6 +59,7 @@ def test_progress_events_stream(tmp_path):
     total = run_start["total"]
     assert len(run_start["steps"]) == total
     assert "Extract rubrics" in run_start["steps"]
+    assert "Render rubrics DOCX" in run_start["steps"]
 
     starts = [e for e in events if e["event"] == "step_start"]
     ends = [e for e in events if e["event"] == "step_end"]
@@ -73,6 +74,7 @@ def test_progress_events_stream(tmp_path):
     assert run_end["outputs"]["docx"], "docx path missing from run_end outputs"
     assert run_end["outputs"]["rubrics_json"], "rubric JSON path missing from run_end outputs"
     assert run_end["outputs"]["rubrics_workbook"], "rubric workbook path missing from run_end outputs"
+    assert run_end["outputs"]["rubrics_docx"], "rubric DOCX path missing from run_end outputs"
     assert run_end["summary"]["weeks"] == 2
     assert run_end["summary"]["rubrics"] == 1
     assert run_end["summary"]["qa"] == {"breaks": 0, "warnings": 2, "notes": 7}

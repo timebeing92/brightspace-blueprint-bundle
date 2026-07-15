@@ -13,6 +13,7 @@ from conftest import BUNDLE_ROOT, EXPECTED_BUNDLE
 SCRIPT = BUNDLE_ROOT / "scripts" / "docx_structure_qa.py"
 GOLDEN_DOCX = EXPECTED_BUNDLE / "sample_course__blueprint.docx"
 GOLDEN_MODEL = EXPECTED_BUNDLE / "sample_course__blueprint.json"
+GOLDEN_RUBRICS = EXPECTED_BUNDLE / "sample_course__rubrics.json"
 
 
 def run_qa(docx: Path, model: Path, *extra: str) -> subprocess.CompletedProcess:
@@ -26,7 +27,12 @@ def run_qa(docx: Path, model: Path, *extra: str) -> subprocess.CompletedProcess:
 
 
 def test_golden_docx_passes(tmp_path: Path) -> None:
-    result = run_qa(GOLDEN_DOCX, GOLDEN_MODEL, "--output-dir", str(tmp_path))
+    result = run_qa(
+        GOLDEN_DOCX,
+        GOLDEN_MODEL,
+        "--rubrics-json", str(GOLDEN_RUBRICS),
+        "--output-dir", str(tmp_path),
+    )
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads((tmp_path / "sample_course__docx_structure.json").read_text())
     assert report["breaks"] == []
@@ -52,7 +58,11 @@ def test_dangling_hyperlink_relationship_breaks(tmp_path: Path) -> None:
 
 def test_wrong_layout_warns_but_passes(tmp_path: Path) -> None:
     result = run_qa(
-        GOLDEN_DOCX, GOLDEN_MODEL, "--section-layout", "left", "--output-dir", str(tmp_path)
+        GOLDEN_DOCX,
+        GOLDEN_MODEL,
+        "--rubrics-json", str(GOLDEN_RUBRICS),
+        "--section-layout", "left",
+        "--output-dir", str(tmp_path),
     )
     assert result.returncode == 0
     report = json.loads((tmp_path / "sample_course__docx_structure.json").read_text())

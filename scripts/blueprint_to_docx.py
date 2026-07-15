@@ -54,6 +54,8 @@ except ImportError:  # pragma: no cover - exercised only without the dependency
     )
     raise SystemExit(3)
 
+from rubrics_to_docx import render_rubrics_section
+
 LIVE_SCHEMES = ("http://", "https://", "mailto:")
 
 NOT_FOUND_FIELD = "Needs review: not found in export extraction."
@@ -605,7 +607,14 @@ def add_simple_section(doc: "Document", heading: str, items: list[str]) -> None:
         _emit_block(doc, {"kind": "li", "level": 1, "runs": [{"text": item, "href": ""}]})
 
 
-def render(model: dict, doc: "Document", *, section_layout: str = "top") -> None:
+def render(
+    model: dict,
+    doc: "Document",
+    *,
+    section_layout: str = "top",
+    rubrics_model: dict | None = None,
+    activities_model: dict | None = None,
+) -> None:
     clear_body(doc)
 
     title_para = doc.add_paragraph()
@@ -655,6 +664,14 @@ def render(model: dict, doc: "Document", *, section_layout: str = "top") -> None
             apply_heading(doc, doc.add_paragraph("Discussions"), "Heading 4")
             write_value_labeled(doc, unplaced["discussions"], missing=NOT_FOUND_LIST, divider="object")
 
+    render_rubrics_section(
+        doc,
+        rubrics_model,
+        activities_model,
+        title="Rubric Appendix",
+        page_break=bool((rubrics_model or {}).get("rubrics")),
+    )
+
     add_simple_section(doc, "Extraction Notes", model.get("diagnostics", []) or ["None."])
 
 
@@ -674,6 +691,18 @@ def main(argv: list[str] | None = None) -> int:
         default="top",
         help="DOCX weekly section label layout: shaded top rows (default) or shaded left column.",
     )
+    parser.add_argument(
+        "--rubrics-json",
+        type=Path,
+        default=None,
+        help="Optional <label>__rubrics.json to append rubric grids to the blueprint DOCX.",
+    )
+    parser.add_argument(
+        "--activities-json",
+        type=Path,
+        default=None,
+        help="Optional <label>__course_activities.json for rubric Used by lines.",
+    )
     args = parser.parse_args(argv)
 
     if not args.model.exists():
@@ -687,7 +716,20 @@ def main(argv: list[str] | None = None) -> int:
             sys.stderr.write(f"note: template not found ({args.template}); building DOCX from scratch.\n")
         doc = Document()
 
-    render(model, doc, section_layout=args.section_layout)
+    rubrics_model = None
+    if args.rubrics_json and args.rubrics_json.exists():
+        rubrics_model = json.loads(args.rubrics_json.read_text(encoding="utf-8"))
+    activities_model = None
+    if args.activities_json and args.activities_json.exists():
+        activities_model = json.loads(args.activities_json.read_text(encoding="utf-8"))
+
+    render(
+        model,
+        doc,
+        section_layout=args.section_layout,
+        rubrics_model=rubrics_model,
+        activities_model=activities_model,
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(args.output))
     print(f"docx: {args.output}")

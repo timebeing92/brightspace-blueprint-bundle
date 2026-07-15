@@ -113,6 +113,11 @@ Backlog items needed before broad catalog intake:
   `<label>__rubrics.xlsx` when `rubrics_d2l.xml` is present. The additive
   `coursecraft.progress/1` fields are `outputs.rubrics_json`,
   `outputs.rubrics_workbook`, and `summary.rubrics`.
+- **Rubric DOCX review surfaces complete, 2026-07-15.** The main blueprint
+  DOCX now appends a Rubric Appendix when rubric JSON exists, and the pipeline
+  also emits `<label>__rubrics.docx`. `coursecraft.progress/1` exposes
+  `outputs.rubrics_docx`, so runner/web/catalog intake can find the document
+  without deriving filenames.
 - **Version activity and structure contracts.** Catalog ingest depends directly
   on `<label>__course_activities.json` and `<label>__course_structure.json`.
   Add schemas or an explicit contract note for those shapes, and bump versions
@@ -130,9 +135,11 @@ Backlog items needed before broad catalog intake:
 
 Rubric promotion handling note, 2026-07-15: the contract release is implemented
 in the bundle, staged in the local TUI runner as progress/output display, and
-aligned with the catalog's existing `coursecraft.rubrics/1` ingest path.
-Remaining release hygiene: run the workbench drift check after staged-snapshot
-sync, then cut or bump the bundle release tag and update any hosted/web pins.
+aligned with the catalog's existing `coursecraft.rubrics/1` ingest path. The
+DOCX review layer is now present in both the main blueprint and a standalone
+rubric document. Remaining release hygiene: run the workbench drift check after
+staged-snapshot sync, then cut or bump the bundle release tag and update any
+hosted/web pins.
 
 ## Extraction quality
 

@@ -14,6 +14,7 @@ Companion artifacts:
 - course activities JSON/Markdown/workbook
 - `sample_course__rubrics.json` (rubric grids)
 - `sample_course__rubrics.xlsx` (rubric review workbook)
+- `sample_course__rubrics.docx` (rubric grids DOCX)
 - course QA report
 - DOCX render QA not run
 

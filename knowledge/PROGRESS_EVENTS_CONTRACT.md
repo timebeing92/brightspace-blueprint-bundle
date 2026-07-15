@@ -27,11 +27,11 @@ run_end                         (once; status ok|error)
 ```
 
 A successful `run_end` carries the **actual output paths** (`bundle_dir`,
-markdown/json/docx/activity workbook/optional rubric JSON/workbook/QA paths)
-and a summary (`weeks`, optional `rubrics`, `diagnostics`, `needs_review`
-count, QA `breaks`/`warnings`/`notes` counts). Consumers must use these paths
-rather than re-deriving output locations from the label — label-derivation
-rules are the pipeline's own business and may change.
+markdown/json/docx/activity workbook/optional rubric JSON/workbook/DOCX/QA
+paths) and a summary (`weeks`, optional `rubrics`, `diagnostics`,
+`needs_review` count, QA `breaks`/`warnings`/`notes` counts). Consumers must
+use these paths rather than re-deriving output locations from the label —
+label-derivation rules are the pipeline's own business and may change.
 
 On failure the failing step emits `step_end` with `status: "error"` and a
 `message`, followed by a terminal `run_end` with `status: "error"`.

@@ -147,7 +147,18 @@ def visible_text_lines(doc) -> list[str]:
 # --------------------------------------------------------------------------- #
 # The check
 # --------------------------------------------------------------------------- #
-def check(docx_path: Path, model: dict, layout: str) -> dict:
+def rubric_table_count(rubrics_model: dict | None) -> int:
+    if not rubrics_model:
+        return 0
+    count = 0
+    for rubric in rubrics_model.get("rubrics", []) or []:
+        count += 1
+        if rubric.get("overall_levels"):
+            count += 1
+    return count
+
+
+def check(docx_path: Path, model: dict, layout: str, rubrics_model: dict | None = None) -> dict:
     breaks: list[str] = []
     warnings: list[str] = []
     notes: list[str] = []
@@ -192,17 +203,18 @@ def check(docx_path: Path, model: dict, layout: str) -> dict:
     # Table census: front matter + optional before-week + one per week.
     weeks = model.get("weeks", [])
     before_week_tables = 1 if model.get("before_week_1") else 0
-    expected_tables = FRONT_MATTER_TABLES + before_week_tables + len(weeks)
+    rubric_tables = rubric_table_count(rubrics_model)
+    expected_tables = FRONT_MATTER_TABLES + before_week_tables + len(weeks) + rubric_tables
     actual_tables = len(doc.tables)
     if actual_tables != expected_tables:
         breaks.append(
             f"Table count mismatch: expected {expected_tables} "
             f"({FRONT_MATTER_TABLES} front matter + {before_week_tables} before-week "
-            f"+ {len(weeks)} weeks), found {actual_tables}"
+            f"+ {len(weeks)} weeks + {rubric_tables} rubric), found {actual_tables}"
         )
     else:
         week_tables = doc.tables[FRONT_MATTER_TABLES + before_week_tables:]
-        for week, table in zip(weeks, week_tables):
+        for week, table in zip(weeks, week_tables[:len(weeks)]):
             want_rows, want_cols = expected_week_shape(week, layout)
             got_rows, got_cols = len(table.rows), len(table.columns)
             if (got_rows, got_cols) != (want_rows, want_cols):
@@ -220,12 +232,21 @@ def check(docx_path: Path, model: dict, layout: str) -> dict:
         title = week.get("title", "Course Module")
         if title not in body_texts:
             breaks.append(f"Week heading not found in the document: {title!r}")
+    rubrics = (rubrics_model or {}).get("rubrics", []) or []
+    if rubrics:
+        if "Rubric Appendix" not in body_texts:
+            breaks.append("Rubric Appendix heading not found in the document")
+        for rubric in rubrics:
+            name = rubric.get("name") or "Untitled Rubric"
+            if name not in body_texts:
+                breaks.append(f"Rubric heading not found in the document: {name!r}")
 
     lines = visible_text_lines(doc)
     stats = {
         "hyperlinks": len(docx_targets),
         "model_live_links": len(model_hrefs),
         "tables": actual_tables,
+        "rubric_tables": rubric_tables,
         "paragraphs": len(lines),
         "visible_characters": sum(len(line) for line in lines),
         "weeks": len(weeks),
@@ -237,6 +258,8 @@ def check(docx_path: Path, model: dict, layout: str) -> dict:
     notes.append(f"{stats['tables']} tables, {stats['paragraphs']} paragraphs, "
                  f"{stats['visible_characters']} visible characters")
     notes.append(f"{stats['weeks']} week section(s), {layout!r} section layout")
+    if rubric_tables:
+        notes.append(f"{rubric_tables} rubric appendix table(s)")
 
     return {"breaks": breaks, "warnings": warnings, "notes": notes, "stats": stats}
 
@@ -298,6 +321,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Print the full markdown report to stdout (default: a short summary)",
     )
+    parser.add_argument(
+        "--rubrics-json",
+        type=Path,
+        default=None,
+        help="Optional <label>__rubrics.json when the blueprint DOCX includes a rubric appendix",
+    )
     args = parser.parse_args(argv)
 
     if not args.docx.exists():
@@ -307,8 +336,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: model not found: {args.model}", file=sys.stderr)
         return 2
     model = json.loads(args.model.read_text(encoding="utf-8"))
+    rubrics_model = None
+    if args.rubrics_json:
+        if not args.rubrics_json.exists():
+            print(f"error: rubric JSON not found: {args.rubrics_json}", file=sys.stderr)
+            return 2
+        rubrics_model = json.loads(args.rubrics_json.read_text(encoding="utf-8"))
 
-    result = check(args.docx, model, args.section_layout)
+    result = check(args.docx, model, args.section_layout, rubrics_model)
 
     label = args.docx.stem
     if label.endswith("__blueprint"):
