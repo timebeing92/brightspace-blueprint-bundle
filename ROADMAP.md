@@ -98,6 +98,13 @@ the portable extraction engine. The bundle should expose stable facts and
 progress; it should not own catalog tags, relation judgments, program maps, or
 reader UI.
 
+Course-as-a-whole catalog note, 2026-07-14: the catalog reader should be able to
+assemble a whole-course evidence view from bundle outputs: modules, activities,
+grade items, rubrics, resources, LTI stubs, release conditions, QA diagnostics,
+and source provenance. The bundle responsibility is to make those facts
+complete, stable, and discoverable through explicit artifacts/progress outputs;
+the downstream catalog decides how to join, filter, review, and present them.
+
 Backlog items needed before broad catalog intake:
 
 - **Promote rubric JSON into the bundle.** The workbench
