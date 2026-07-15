@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-07-15 — Release provenance and checksums
+
+- Added `VERSION` and `scripts/make_release_asset.py` for building a bundle
+  release asset from one explicit git ref.
+- Release assets contain `RELEASE_MANIFEST.json` with the source repository,
+  ref, commit, schema versions, and schema hashes.
+- The builder refuses dirty worktrees by default, normalizes archive metadata,
+  and writes a sidecar SHA-256 checksum.
+
 Implementation history for `brightspace-blueprint-bundle`. Newest first.
 
 ---
