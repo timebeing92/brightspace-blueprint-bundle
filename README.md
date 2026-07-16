@@ -78,6 +78,9 @@ files are:
 - `<export>__manifest_probe.md` and `.json` - manifest/resource inspection.
 - `<label>__docx_structure.md` and `.json` - structural check of the rendered
   DOCX (relationships, hyperlinks, tables, titles); pure Python, on by default.
+- `<label>__pipeline_status.md` and `.json` - completion or partial-delivery
+  status, successful artifacts, failed/degraded components, and review
+  guidance. Start here when a run is marked `partial`.
 - `README.md` - short per-run guide to the generated files.
 - `render_qa/` - optional PDF/PNG render check output when requested.
 
@@ -104,6 +107,13 @@ steps below in order:
 | 11 | `render_blueprint_docx.py` | Optional visual deep check: DOCX to PDF/PNG pages plus render summary (needs LibreOffice + Poppler). |
 
 Markdown is always produced. DOCX is produced when `python-docx` is available.
+If a recoverable extractor, rubric, QA, DOCX, or render component fails, the
+pipeline continues with conservative fallbacks where possible, marks the run
+`partial`, and preserves every usable artifact. Missing output remains
+unresolved evidence; it is never interpreted as proof that the source course
+lacked that component. Malformed or unfamiliar rubric JSON is retained as
+`<label>__rubrics_unparsed.json` instead of being discarded or passed into the
+DOCX renderer as if it were valid.
 Detected source callouts, notes, cards, and styled highlight sections are kept
 as review cues; when the source HTML wraps a full section, the generated
 Markdown/DOCX wraps the section content, not only the callout title.
@@ -172,7 +182,9 @@ During a normal run each step prints a one-line banner (`== [3/7] Reconstruct
 course structure ==`). Wrapper tools that want structured live progress should
 use `--progress-events` and read one JSON event per stdout line; the final
 `run_end` event carries the actual output paths and summary counts, including
-rubric JSON/workbook/DOCX paths when rubric XML was present.
+rubric JSON/workbook/DOCX paths when rubric XML was present. Its status is
+`ok`, `partial`, or `error`; partial runs include structured component issues
+and paths to the pipeline-status report.
 
 ## Maintainer Release Asset
 

@@ -144,6 +144,11 @@ def visible_text_lines(doc) -> list[str]:
     return lines
 
 
+def normalized_visible_text(value: object) -> str:
+    """Mirror the renderer's whitespace cleanup for heading comparisons."""
+    return " ".join(xml_safe_text(str(value or "")).split())
+
+
 # --------------------------------------------------------------------------- #
 # The check
 # --------------------------------------------------------------------------- #
@@ -225,20 +230,21 @@ def check(docx_path: Path, model: dict, layout: str, rubrics_model: dict | None 
 
     # Titles must survive as body paragraphs.
     body_texts = {p.text for p in doc.paragraphs}
+    normalized_body_texts = {normalized_visible_text(text) for text in body_texts}
     course_title = model.get("course_title") or "Course Blueprint"
-    if course_title not in body_texts:
+    if normalized_visible_text(course_title) not in normalized_body_texts:
         breaks.append(f"Course title not found in the document: {course_title!r}")
     for week in weeks:
         title = week.get("title", "Course Module")
-        if title not in body_texts:
+        if normalized_visible_text(title) not in normalized_body_texts:
             breaks.append(f"Week heading not found in the document: {title!r}")
     rubrics = (rubrics_model or {}).get("rubrics", []) or []
     if rubrics:
-        if "Rubric Appendix" not in body_texts:
+        if normalized_visible_text("Rubric Appendix") not in normalized_body_texts:
             breaks.append("Rubric Appendix heading not found in the document")
         for rubric in rubrics:
             name = rubric.get("name") or "Untitled Rubric"
-            if name not in body_texts:
+            if normalized_visible_text(name) not in normalized_body_texts:
                 breaks.append(f"Rubric heading not found in the document: {name!r}")
 
     lines = visible_text_lines(doc)

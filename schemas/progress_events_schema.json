@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "coursecraft.progress/1",
   "title": "Coursecraft Pipeline Progress Events",
-  "description": "One JSON object per stdout line, emitted by build_blueprint_bundle.py when --progress-events is set. Consumers must treat any stdout line that does not parse as JSON (or lacks an 'event' key) as pass-through step output. Event order: one run_start, then step_start/step_end pairs, then exactly one run_end. A run_end with status 'error' may follow a step_end with status 'error' and ends the stream.",
+  "description": "One JSON object per stdout line, emitted by build_blueprint_bundle.py when --progress-events is set. Consumers must treat any stdout line that does not parse as JSON (or lacks an 'event' key) as pass-through step output. Event order: one run_start, then step_start/step_end pairs, then exactly one run_end. A partial run has at least one usable primary deliverable plus explicit component issues.",
   "oneOf": [
     {"$ref": "#/definitions/run_start"},
     {"$ref": "#/definitions/step_start"},
@@ -51,22 +51,40 @@
       "additionalProperties": false,
       "properties": {
         "event": {"const": "run_end"},
-        "status": {"enum": ["ok", "error"]},
-        "message": {"type": "string", "description": "Present when status is 'error'"},
+        "status": {"enum": ["ok", "partial", "error"]},
+        "message": {"type": "string", "description": "Human summary for complete, partial, or failed runs"},
         "bundle_dir": {"type": "string"},
         "outputs": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "markdown": {"type": "string"},
-            "json": {"type": "string"},
+            "markdown": {"type": ["string", "null"]},
+            "json": {"type": ["string", "null"]},
             "docx": {"type": ["string", "null"]},
-            "workbook": {"type": "string"},
+            "workbook": {"type": ["string", "null"]},
             "rubrics_json": {"type": ["string", "null"]},
+            "rubrics_unparsed": {"type": ["string", "null"]},
             "rubrics_workbook": {"type": ["string", "null"]},
             "rubrics_docx": {"type": ["string", "null"]},
             "qa_report": {"type": ["string", "null"]},
-            "render_qa_dir": {"type": ["string", "null"]}
+            "render_qa_dir": {"type": ["string", "null"]},
+            "docx_structure_report": {"type": ["string", "null"]},
+            "docx_structure_json": {"type": ["string", "null"]},
+            "status_report": {"type": ["string", "null"]},
+            "status_json": {"type": ["string", "null"]}
+          }
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["step", "status", "message"],
+            "additionalProperties": false,
+            "properties": {
+              "step": {"type": "string"},
+              "status": {"enum": ["failed", "degraded", "skipped"]},
+              "message": {"type": "string"}
+            }
           }
         },
         "summary": {

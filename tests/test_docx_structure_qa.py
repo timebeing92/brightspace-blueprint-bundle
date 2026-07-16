@@ -14,6 +14,8 @@ SCRIPT = BUNDLE_ROOT / "scripts" / "docx_structure_qa.py"
 GOLDEN_DOCX = EXPECTED_BUNDLE / "sample_course__blueprint.docx"
 GOLDEN_MODEL = EXPECTED_BUNDLE / "sample_course__blueprint.json"
 GOLDEN_RUBRICS = EXPECTED_BUNDLE / "sample_course__rubrics.json"
+GOLDEN_ACTIVITIES = EXPECTED_BUNDLE / "sample_course__course_activities.json"
+DOCX_RENDERER = BUNDLE_ROOT / "scripts" / "blueprint_to_docx.py"
 
 
 def run_qa(docx: Path, model: Path, *extra: str) -> subprocess.CompletedProcess:
@@ -79,3 +81,35 @@ def test_model_mismatch_breaks(tmp_path: Path) -> None:
     result = run_qa(GOLDEN_DOCX, mismatched)
     assert result.returncode == 1
     assert "Week heading not found" in result.stdout
+
+
+def test_rubric_heading_whitespace_matches_renderer_cleanup(tmp_path: Path) -> None:
+    rubrics = json.loads(GOLDEN_RUBRICS.read_text(encoding="utf-8"))
+    rubrics["rubrics"][0]["name"] = "Planning  Memo\u00a0 Presentation   Rubric"
+    rubrics_path = tmp_path / "rubrics.json"
+    rubrics_path.write_text(json.dumps(rubrics), encoding="utf-8")
+    rendered = tmp_path / "whitespace-rubric.docx"
+
+    render = subprocess.run(
+        [
+            sys.executable,
+            str(DOCX_RENDERER),
+            str(GOLDEN_MODEL),
+            "--output", str(rendered),
+            "--rubrics-json", str(rubrics_path),
+            "--activities-json", str(GOLDEN_ACTIVITIES),
+        ],
+        cwd=BUNDLE_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert render.returncode == 0, render.stdout + render.stderr
+
+    result = run_qa(
+        rendered,
+        GOLDEN_MODEL,
+        "--rubrics-json", str(rubrics_path),
+        "--output-dir", str(tmp_path),
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

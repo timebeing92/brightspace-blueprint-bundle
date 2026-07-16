@@ -19,6 +19,8 @@ bash run_blueprint.sh examples/sample_export.zip \
 - **`sample_course__blueprint.docx`** — the same blueprint rendered as DOCX.
 - `sample_course__blueprint.json` — the structured model both renderers consume
   (`schemas/blueprint_schema.json`).
+- `sample_course__pipeline_status.md` — the completion/partial-delivery report;
+  start here when any component is marked for review.
 - The `*_inventory`, `*_manifest_probe`, `*_course_structure`, `*_course_activities`,
   and `*_course_qa` files are the companion extraction artifacts.
 

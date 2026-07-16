@@ -23,27 +23,32 @@ Status: contract ratified 2026-07-09. Schema: `schemas/progress_events_schema.js
 run_start                       (once; carries schema id, planned step labels, total)
   step_start → step_end         (per step, 1-based index; step_end carries seconds)
   ...
-run_end                         (once; status ok|error)
+run_end                         (once; status ok|partial|error)
 ```
 
-A successful `run_end` carries the **actual output paths** (`bundle_dir`,
+A complete or partial `run_end` carries the **actual output paths** (`bundle_dir`,
 markdown/json/docx/activity workbook/optional rubric JSON/workbook/DOCX/QA
-paths) and a summary (`weeks`, optional `rubrics`, `diagnostics`,
+paths, pipeline status, and DOCX-structure report) and a summary (`weeks`, optional `rubrics`, `diagnostics`,
 `needs_review` count, QA `breaks`/`warnings`/`notes` counts). Consumers must
 use these paths rather than re-deriving output locations from the label —
 label-derivation rules are the pipeline's own business and may change.
 
-On failure the failing step emits `step_end` with `status: "error"` and a
-`message`, followed by a terminal `run_end` with `status: "error"`.
+When a component fails, that step emits `step_end` with `status: "error"` and a
+`message`. If Markdown or DOCX can still be produced, later independent steps
+continue and the terminal `run_end` is `partial` with structured `issues`.
+`error` is reserved for a run with no primary blueprint deliverable.
 
 ## Rules for consumers
 
 1. Parse each stdout line as JSON; any line that does not parse (or lacks an
    `"event"` key) is pass-through output from a step — display or log it,
    don't error on it.
-2. Ignore unknown keys and unknown event types; additions are minor-version
+2. Treat `partial` as a usable result requiring review. Present existing output
+   paths and the pipeline-status report rather than replacing them with a
+   generic failure screen.
+3. Ignore unknown keys and unknown event types; additions are minor-version
    moves within `coursecraft.progress/1`.
-3. Breaking changes (renamed/removed fields, reordered flow) bump the schema
+4. Breaking changes (renamed/removed fields, reordered flow) bump the schema
    id to `coursecraft.progress/2`.
 
 ## Rules for maintainers

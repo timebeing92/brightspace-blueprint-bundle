@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-07-16 — v1.1.1 rubric QA and partial-delivery hotfix
+
+- Fixed a real rubric appendix false positive: the renderer collapses repeated
+  and non-breaking whitespace in rubric headings, while structural QA formerly
+  compared the rendered heading against the unnormalized source name.
+  Structural QA now uses the renderer's visible-text normalization.
+- Verified the fix against the SSWO 565 export that exposed the defect: all 19
+  rubrics rendered, and DOCX structure QA completed with 0 breaks and
+  0 warnings.
+- Recoverable component failures no longer terminate the bundle before
+  delivery. Structure/activity extraction can fall back to explicit empty
+  evidence envelopes; rubric, QA, DOCX, structural-QA, and visual-render
+  failures are retained as component findings.
+- Malformed or newly shaped rubric JSON is moved to
+  `<label>__rubrics_unparsed.json` for evidence preservation, excluded from
+  rubric rendering, and exposed explicitly through progress outputs.
+- Every run now emits `<label>__pipeline_status.md` and `.json`. A run is
+  `partial` when a usable Markdown or DOCX blueprint exists alongside one or
+  more component findings; `error` is reserved for runs with no primary
+  deliverable.
+- `coursecraft.progress/1` adds `run_end.status: partial`, structured `issues`,
+  status-report paths, and DOCX-structure report paths. Existing fields remain
+  additive and unchanged.
+
 ## 2026-07-15 — Release provenance and checksums
 
 - Added `VERSION` and `scripts/make_release_asset.py` for building a bundle

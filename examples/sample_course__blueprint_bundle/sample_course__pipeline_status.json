@@ -1,0 +1,58 @@
+{
+  "format": "blueprint_pipeline_status_v1",
+  "status": "ok",
+  "label": "sample_course",
+  "source": "examples/sample_export.zip",
+  "issues": [],
+  "delivered": [
+    {
+      "path": "sample_course__blueprint.md"
+    },
+    {
+      "path": "sample_course__cps_blueprint.md"
+    },
+    {
+      "path": "sample_course__blueprint.json"
+    },
+    {
+      "path": "sample_course__blueprint.docx"
+    },
+    {
+      "path": "sample_course__course_structure.json"
+    },
+    {
+      "path": "sample_course__course_structure.md"
+    },
+    {
+      "path": "sample_course__course_activities.json"
+    },
+    {
+      "path": "sample_course__course_activities.md"
+    },
+    {
+      "path": "sample_course__course_activities.xlsx"
+    },
+    {
+      "path": "sample_course__rubrics.json"
+    },
+    {
+      "path": "sample_course__rubrics.xlsx"
+    },
+    {
+      "path": "sample_course__rubrics.docx"
+    },
+    {
+      "path": "sample_course__course_qa.md"
+    },
+    {
+      "path": "sample_course__course_qa.json"
+    },
+    {
+      "path": "sample_course__docx_structure.md"
+    },
+    {
+      "path": "sample_course__docx_structure.json"
+    }
+  ],
+  "review_required": false
+}

@@ -55,6 +55,12 @@ This is extraction and review, not instructional-content generation.
 11. structural DOCX QA unless `--skip-docx-structure-check` is used
 12. optional DOCX visual render QA when `--render-docx-check` is used
 
+Recoverable failures do not suppress an otherwise usable review bundle.
+Independent steps continue, conservative empty-evidence fallbacks are used
+when structure or activity extraction fails, and
+`<label>__pipeline_status.{md,json}` records exactly what failed or degraded.
+`coursecraft.progress/1` reports these runs as `partial`.
+
 External URLs are inventoried by default. Fetching/checking them requires
 `--check-external-links`.
 

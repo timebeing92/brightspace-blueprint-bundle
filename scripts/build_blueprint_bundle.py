@@ -147,6 +147,127 @@ def rubrics_count(path: Path | None) -> int:
     return len(rubrics) if isinstance(rubrics, list) else 0
 
 
+def fallback_structure_payload(export: str, label: str, message: str) -> dict:
+    return {
+        "export": export,
+        "label": label,
+        "kind_counts": {},
+        "tree": [],
+        "html_topics": [],
+        "diagnostics": [
+            "PARTIAL EXTRACTION: course structure could not be parsed; "
+            f"a minimal review surface was used instead. {message}"
+        ],
+    }
+
+
+def fallback_activities_payload(export: str, label: str, message: str) -> dict:
+    return {
+        "export": export,
+        "label": label,
+        "export_identity": {},
+        "condition_sets": [],
+        "dropbox_folders": [],
+        "discussions": [],
+        "checklists": [],
+        "quizzes": [],
+        "grade_items": [],
+        "joins": [],
+        "diagnostics": [
+            "PARTIAL EXTRACTION: course activities could not be parsed; "
+            f"empty activity collections were used instead. {message}"
+        ],
+    }
+
+
+def concise_issue(message: str) -> str:
+    lines = [line.strip() for line in str(message or "").splitlines() if line.strip()]
+    return lines[0] if lines else "Unknown component failure"
+
+
+def write_pipeline_status(
+    json_path: Path,
+    markdown_path: Path,
+    *,
+    status: str,
+    label: str,
+    source: str,
+    issues: list[dict],
+    delivered_paths: list[Path],
+) -> None:
+    delivered = [
+        {
+            "path": path.name,
+        }
+        for path in delivered_paths
+        if path.exists() and path.is_file()
+    ]
+    payload = {
+        "format": "blueprint_pipeline_status_v1",
+        "status": status,
+        "label": label,
+        "source": source,
+        "issues": issues,
+        "delivered": delivered,
+        "review_required": bool(issues),
+    }
+    json_path.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+    if status == "ok":
+        status_text = "COMPLETE — all requested components finished."
+    elif status == "partial":
+        status_text = (
+            "PARTIAL — usable deliverables were produced, but one or more "
+            "components need review."
+        )
+    else:
+        status_text = "ERROR — no primary blueprint deliverable could be completed."
+    lines = [
+        f"# Pipeline Status — {label}",
+        "",
+        f"**Status: {status_text}**",
+        "",
+        f"Source export: `{source}`",
+        "",
+        "## Delivered Files",
+        "",
+    ]
+    lines.extend(f"- `{row['path']}`" for row in delivered)
+    if not delivered:
+        lines.append("- None.")
+    lines.extend(["", "## Component Findings", ""])
+    if not issues:
+        lines.append("- None.")
+    for issue in issues:
+        lines.extend(
+            [
+                f"### {issue['step']}",
+                "",
+                f"- Outcome: `{issue['status']}`",
+                f"- Summary: {concise_issue(issue['message'])}",
+                "",
+                "Full diagnostic:",
+                "",
+                *[f"    {line}" for line in issue["message"].splitlines()],
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "## Review Guidance",
+            "",
+            "Use the blueprint and companion artifacts that are present. Treat "
+            "missing, malformed, or failed components as unresolved evidence; "
+            "do not infer that absent output means the source course lacked that content.",
+            "",
+        ]
+    )
+    markdown_path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def validate_model(model: dict) -> None:
     """Validate the assembled model against schemas/blueprint_schema.json.
 
@@ -1409,9 +1530,17 @@ def write_bundle_readme(
     rubrics_docx: Path | None = None,
     include_qa: bool,
     render_qa_dir: Path | None = None,
+    run_status: str = "ok",
+    issues: list[dict] | None = None,
+    status_report: Path | None = None,
 ) -> None:
+    issues = list(issues or [])
     qa_line = "- course QA report" if include_qa else "- course QA report skipped by command option"
-    docx_line = f"- `{blueprint_docx.name}`" if blueprint_docx else "- DOCX skipped (python-docx not installed)"
+    docx_line = (
+        f"- `{blueprint_docx.name}`"
+        if blueprint_docx
+        else "- DOCX not produced; see the pipeline status report"
+    )
     rubric_lines = []
     if rubrics_json:
         rubric_lines.append(f"- `{rubrics_json.name}` (rubric grids)")
@@ -1428,6 +1557,12 @@ def write_bundle_readme(
                 f"# Blueprint Bundle - {label}",
                 "",
                 f"Source export: `{export}`",
+                f"Run status: **{run_status.upper()}**",
+                (
+                    f"Review `{status_report.name}` before using the bundle."
+                    if status_report and issues
+                    else "No component failures were recorded."
+                ),
                 "",
                 "Primary outputs:",
                 f"- `{blueprint_md.name}`",
@@ -1442,6 +1577,11 @@ def write_bundle_readme(
                 *rubric_lines,
                 qa_line,
                 render_qa_line,
+                (
+                    f"- `{status_report.name}` ({len(issues)} component finding(s))"
+                    if status_report
+                    else "- pipeline status report not written"
+                ),
                 "",
                 "Review note: the blueprint mirrors the exported course structure. It is "
                 "source-derived, not a final instructional-design approval. Rows marked "
@@ -1525,11 +1665,36 @@ def main(argv: list[str] | None = None) -> int:
     export = args.export.expanduser().resolve()
     if not export.exists():
         raise SystemExit(f"error: export not found: {export}")
-    has_rubrics_xml = export_has_rubrics_xml(export)
     label = args.label or safe_label(export.stem if export.is_file() else export.name)
     stem = safe_label(label)
     bundle_dir = args.bundle_dir or (args.output_dir / f"{stem}__blueprint_bundle")
     bundle_dir.mkdir(parents=True, exist_ok=True)
+    component_issues: list[dict] = []
+
+    try:
+        has_rubrics_xml = export_has_rubrics_xml(export)
+    except (Exception, SystemExit) as exc:
+        has_rubrics_xml = False
+        component_issues.append(
+            {
+                "step": "Detect optional rubric component",
+                "status": "degraded",
+                "message": str(exc),
+            }
+        )
+
+    structure_path = bundle_dir / f"{stem}__course_structure.json"
+    structure_md = bundle_dir / f"{stem}__course_structure.md"
+    activities_path = bundle_dir / f"{stem}__course_activities.json"
+    activities_md = bundle_dir / f"{stem}__course_activities.md"
+    activities_workbook = bundle_dir / f"{stem}__course_activities.xlsx"
+    blueprint_json = bundle_dir / f"{stem}__blueprint.json"
+    blueprint_md = bundle_dir / f"{stem}__blueprint.md"
+    legacy_blueprint_md = bundle_dir / f"{stem}__cps_blueprint.md"
+    blueprint_docx = bundle_dir / f"{stem}__blueprint.docx"
+    rubrics_docx = bundle_dir / f"{stem}__rubrics.docx"
+    status_json = bundle_dir / f"{stem}__pipeline_status.json"
+    status_report = bundle_dir / f"{stem}__pipeline_status.md"
 
     step_timeout = args.step_timeout if args.step_timeout and args.step_timeout > 0 else None
 
@@ -1554,17 +1719,33 @@ def main(argv: list[str] | None = None) -> int:
         step_labels.append("DOCX visual render check")
     progress = StepProgress(step_labels, events=args.progress_events, run_label=stem)
 
-    def run_step(label, fn):
+    def record_issue(step: str, message: str, *, status: str = "failed") -> None:
+        component_issues.append(
+            {
+                "step": step,
+                "status": status,
+                "message": str(message),
+            }
+        )
+
+    def run_step(label, fn, fallback=None):
         progress.start(label)
         try:
             result = fn()
-        except SystemExit as exc:
+        except (Exception, SystemExit) as exc:
             progress.end(status="error", message=str(exc))
-            if progress.events:
-                _emit_event({"event": "run_end", "status": "error", "message": str(exc)})
-            raise
+            record_issue(label, str(exc))
+            if fallback is not None:
+                try:
+                    return False, fallback(str(exc))
+                except (Exception, SystemExit) as recovery_exc:
+                    record_issue(
+                        f"{label} recovery",
+                        str(recovery_exc),
+                    )
+            return False, None
         progress.end()
-        return result
+        return True, result
 
     common = [export_arg, "--output-dir", str(bundle_dir)]
     labeled = [*common, "--label", label]
@@ -1576,25 +1757,59 @@ def main(argv: list[str] | None = None) -> int:
         "Probe manifest",
         lambda: run_workbench_script("manifest_probe.py", common, args.quiet, timeout=step_timeout),
     )
+
+    def recover_structure(message: str):
+        payload = fallback_structure_payload(export_arg, label, concise_issue(message))
+        structure_path.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        structure_md.write_text(
+            f"# Course Structure — {label}\n\n"
+            "**PARTIAL:** structure extraction failed; no manifest tree could be retained.\n\n"
+            f"- {concise_issue(message)}\n",
+            encoding="utf-8",
+        )
+        return payload
+
     run_step(
         "Reconstruct course structure",
         lambda: run_workbench_script(
             "reconstruct_course_structure.py", [*labeled, "--extract-html"], args.quiet, timeout=step_timeout
         ),
+        fallback=recover_structure,
     )
+
+    def recover_activities(message: str):
+        payload = fallback_activities_payload(export_arg, label, concise_issue(message))
+        activities_path.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        activities_md.write_text(
+            f"# Course Activities — {label}\n\n"
+            "**PARTIAL:** activity extraction failed; empty activity collections were used.\n\n"
+            f"- {concise_issue(message)}\n",
+            encoding="utf-8",
+        )
+        return payload
+
     run_step(
         "Extract course activities",
         lambda: run_workbench_script("extract_course_activities.py", labeled, args.quiet, timeout=step_timeout),
+        fallback=recover_activities,
     )
 
     rubrics_json: Path | None = None
     rubrics_workbook: Path | None = None
+    rubrics_unparsed: Path | None = None
     if has_rubrics_xml:
         candidate_json = bundle_dir / f"{stem}__rubrics.json"
         candidate_workbook = bundle_dir / f"{stem}__rubrics.xlsx"
-        run_step(
-            "Extract rubrics",
-            lambda: run_workbench_script(
+
+        def extract_rubrics():
+            nonlocal rubrics_unparsed
+            run_workbench_script(
                 "extract_rubrics_to_workbook.py",
                 [
                     export_arg,
@@ -1604,10 +1819,39 @@ def main(argv: list[str] | None = None) -> int:
                 ],
                 args.quiet,
                 timeout=step_timeout,
-            ),
+            )
+            if not candidate_json.exists():
+                raise RuntimeError("Rubric extraction did not emit rubric JSON.")
+            try:
+                payload = json.loads(candidate_json.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                rubrics_unparsed = bundle_dir / f"{stem}__rubrics_unparsed.json"
+                candidate_json.replace(rubrics_unparsed)
+                raise RuntimeError(
+                    f"Rubric JSON is malformed: {exc}. The unparsed evidence was "
+                    f"retained as {rubrics_unparsed.name}."
+                ) from exc
+            if not isinstance(payload, dict) or not isinstance(payload.get("rubrics"), list):
+                rubrics_unparsed = bundle_dir / f"{stem}__rubrics_unparsed.json"
+                candidate_json.replace(rubrics_unparsed)
+                raise RuntimeError(
+                    "Rubric JSON does not contain the expected top-level rubrics list; "
+                    f"the unparsed evidence was retained as {rubrics_unparsed.name}."
+                )
+            return candidate_json
+
+        rubric_ok, _ = run_step(
+            "Extract rubrics",
+            extract_rubrics,
         )
-        rubrics_json = candidate_json if candidate_json.exists() else None
         rubrics_workbook = candidate_workbook if candidate_workbook.exists() else None
+        if rubric_ok:
+            rubrics_json = candidate_json
+            if rubrics_workbook is None:
+                record_issue(
+                    "Extract rubrics",
+                    "The rubric extractor exited successfully but did not emit a rubric workbook.",
+                )
     if not args.skip_qa:
         qa_args = [*labeled]
         if args.check_external_links:
@@ -1616,15 +1860,6 @@ def main(argv: list[str] | None = None) -> int:
             "Run QA report",
             lambda: run_workbench_script("course_qa_report.py", qa_args, args.quiet, timeout=step_timeout),
         )
-
-    structure_path = bundle_dir / f"{stem}__course_structure.json"
-    activities_path = bundle_dir / f"{stem}__course_activities.json"
-
-    blueprint_json = bundle_dir / f"{stem}__blueprint.json"
-    blueprint_md = bundle_dir / f"{stem}__blueprint.md"
-    legacy_blueprint_md = bundle_dir / f"{stem}__cps_blueprint.md"
-    blueprint_docx = bundle_dir / f"{stem}__blueprint.docx"
-    rubrics_docx = bundle_dir / f"{stem}__rubrics.docx"
 
     def assemble():
         model = build_blueprint_model(
@@ -1643,7 +1878,50 @@ def main(argv: list[str] | None = None) -> int:
         write_text_if_changed(legacy_blueprint_md, rendered)
         return model, rendered
 
-    model, rendered_markdown = run_step("Assemble blueprint model and Markdown", assemble)
+    def recover_blueprint(message: str):
+        fallback_structure = fallback_structure_payload(
+            export_arg,
+            label,
+            "The original structure or blueprint assembly was not usable.",
+        )
+        fallback_activities = fallback_activities_payload(
+            export_arg,
+            label,
+            "The original activity or blueprint assembly was not usable.",
+        )
+        model = build_blueprint_model(
+            fallback_structure,
+            fallback_activities,
+            label=label,
+            course_number=args.course_number,
+            course_title=args.course_title,
+            term=args.term,
+            template_reference=args.template_reference,
+        )
+        model.setdefault("diagnostics", []).insert(
+            0,
+            "PARTIAL BLUEPRINT: the normal assembly path failed and a minimal "
+            f"review surface was emitted. {concise_issue(message)}",
+        )
+        blueprint_json.write_text(
+            json.dumps(model, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        rendered = render_markdown(model)
+        write_text_if_changed(blueprint_md, rendered)
+        write_text_if_changed(legacy_blueprint_md, rendered)
+        return model, rendered
+
+    _assemble_ok, assembled = run_step(
+        "Assemble blueprint model and Markdown",
+        assemble,
+        fallback=recover_blueprint,
+    )
+    if assembled is None:
+        model = {}
+        rendered_markdown = ""
+    else:
+        model, rendered_markdown = assembled
 
     def render_docx():
         docx_args = [
@@ -1665,28 +1943,28 @@ def main(argv: list[str] | None = None) -> int:
                 timeout=step_timeout,
             )
         except subprocess.TimeoutExpired:
-            print("warning: DOCX rendering timed out and was skipped.", file=sys.stderr)
-            return None
+            raise RuntimeError("DOCX rendering timed out and was skipped.")
         if result.returncode == 0:
             if not args.quiet and result.stdout.strip():
                 print(result.stdout.strip())
             return blueprint_docx
-        print(
-            "warning: DOCX rendering skipped.\n"
-            f"{result.stdout.strip()}\n{result.stderr.strip()}".strip(),
-            file=sys.stderr,
+        raise RuntimeError(
+            "DOCX rendering failed.\n"
+            f"STDOUT:\n{result.stdout.strip()}\nSTDERR:\n{result.stderr.strip()}".strip()
         )
-        return None
 
     docx_written: Path | None = None
     if not args.no_docx:
-        docx_written = run_step("Render DOCX", render_docx)
+        _docx_ok, docx_written = run_step("Render DOCX", render_docx)
 
     rubrics_docx_written: Path | None = None
 
     def render_rubrics_docx():
         if not rubrics_json:
-            return None
+            raise RuntimeError(
+                "Rubric DOCX was requested because rubrics_d2l.xml was detected, "
+                "but valid rubric JSON was not available."
+            )
         cmd = [
             sys.executable,
             str(SCRIPT_DIR / "rubrics_to_docx.py"),
@@ -1704,23 +1982,23 @@ def main(argv: list[str] | None = None) -> int:
                 timeout=step_timeout,
             )
         except subprocess.TimeoutExpired:
-            print("warning: rubric DOCX rendering timed out and was skipped.", file=sys.stderr)
-            return None
+            raise RuntimeError("Rubric DOCX rendering timed out and was skipped.")
         if result.returncode == 0:
             if not args.quiet and result.stdout.strip():
                 print(result.stdout.strip())
             return rubrics_docx
-        print(
-            "warning: rubric DOCX rendering skipped.\n"
-            f"{result.stdout.strip()}\n{result.stderr.strip()}".strip(),
-            file=sys.stderr,
+        raise RuntimeError(
+            "Rubric DOCX rendering failed.\n"
+            f"STDOUT:\n{result.stdout.strip()}\nSTDERR:\n{result.stderr.strip()}".strip()
         )
-        return None
 
-    if not args.no_docx and rubrics_json:
-        rubrics_docx_written = run_step("Render rubrics DOCX", render_rubrics_docx)
+    if not args.no_docx and has_rubrics_xml:
+        _rubric_docx_ok, rubrics_docx_written = run_step(
+            "Render rubrics DOCX",
+            render_rubrics_docx,
+        )
 
-    if docx_written and not args.skip_docx_structure_check:
+    if not args.no_docx and not args.skip_docx_structure_check:
         qa_args = [
             str(docx_written),
             "--model", str(blueprint_json),
@@ -1729,15 +2007,23 @@ def main(argv: list[str] | None = None) -> int:
         ]
         if rubrics_json:
             qa_args.extend(["--rubrics-json", str(rubrics_json)])
-        run_step(
-            "Check DOCX structure",
-            lambda: run_workbench_script(
-                "docx_structure_qa.py",
-                qa_args,
-                args.quiet,
-                timeout=step_timeout,
-            ),
-        )
+        if docx_written:
+            run_step(
+                "Check DOCX structure",
+                lambda: run_workbench_script(
+                    "docx_structure_qa.py",
+                    qa_args,
+                    args.quiet,
+                    timeout=step_timeout,
+                ),
+            )
+        else:
+            run_step(
+                "Check DOCX structure",
+                lambda: (_ for _ in ()).throw(
+                    RuntimeError("DOCX structure QA could not run because no blueprint DOCX was emitted.")
+                ),
+            )
 
     def render_check():
         candidate_dir = bundle_dir / "render_qa"
@@ -1757,25 +2043,75 @@ def main(argv: list[str] | None = None) -> int:
                 timeout=step_timeout,
             )
         except subprocess.TimeoutExpired:
-            print("warning: DOCX render QA timed out.", file=sys.stderr)
-            return None
+            raise RuntimeError("DOCX visual render QA timed out.")
         if result.returncode == 0:
             if not args.quiet and result.stdout.strip():
                 print(result.stdout.strip())
             return candidate_dir
-        print(
-            "warning: DOCX render QA failed.\n"
-            f"{result.stdout.strip()}\n{result.stderr.strip()}".strip(),
-            file=sys.stderr,
+        raise RuntimeError(
+            "DOCX visual render QA failed.\n"
+            f"STDOUT:\n{result.stdout.strip()}\nSTDERR:\n{result.stderr.strip()}".strip()
         )
-        return None
 
     render_qa_dir: Path | None = None
     if args.render_docx_check:
         if docx_written:
-            render_qa_dir = run_step("DOCX visual render check", render_check)
+            _render_ok, render_qa_dir = run_step("DOCX visual render check", render_check)
         else:
-            print("warning: --render-docx-check requested but no DOCX was written.", file=sys.stderr)
+            run_step(
+                "DOCX visual render check",
+                lambda: (_ for _ in ()).throw(
+                    RuntimeError(
+                        "DOCX visual render QA could not run because no blueprint DOCX was emitted."
+                    )
+                ),
+            )
+
+    docx_structure_report = bundle_dir / f"{stem}__docx_structure.md"
+    docx_structure_json = bundle_dir / f"{stem}__docx_structure.json"
+    qa_report = bundle_dir / f"{stem}__course_qa.md"
+    qa_json = bundle_dir / f"{stem}__course_qa.json"
+    primary_deliverable_exists = blueprint_md.exists() or bool(
+        docx_written and docx_written.exists()
+    )
+    if primary_deliverable_exists:
+        run_status = "partial" if component_issues else "ok"
+    else:
+        run_status = "error"
+        if not component_issues:
+            record_issue(
+                "Finalize bundle",
+                "No Markdown or DOCX blueprint deliverable was emitted.",
+            )
+
+    delivered_paths = [
+        blueprint_md,
+        legacy_blueprint_md,
+        blueprint_json,
+        blueprint_docx,
+        structure_path,
+        structure_md,
+        activities_path,
+        activities_md,
+        activities_workbook,
+        rubrics_json,
+        rubrics_unparsed,
+        rubrics_workbook,
+        rubrics_docx,
+        qa_report,
+        qa_json,
+        docx_structure_report,
+        docx_structure_json,
+    ]
+    write_pipeline_status(
+        status_json,
+        status_report,
+        status=run_status,
+        label=label,
+        source=export_arg,
+        issues=component_issues,
+        delivered_paths=[path for path in delivered_paths if path is not None],
+    )
 
     write_bundle_readme(
         bundle_dir / "README.md",
@@ -1789,44 +2125,74 @@ def main(argv: list[str] | None = None) -> int:
         rubrics_docx=rubrics_docx_written,
         include_qa=not args.skip_qa,
         render_qa_dir=render_qa_dir,
+        run_status=run_status,
+        issues=component_issues,
+        status_report=status_report,
     )
 
     if progress.events:
         qa_counts = None
-        qa_json = bundle_dir / f"{stem}__course_qa.json"
         if qa_json.exists():
             try:
                 qa_data = json.loads(qa_json.read_text(encoding="utf-8"))
                 qa_counts = {key: len(qa_data.get(key, [])) for key in ("breaks", "warnings", "notes")}
             except json.JSONDecodeError:
                 qa_counts = None
-        _emit_event(
-            {
-                "event": "run_end",
-                "status": "ok",
-                "bundle_dir": str(bundle_dir),
-                "outputs": {
-                    "markdown": str(blueprint_md),
-                    "json": str(blueprint_json),
-                    "docx": str(docx_written) if docx_written else None,
-                    "workbook": str(bundle_dir / f"{stem}__course_activities.xlsx"),
-                    "rubrics_json": str(rubrics_json) if rubrics_json else None,
-                    "rubrics_workbook": str(rubrics_workbook) if rubrics_workbook else None,
-                    "rubrics_docx": str(rubrics_docx_written) if rubrics_docx_written else None,
-                    "qa_report": str(bundle_dir / f"{stem}__course_qa.md") if not args.skip_qa else None,
-                    "render_qa_dir": str(render_qa_dir) if render_qa_dir else None,
-                },
-                "summary": {
-                    "weeks": len(model.get("weeks", [])),
-                    "rubrics": rubrics_count(rubrics_json),
-                    "diagnostics": len(model.get("diagnostics", [])),
-                    "needs_review": rendered_markdown.count(NOT_FOUND_FIELD),
-                    "qa": qa_counts,
-                },
-            }
-        )
+        run_end = {
+            "event": "run_end",
+            "status": run_status,
+            "message": (
+                f"{len(component_issues)} component finding(s); review {status_report.name}."
+                if component_issues
+                else "All requested components completed."
+            ),
+            "bundle_dir": str(bundle_dir),
+            "outputs": {
+                "markdown": str(blueprint_md) if blueprint_md.exists() else None,
+                "json": str(blueprint_json) if blueprint_json.exists() else None,
+                "docx": str(docx_written) if docx_written and docx_written.exists() else None,
+                "workbook": str(activities_workbook) if activities_workbook.exists() else None,
+                "rubrics_json": str(rubrics_json) if rubrics_json and rubrics_json.exists() else None,
+                "rubrics_unparsed": (
+                    str(rubrics_unparsed)
+                    if rubrics_unparsed and rubrics_unparsed.exists()
+                    else None
+                ),
+                "rubrics_workbook": (
+                    str(rubrics_workbook)
+                    if rubrics_workbook and rubrics_workbook.exists()
+                    else None
+                ),
+                "rubrics_docx": (
+                    str(rubrics_docx_written)
+                    if rubrics_docx_written and rubrics_docx_written.exists()
+                    else None
+                ),
+                "qa_report": str(qa_report) if qa_report.exists() else None,
+                "render_qa_dir": str(render_qa_dir) if render_qa_dir else None,
+                "docx_structure_report": (
+                    str(docx_structure_report) if docx_structure_report.exists() else None
+                ),
+                "docx_structure_json": (
+                    str(docx_structure_json) if docx_structure_json.exists() else None
+                ),
+                "status_report": str(status_report),
+                "status_json": str(status_json),
+            },
+            "issues": component_issues,
+            "summary": {
+                "weeks": len(model.get("weeks", [])),
+                "rubrics": rubrics_count(rubrics_json),
+                "diagnostics": len(model.get("diagnostics", [])),
+                "needs_review": rendered_markdown.count(NOT_FOUND_FIELD),
+                "qa": qa_counts,
+            },
+        }
+        _emit_event(run_end)
 
     print(f"bundle: {bundle_dir}")
+    print(f"status: {run_status}")
+    print(f"pipeline status:      {status_report}")
     print(f"blueprint (markdown): {blueprint_md}")
     print(f"blueprint (legacy markdown alias): {legacy_blueprint_md}")
     print(f"blueprint (json):     {blueprint_json}")
@@ -1838,7 +2204,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"rubrics (workbook):   {rubrics_workbook}")
     if rubrics_docx_written:
         print(f"rubrics (docx):       {rubrics_docx_written}")
-    return 0
+    return 0 if run_status in {"ok", "partial"} else 1
 
 
 if __name__ == "__main__":
