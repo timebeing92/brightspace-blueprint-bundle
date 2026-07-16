@@ -2,6 +2,10 @@
 
 ## 2026-07-16 — v1.2.0 normal runs no longer need LibreOffice
 
+Published from commit `ec0ba6aad29cd24b0b54094ea69d6546648e526d`.
+Release asset SHA-256:
+`58edb98063f1466b963a127a824e56aacccabe7d64ecc991d4ca365693a95be8`.
+
 - Pure-Python structural DOCX QA remains default-on and is now the complete
   normal-run verification path.
 - Removed `pdf2image` from `requirements.txt`; optional preview dependencies
