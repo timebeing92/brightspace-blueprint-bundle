@@ -2,6 +2,10 @@
 
 ## 2026-07-16 — v1.1.1 rubric QA and partial-delivery hotfix
 
+Published from commit `63efd8d1828533657c6f9a223c38b3d55c746b2e`.
+Release asset SHA-256:
+`a7b905253bd7c2994b670b03ce0e01811f2836f99c4568be7d53dee027deb9e2`.
+
 - Fixed a real rubric appendix false positive: the renderer collapses repeated
   and non-breaking whitespace in rubric headings, while structural QA formerly
   compared the rendered heading against the unnormalized source name.
