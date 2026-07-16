@@ -76,13 +76,12 @@ the other.)
   (c) Rejected permanently: HF-for-scripts + GitHub-Pages-for-UI split —
   a private Space API needs a token that cannot live in static JS, and a
   custom front end can be served from the Space itself.
-- **LibreOffice streamlining.** LibreOffice is needed only for the optional
-  DOCX visual render QA (DOCX→PDF; Poppler rasterizes). No faithful
-  pure-Python DOCX renderer exists. **Structural DOCX QA landed 2026-07-13**
-  (`docx_structure_qa.py`, default-on — see CHANGELOG), so the visual pass
-  is now a rarely-needed deep check. Remaining: the web version bakes
-  soffice into its container image (zero user install); the TUI keeps the
-  optional prompt-gated install for the visual pass.
+- **LibreOffice streamlining — complete 2026-07-16.** Structural DOCX QA is
+  the complete normal-run verification path. LibreOffice, Poppler, and
+  `pdf2image` are absent from core setup and the Wizard no longer checks,
+  prompts, or installs them. The backward-compatible `--render-docx-check`
+  flag remains an explicit maintainer preview; its generated pages require
+  human inspection.
 - **One-download install — provenance-hardened 2026-07-15 (runner-side).**
   `scripts/make_release_bundle.py` builds `dist/blueprint-wizard-vX.Y.zip`
   from explicit clean runner and bundle refs. The ZIP contains both commit

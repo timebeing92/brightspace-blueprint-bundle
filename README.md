@@ -7,8 +7,8 @@ inventory files, and QA reports.
 This bundle can run entirely from normal command-line scripts. No AI service is
 required to use it. You can also point an agent at the bundle and ask it to run
 the scripts for you; it will likely ask permission to install the required
-Python packages and system libraries, then execute the same pipeline described
-below. `AGENTS.md` is optional maintainer guidance for a human contributor or an
+Python packages, then execute the same pipeline described below. `AGENTS.md` is
+optional maintainer guidance for a human contributor or an
 AI coding assistant working on the scripts; it is not part of the runtime
 pipeline.
 
@@ -43,14 +43,10 @@ The wrapper reuses the bundle-local `.venv` on later runs. If `.venv` is missing
 - Python packages from `requirements.txt`:
   - `openpyxl` for the activity workbook.
   - `python-docx` for DOCX rendering.
-  - `pdf2image` for optional DOCX visual render QA.
   - `jsonschema` to validate the generated model against the blueprint schema.
-- Optional render-QA system tools:
-  - LibreOffice/`soffice` to convert DOCX to PDF.
-  - Poppler utilities on `PATH` for PDF-to-PNG rendering.
 
-`bootstrap.sh` installs the Python packages into `.venv`. LibreOffice and
-Poppler are system tools and must be installed separately.
+`bootstrap.sh` installs the complete normal-run environment into `.venv`.
+LibreOffice, Poppler, and `pdf2image` are not required.
 
 Windows setup:
 
@@ -82,7 +78,8 @@ files are:
   status, successful artifacts, failed/degraded components, and review
   guidance. Start here when a run is marked `partial`.
 - `README.md` - short per-run guide to the generated files.
-- `render_qa/` - optional PDF/PNG render check output when requested.
+- `render_qa/` - advanced maintainer PDF/PNG preview output when explicitly
+  requested.
 
 Generated bundles are course-specific review artifacts. The repository source
 does not need to include generated `workspace/` or `output/` folders.
@@ -104,7 +101,7 @@ steps below in order:
 | 8 | `blueprint_to_docx.py` | Render DOCX from the same model used for Markdown; appends a Rubric Appendix when rubric JSON exists. |
 | 9 | `rubrics_to_docx.py` | Optional: render `<label>__rubrics.docx` from the same `coursecraft.rubrics/1` JSON. |
 | 10 | `docx_structure_qa.py` | Structural check of the rendered DOCX against the model and optional rubric appendix (relationships, hyperlinks, tables, titles). Pure Python, on by default; `--skip-docx-structure-check` opts out. |
-| 11 | `render_blueprint_docx.py` | Optional visual deep check: DOCX to PDF/PNG pages plus render summary (needs LibreOffice + Poppler). |
+| 11 | `render_blueprint_docx.py` | Advanced maintainer preview only: DOCX to PDF/PNG pages for human inspection (needs `requirements-render.txt`, LibreOffice, and Poppler). |
 
 Markdown is always produced. DOCX is produced when `python-docx` is available.
 If a recoverable extractor, rubric, QA, DOCX, or render component fails, the
@@ -126,13 +123,19 @@ Run with default QA:
 bash run_blueprint.sh /path/to/export.zip --label course-review
 ```
 
-Run visual DOCX render QA:
+Advanced maintainer render preview:
 
 ```bash
+./.venv/bin/python -m pip install -r requirements-render.txt
+
 bash run_blueprint.sh /path/to/export.zip \
   --label course-review \
   --render-docx-check
 ```
+
+This conversion proves that LibreOffice can render the file and creates pages
+for manual review. It does not automatically detect clipping, overflow, or
+awkward pagination.
 
 Opt in to live external-link checks:
 
@@ -172,7 +175,7 @@ bash run_blueprint.sh /path/to/export.zip \
 | `--check-external-links` | Fetch and check external URLs during QA. Offline inventory remains the default. |
 | `--external-link-timeout N` | Per-URL timeout in seconds for external-link checks. |
 | `--no-docx` | Produce Markdown and JSON only. |
-| `--render-docx-check` | Render the generated DOCX to PDF/PNG pages in `render_qa/`. |
+| `--render-docx-check` | Advanced maintainer preview: render the DOCX to PDF/PNG pages for human inspection. |
 | `--docx-section-layout top\|left` | DOCX weekly section-label layout; `top` is the default. |
 | `--quiet` | Suppress companion script output. |
 | `--step-timeout N` | Per-step timeout in seconds (default 900; `0` disables). |
@@ -212,8 +215,10 @@ Start with the generated DOCX or Markdown blueprint. Then check the QA report:
 - External links are inventoried by default. They are fetched only when
   `--check-external-links` is used.
 
-For visual layout QA, run `--render-docx-check` and inspect
-`render_qa/render_summary.json` plus the generated PNG pages.
+The default structural DOCX report is the normal verification surface. When a
+renderer, template, or layout change warrants a manual compatibility preview,
+install `requirements-render.txt`, run `--render-docx-check`, and inspect
+`render_qa/render_summary.json` plus the generated pages.
 
 ## Repository Layout
 
@@ -225,6 +230,7 @@ brightspace-blueprint-bundle/
 ├── CHANGELOG.md               <- implementation history
 ├── AGENTS.md                  <- optional maintainer/assistant guidance
 ├── requirements.txt           <- Python dependencies for .venv
+├── requirements-render.txt    <- optional maintainer PDF/PNG preview dependency
 ├── requirements-dev.txt       <- adds pytest for the test suite
 ├── bootstrap.sh               <- macOS/Linux setup
 ├── bootstrap.ps1              <- Windows setup

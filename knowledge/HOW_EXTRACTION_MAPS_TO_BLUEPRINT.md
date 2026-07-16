@@ -57,8 +57,10 @@ structured model to Markdown and DOCX:
 6. **model build** → `<label>__blueprint.json` (see
    `schemas/blueprint_schema.json`).
 7. **render** → `<label>__blueprint.md` and `<label>__blueprint.docx`.
-8. Optional **visual render QA** with `--render-docx-check` →
-   `render_qa/render_summary.json` plus PDF/PNG pages.
+8. Default **structural DOCX QA** →
+   `<label>__docx_structure.{md,json}`.
+9. Explicit maintainer **render preview** with `--render-docx-check` →
+   `render_qa/render_summary.json` plus PDF/PNG pages for human inspection.
 
 ## How each week is assembled
 
@@ -211,8 +213,12 @@ matches; Description and Introduction match by topic title. Empty → `Needs rev
 - **External links are not fetched unless requested.** The QA report inventories
   external URLs offline by default. Use `--check-external-links` for live link
   checks.
-- **DOCX render QA is optional.** Use `--render-docx-check` when LibreOffice,
-  Poppler, and `pdf2image` are available.
+- **Structural DOCX QA is the normal verification path.** It is pure Python and
+  checks the document against the generated model.
+- **The render preview is maintainer-only.** Use `--render-docx-check` only for
+  targeted renderer/template review after installing `requirements-render.txt`,
+  LibreOffice, and Poppler. Conversion success does not automatically prove
+  that page layout is visually correct; inspect the emitted pages.
 - The blueprint is a **review surface**, not an instructional-design approval.
 
 ## Reading the output

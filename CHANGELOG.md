@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-07-16 — v1.2.0 normal runs no longer need LibreOffice
+
+- Pure-Python structural DOCX QA remains default-on and is now the complete
+  normal-run verification path.
+- Removed `pdf2image` from `requirements.txt`; optional preview dependencies
+  live in `requirements-render.txt`.
+- Retained `--render-docx-check` for backward compatibility as an explicit
+  maintainer preview that converts DOCX to PDF/PNG for human inspection.
+- Clarified that conversion success does not automatically detect clipping,
+  overflow, page-break, or layout defects.
+- The local Wizard no longer checks for, offers to install, or asks ordinary
+  users about LibreOffice or Poppler.
+
 ## 2026-07-16 — v1.1.1 rubric QA and partial-delivery hotfix
 
 Published from commit `63efd8d1828533657c6f9a223c38b3d55c746b2e`.

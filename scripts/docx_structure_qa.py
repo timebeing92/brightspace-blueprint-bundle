@@ -7,8 +7,9 @@ structure survived: the package parses, every relationship reference resolves,
 every hyperlink points at a URL the model actually contains, the expected
 tables exist with the expected shape, and the course/week titles are present.
 
-This is the lightweight default check; the LibreOffice/Poppler visual render
-QA (``render_blueprint_docx.py``) remains the optional pixel-level deep pass.
+This is the default normal-run check. The optional LibreOffice/Poppler helper
+(``render_blueprint_docx.py``) is retained only as a maintainer compatibility
+preview whose output pages require human inspection.
 
 Vocabulary matches the course QA report: breaks (structural defects), warnings
 (suspicious but viewable), notes (stats). Exit codes: 0 = no breaks,

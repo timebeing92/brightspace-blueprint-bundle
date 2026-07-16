@@ -12,11 +12,15 @@ the package, reconstructs the course module/page/activity evidence, builds one
 schema-backed JSON model, and renders that same model to Markdown and DOCX.
 
 Runtime dependencies are intentionally small: `openpyxl` writes the
-course-activities workbook, `python-docx` renders DOCX blueprints, and
-`pdf2image` supports optional DOCX visual render QA. They are listed in
-`requirements.txt` and should be installed once into the bundle-local `.venv`,
-not reinstalled for every export. The optional render-QA path also needs
-LibreOffice/`soffice` and Poppler utilities available on the machine.
+course-activities workbook and `python-docx` renders DOCX blueprints. They are
+listed in `requirements.txt` and should be installed once into the bundle-local
+`.venv`, not reinstalled for every export.
+
+The default pure-Python structural DOCX check verifies the rendered package
+against the blueprint model. LibreOffice, Poppler, and `pdf2image` are not
+normal-run dependencies. Maintainers can install `requirements-render.txt` and
+use `--render-docx-check` to create PDF/PNG preview pages for human inspection
+when changing renderer or template behavior.
 
 ## Plain-Language Version
 
@@ -48,8 +52,8 @@ The pipeline then writes a folder of outputs, by default under
 - `<label>__blueprint.json` for the structured data model
 - companion inventory, manifest, structure, activity, workbook, and QA files
   for anyone who wants to audit where the blueprint came from
-- optional `render_qa/` output with PDF/PNG pages and a render summary when
-  `--render-docx-check` is used
+- optional maintainer `render_qa/` output with PDF/PNG pages for human
+  inspection when `--render-docx-check` is explicitly used
 
 The tool does not log in to Brightspace, change the course, upload anything, or
 use AI to fill gaps. If the export does not clearly contain something, the
@@ -86,7 +90,7 @@ order:
 | 8 | Markdown renderer + `blueprint_to_docx.py` | Render the model into human-readable review outputs; the DOCX includes a Rubric Appendix when rubric JSON exists. | `<label>__blueprint.md`, `<label>__blueprint.docx` |
 | 9 | `rubrics_to_docx.py` | Optional: render a standalone human-readable rubric grid document from the same rubric JSON. | `<label>__rubrics.docx` |
 | 10 | `docx_structure_qa.py` | Check the generated DOCX package, relationships, hyperlinks, table count, headings, and optional rubric appendix structure. | `<label>__docx_structure.json`, `<label>__docx_structure.md` |
-| 11 | `render_blueprint_docx.py` | Optional visual QA when `--render-docx-check` is used: convert the generated DOCX to PDF/PNG pages and write a render summary. | `render_qa/` |
+| 11 | `render_blueprint_docx.py` | Explicit maintainer preview only: convert the generated DOCX to PDF/PNG pages for human inspection. | `render_qa/` |
 
 Markdown and DOCX both render from the same JSON model. If those two views ever
 disagree, treat that as a renderer problem, not as two separate sources of
@@ -281,8 +285,11 @@ Known limits:
   No Banner" labels are dropped rather than rendered as page content
 - external links are inventoried offline by default; live link checking is
   opt-in through `--check-external-links`
-- DOCX visual render QA is optional and depends on LibreOffice/`soffice`,
-  Poppler, and `pdf2image`
+- DOCX structural QA is the normal-run verification path and needs no system
+  renderer
+- the advanced render preview depends on `requirements-render.txt`,
+  LibreOffice/`soffice`, and Poppler; its pages are not inspected
+  automatically
 - LTI/external-tool payloads are not deeply interpreted
 - missing learning-objective alignment is not inferred
 

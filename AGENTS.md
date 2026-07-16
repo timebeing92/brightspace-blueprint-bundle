@@ -53,7 +53,8 @@ This is extraction and review, not instructional-content generation.
    appended as a Rubric Appendix in the blueprint DOCX
 10. standalone rubric DOCX rendering unless `--no-docx` is used
 11. structural DOCX QA unless `--skip-docx-structure-check` is used
-12. optional DOCX visual render QA when `--render-docx-check` is used
+12. optional maintainer DOCX render preview when `--render-docx-check` is
+    explicitly used; generated pages require human inspection
 
 Recoverable failures do not suppress an otherwise usable review bundle.
 Independent steps continue, conservative empty-evidence fallbacks are used

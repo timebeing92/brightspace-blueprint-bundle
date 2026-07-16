@@ -1550,7 +1550,11 @@ def write_bundle_readme(
         rubric_lines.append(f"- `{rubrics_docx.name}` (rubric grids DOCX)")
     if not rubric_lines:
         rubric_lines.append("- rubric grids not present in this export")
-    render_qa_line = f"- DOCX render QA in `{render_qa_dir.name}/`" if render_qa_dir else "- DOCX render QA not run"
+    render_qa_line = (
+        f"- advanced DOCX render preview in `{render_qa_dir.name}/`"
+        if render_qa_dir
+        else "- advanced DOCX render preview not requested"
+    )
     path.write_text(
         "\n".join(
             [
@@ -1636,7 +1640,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--render-docx-check",
         action="store_true",
-        help="After DOCX generation, convert it to PDF/PNG pages in render_qa/ and summarize render status",
+        help=(
+            "Advanced maintainer preview: convert the DOCX to PDF/PNG pages for "
+            "human inspection (requires requirements-render.txt, LibreOffice, and Poppler)"
+        ),
     )
     parser.add_argument(
         "--docx-section-layout",
@@ -1716,7 +1723,7 @@ def main(argv: list[str] | None = None) -> int:
         if not args.skip_docx_structure_check:
             step_labels.append("Check DOCX structure")
     if args.render_docx_check:
-        step_labels.append("DOCX visual render check")
+        step_labels.append("Render DOCX preview pages")
     progress = StepProgress(step_labels, events=args.progress_events, run_label=stem)
 
     def record_issue(step: str, message: str, *, status: str = "failed") -> None:
@@ -2043,26 +2050,26 @@ def main(argv: list[str] | None = None) -> int:
                 timeout=step_timeout,
             )
         except subprocess.TimeoutExpired:
-            raise RuntimeError("DOCX visual render QA timed out.")
+            raise RuntimeError("Advanced DOCX render preview timed out.")
         if result.returncode == 0:
             if not args.quiet and result.stdout.strip():
                 print(result.stdout.strip())
             return candidate_dir
         raise RuntimeError(
-            "DOCX visual render QA failed.\n"
+            "Advanced DOCX render preview failed.\n"
             f"STDOUT:\n{result.stdout.strip()}\nSTDERR:\n{result.stderr.strip()}".strip()
         )
 
     render_qa_dir: Path | None = None
     if args.render_docx_check:
         if docx_written:
-            _render_ok, render_qa_dir = run_step("DOCX visual render check", render_check)
+            _render_ok, render_qa_dir = run_step("Render DOCX preview pages", render_check)
         else:
             run_step(
-                "DOCX visual render check",
+                "Render DOCX preview pages",
                 lambda: (_ for _ in ()).throw(
                     RuntimeError(
-                        "DOCX visual render QA could not run because no blueprint DOCX was emitted."
+                        "Advanced DOCX render preview could not run because no blueprint DOCX was emitted."
                     )
                 ),
             )

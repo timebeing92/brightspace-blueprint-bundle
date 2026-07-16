@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
-"""Render a generated blueprint DOCX to PDF and PNG pages for visual QA.
+"""Advanced maintainer preview: render a blueprint DOCX to PDF and PNG pages.
 
 Requires LibreOffice/soffice plus the Python pdf2image package. pdf2image also
-needs Poppler utilities available on PATH.
+needs Poppler utilities available on PATH. Install the optional Python
+dependency with ``pip install -r requirements-render.txt``.
+
+This utility proves that LibreOffice can convert the document and creates pages
+for human inspection. It does not automatically detect clipping, overflow,
+awkward page breaks, or other visual defects. Normal runs should rely on the
+default pure-Python structural DOCX QA instead.
 
 Usage:
     python3 scripts/render_blueprint_docx.py output/course__blueprint.docx
@@ -56,7 +62,10 @@ def render_pdf_pages(pdf: Path, output_dir: Path, dpi: int) -> list[Path]:
     try:
         from pdf2image import convert_from_path
     except ImportError as exc:
-        raise RuntimeError("pdf2image is not installed in this Python environment.") from exc
+        raise RuntimeError(
+            "pdf2image is not installed. This advanced preview is optional; "
+            "install it with: pip install -r requirements-render.txt"
+        ) from exc
 
     output_dir.mkdir(parents=True, exist_ok=True)
     paths = convert_from_path(
