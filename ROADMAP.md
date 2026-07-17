@@ -124,24 +124,28 @@ Backlog items needed before broad catalog intake:
   also emits `<label>__rubrics.docx`. `coursecraft.progress/1` exposes
   `outputs.rubrics_docx`, so runner/web/catalog intake can find the document
   without deriving filenames.
-- **Version activity and structure contracts without over-freezing them.**
+- **Activity and structure contract promotion complete, 2026-07-17.**
   Catalog ingest depends directly on `<label>__course_activities.json` and
-  `<label>__course_structure.json`. Add schemas or explicit contract notes for
-  those shapes, but keep the contracts evolutionary: version the envelope, keep
-  required fields minimal, allow additive optional fields and extension objects,
-  document unknown/diagnostic/stub behavior, and bump versions only when field
-  meaning, join semantics, or required structure changes in a downstream-breaking
-  way.
+  `<label>__course_structure.json`. `coursecraft.activities/1` and
+  `coursecraft.structure/1` now version those envelopes while keeping
+  required fields minimal. They allow additive optional fields and extension
+  objects, document unknown/diagnostic/stub behavior, and require a version bump
+  only when field meaning, join semantics, or required structure changes in a
+  downstream-breaking way.
 - **Make artifact discovery explicit.** Continue expanding
   `coursecraft.progress/1` `run_end.outputs` when new catalog-relevant
   artifacts are added, so intake tools do not glob. Rubric paths are now
   explicit.
-- **Expose run identity.** Provide enough version data for the catalog
-  `ingest_runs.script_versions` field and future refresh matching: bundle
+- **Run identity promotion complete, 2026-07-17.** The bundle emits
+  `<label>__run_identity.json` (`coursecraft.run/1`) and exposes it through
+  `coursecraft.progress/1` `run_end.outputs.run_identity`. It supplies the
+  Catalog's `ingest_runs.script_versions` field and future refresh matching:
+  bundle
   release tag and/or git SHA, schema versions, source export/package identity,
   emitted artifact list, optional step status, and any workbench-origin contract
-  version. This can be a separate `run_identity.json`, an explicit
-  `coursecraft.progress/1` `run_end` block, or both.
+  version. The receipt survives recoverable component failures, records
+  partial/failed steps and conservative fallback artifacts, and checksum-binds
+  the post-run bundle without hashing itself.
 - **Keep LTI honest.** Continue surfacing LTI/external-tool links as typed
   structure facts with provenance. Rich vendor/tool semantics belong only after
   upstream evidence exists; downstream catalog views can label the stubs.

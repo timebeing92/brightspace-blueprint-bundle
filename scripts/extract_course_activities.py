@@ -47,6 +47,12 @@ from common_xml import (
     resolve_export_root,
     safe_label,
 )
+from course_artifact_contracts import (
+    annotate_activity_payload,
+    load_source_identity,
+    new_run_id,
+    validate_contract,
+)
 from reconstruct_course_structure import html_fragment_to_blocks
 
 
@@ -910,15 +916,30 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Where to write outputs (default: <repo>/workspace/review)",
     )
+    parser.add_argument("--run-id", default="", help="Optional shared coursecraft run ID supplied by an orchestrator.")
+    parser.add_argument(
+        "--source-identity",
+        type=Path,
+        default=None,
+        help="Optional precomputed source-identity JSON supplied by an orchestrator.",
+    )
     args = parser.parse_args(argv)
 
     holder: list = []
-    root = load_export_root(args.export.expanduser().resolve(), holder)
+    source_arg = args.export.expanduser().resolve()
+    root = load_export_root(source_arg, holder)
     root, _manifest_path = resolve_export_root(root)
     label = args.label or safe_label(args.export.stem if args.export.is_file() else args.export.name)
 
     diagnostics: list[str] = []
-    export_identity = load_export_identity(args.export.expanduser().resolve(), root, diagnostics)
+    export_identity = load_export_identity(source_arg, root, diagnostics)
+    source_identity = load_source_identity(
+        args.source_identity.expanduser().resolve() if args.source_identity else None,
+        source_arg=source_arg,
+        logical_root=root,
+        observed_identity=export_identity,
+    )
+    run_id = args.run_id or new_run_id()
     grade_items, grade_by_code = load_grade_items(root, diagnostics)
     rubric_names = load_rubric_names(root, diagnostics)
     condition_codes = load_condition_sets(root, diagnostics)
@@ -941,26 +962,29 @@ def main(argv: list[str] | None = None) -> int:
     md_path = output_dir / f"{stem}.md"
 
     write_workbook(xlsx_path, folders, discussion_rows, checklists, quizzes, grade_items, joins, diagnostics)
-    json_path.write_text(
-        json.dumps(
-            {
-                "export": str(args.export),
-                "label": label,
-                "export_identity": export_identity,
-                "condition_sets": condition_sets,
-                "dropbox_folders": folders,
-                "discussions": discussion_rows,
-                "checklists": checklists,
-                "quizzes": quizzes,
-                "grade_items": grade_items,
-                "joins": joins,
-                "diagnostics": diagnostics,
-            },
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
+    payload = annotate_activity_payload(
+        {
+            "schema": "coursecraft.activities/1",
+            "run_id": run_id,
+            "source": source_identity,
+            "export": str(args.export),
+            "label": label,
+            "export_identity": export_identity,
+            "condition_sets": condition_sets,
+            "dropbox_folders": folders,
+            "discussions": discussion_rows,
+            "checklists": checklists,
+            "quizzes": quizzes,
+            "grade_items": grade_items,
+            "joins": joins,
+            "diagnostics": diagnostics,
+            "extensions": {},
+        }
     )
+    contract_errors = [issue.render() for issue in validate_contract(payload) if issue.severity == "error"]
+    if contract_errors:
+        raise SystemExit("error: coursecraft.activities/1 validation failed:\n" + "\n".join(contract_errors))
+    json_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     md_path.write_text(
         render_markdown(label, folders, discussion_rows, checklists, quizzes, grade_items, joins, diagnostics),
         encoding="utf-8",
@@ -972,6 +996,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"quizzes: {len(quizzes)}")
     print(f"grade items: {len(grade_items)}")
     print(f"diagnostics: {len(diagnostics)}")
+    print("schema: coursecraft.activities/1")
+    print(f"run id: {run_id}")
     print(f"workbook: {xlsx_path}")
     print(f"json: {json_path}")
     print(f"note: {md_path}")

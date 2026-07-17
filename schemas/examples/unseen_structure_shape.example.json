@@ -1,0 +1,70 @@
+{
+  "schema": "coursecraft.structure/1",
+  "run_id": "cc:run:example-structure",
+  "source": {
+    "source_lineage_key": "cc:lineage:11111111111111111111111111111111",
+    "source_instance_key": "cc:source:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "lineage_state": "resolved",
+    "lineage_basis": "orgunit_identifier",
+    "source_name": "sanitized-example-export",
+    "logical_fingerprint": {
+      "algorithm": "sha256",
+      "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "scope": "logical_file_set",
+      "file_count": 2,
+      "bytes": 210,
+      "extensions": {}
+    },
+    "transport_fingerprint": null,
+    "observed_identity": {"orgunit_identifier": "example-course-lineage"},
+    "extensions": {}
+  },
+  "export": "sanitized-example-export",
+  "label": "unseen_structure_shape",
+  "kind_counts": {"module": 1, "vendor_interactive_container": 1},
+  "tree": [
+    {
+      "entity_key": "cc:entity:44444444444444444444444444444444",
+      "identity": {
+        "quality": "scoped_source_id",
+        "basis": "identifier",
+        "source_lineage_key": "cc:lineage:11111111111111111111111111111111",
+        "source_aliases": [{"kind": "identifier", "value": "MODULE-1"}],
+        "extensions": {}
+      },
+      "kind": "module",
+      "title": "Example Module",
+      "parent_entity_key": null,
+      "children": [
+        {
+          "entity_key": "cc:entity:55555555555555555555555555555555",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifierref",
+            "source_lineage_key": "cc:lineage:11111111111111111111111111111111",
+            "source_aliases": [{"kind": "identifierref", "value": "RES-FUTURE-1"}],
+            "extensions": {}
+          },
+          "kind": "vendor_interactive_container",
+          "source_kind": "VendorBranchingContent",
+          "title": "Unseen Interactive",
+          "parent_entity_key": "cc:entity:44444444444444444444444444444444",
+          "children": [],
+          "raw_manifest_attributes": {"future_visibility_rule": "conditional"},
+          "extensions": {"vendor.example": {"launch_shape": "not_yet_interpreted"}}
+        }
+      ],
+      "extensions": {}
+    }
+  ],
+  "html_topics": [],
+  "diagnostics": [
+    {
+      "severity": "info",
+      "code": "unseen_structure_kind_retained",
+      "message": "The node remains in the tree with its source kind and raw attributes."
+    }
+  ],
+  "extensions": {"coursecraft.example": {"purpose": "forward-compatible structure kind"}},
+  "future_navigation_evidence": {"raw_reference": "evidence/navigation-1.xml"}
+}

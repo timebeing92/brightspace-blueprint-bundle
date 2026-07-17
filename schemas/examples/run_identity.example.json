@@ -1,0 +1,82 @@
+{
+  "schema": "coursecraft.run/1",
+  "run_id": "cc:run:example-receipt",
+  "status": "partial",
+  "started_at": "2026-07-15T20:00:00Z",
+  "finished_at": "2026-07-15T20:01:00Z",
+  "source": {
+    "source_lineage_key": "cc:lineage:11111111111111111111111111111111",
+    "source_instance_key": "cc:source:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "lineage_state": "unresolved",
+    "lineage_basis": "logical_fingerprint",
+    "source_name": "sanitized-example-export",
+    "logical_fingerprint": {
+      "algorithm": "sha256",
+      "digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "scope": "logical_file_set",
+      "file_count": 1,
+      "bytes": 100,
+      "extensions": {}
+    },
+    "transport_fingerprint": null,
+    "observed_identity": {},
+    "extensions": {}
+  },
+  "producer": {
+    "component": "coursecraft_workbench",
+    "identity_state": "git",
+    "version": null,
+    "repository": "https://github.com/example/coursecraft-workbench.git",
+    "ref": "example-branch",
+    "commit": "0123456789abcdef0123456789abcdef01234567",
+    "dirty": false,
+    "extensions": {}
+  },
+  "contracts": [
+    {
+      "schema": "coursecraft.run/1",
+      "schema_path": "workspace/reference/schemas/course/run_identity_schema.json",
+      "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "extensions": {}
+    }
+  ],
+  "parameters": {"docx_requested": false},
+  "steps": [
+    {
+      "name": "course_structure",
+      "status": "completed",
+      "started_at": "2026-07-15T20:00:10Z",
+      "finished_at": "2026-07-15T20:00:20Z",
+      "artifact_paths": ["example__course_structure.json"],
+      "diagnostic_ids": [],
+      "notes": [],
+      "extensions": {}
+    },
+    {
+      "name": "course_qa",
+      "status": "skipped",
+      "started_at": null,
+      "finished_at": null,
+      "artifact_paths": [],
+      "diagnostic_ids": [],
+      "notes": ["Skipped by command option."],
+      "extensions": {}
+    },
+    {
+      "name": "docx_render_check",
+      "status": "unresolved",
+      "started_at": "2026-07-15T20:00:30Z",
+      "finished_at": "2026-07-15T20:01:00Z",
+      "artifact_paths": [],
+      "diagnostic_ids": ["renderer_unavailable"],
+      "notes": ["The optional renderer was not available."],
+      "extensions": {}
+    }
+  ],
+  "emitted_files": [],
+  "receipt_path": "example__run_identity.json",
+  "diagnostics": [
+    {"severity": "warning", "code": "renderer_unavailable", "message": "Optional visual rendering was not completed."}
+  ],
+  "extensions": {"coursecraft.live_brightspace_operations": "not_performed"}
+}

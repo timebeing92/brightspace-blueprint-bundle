@@ -1,0 +1,76 @@
+{
+  "schema": "coursecraft.activities/1",
+  "run_id": "cc:run:example-activity",
+  "source": {
+    "source_lineage_key": "cc:lineage:11111111111111111111111111111111",
+    "source_instance_key": "cc:source:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "lineage_state": "resolved",
+    "lineage_basis": "orgunit_identifier",
+    "source_name": "sanitized-example-export",
+    "logical_fingerprint": {
+      "algorithm": "sha256",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "scope": "logical_file_set",
+      "file_count": 3,
+      "bytes": 420,
+      "extensions": {}
+    },
+    "transport_fingerprint": null,
+    "observed_identity": {"orgunit_identifier": "example-course-lineage"},
+    "extensions": {}
+  },
+  "export": "sanitized-example-export",
+  "label": "unseen_activity_shape",
+  "export_identity": {"orgunit_identifier": "example-course-lineage"},
+  "condition_sets": [],
+  "dropbox_folders": [],
+  "discussions": [],
+  "checklists": [],
+  "quizzes": [
+    {
+      "entity_key": "cc:entity:22222222222222222222222222222222",
+      "identity": {
+        "quality": "observed_reference",
+        "basis": "source_file",
+        "source_lineage_key": "cc:lineage:11111111111111111111111111111111",
+        "source_aliases": [{"kind": "source_file", "value": "activity_vendor_1.xml"}],
+        "extensions": {}
+      },
+      "kind": "adaptive_scenario",
+      "source_kind": "VendorAdaptiveScenarioV9",
+      "raw_evidence": {"preserved_fragment": "evidence/vendor-adaptive-1.xml"},
+      "extensions": {
+        "vendor.example": {"branch_count": 4, "scoring_shape": "not_yet_interpreted"}
+      }
+    }
+  ],
+  "grade_items": [],
+  "joins": [
+    {
+      "relationship_key": "cc:relationship:33333333333333333333333333333333",
+      "source_entity_key": null,
+      "target_entity_key": null,
+      "identity": {
+        "quality": "evidence_only",
+        "source_lineage_key": "cc:lineage:11111111111111111111111111111111",
+        "basis": ["raw_source", "raw_target"],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      },
+      "join_type": "vendor_depends_on",
+      "resolved": "UNKNOWN",
+      "extensions": {"vendor.example": {"raw_target": "future-object-7"}}
+    }
+  ],
+  "diagnostics": [
+    {
+      "severity": "info",
+      "code": "unseen_activity_shape_retained",
+      "message": "The source shape is preserved without claiming normalized semantics."
+    }
+  ],
+  "extensions": {"coursecraft.example": {"purpose": "forward-compatible unknown shape"}},
+  "future_typed_activity_collection": [
+    {"source_kind": "FutureEvidenceObject", "raw_reference": "evidence/future-1.xml"}
+  ]
+}

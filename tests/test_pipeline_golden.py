@@ -66,7 +66,25 @@ def test_text_artifact_matches_golden(golden_run, name):
 def test_json_artifact_matches_golden(golden_run, name):
     produced = json.loads((golden_run.bundle_dir / name).read_text(encoding="utf-8"))
     expected = json.loads((EXPECTED_BUNDLE / name).read_text(encoding="utf-8"))
+    if name in {
+        "sample_course__course_structure.json",
+        "sample_course__course_activities.json",
+    }:
+        produced["run_id"] = "<run-id>"
+        expected["run_id"] = "<run-id>"
     assert produced == expected
+
+
+def test_run_identity_is_valid_and_verifies(golden_run):
+    from scripts.course_artifact_contracts import validate_contract, verify_run_identity
+
+    receipt = json.loads(
+        (golden_run.bundle_dir / "sample_course__run_identity.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert [issue.render() for issue in validate_contract(receipt) if issue.severity == "error"] == []
+    assert verify_run_identity(receipt, golden_run.bundle_dir) == []
 
 
 @pytest.mark.parametrize("name", BINARY_ARTIFACTS)

@@ -77,6 +77,9 @@ files are:
 - `<label>__pipeline_status.md` and `.json` - completion or partial-delivery
   status, successful artifacts, failed/degraded components, and review
   guidance. Start here when a run is marked `partial`.
+- `<label>__run_identity.json` - portable `coursecraft.run/1` receipt recording
+  logical and transport source fingerprints, producer release/commit, contract
+  checksums, step outcomes, emitted files, and artifact checksums.
 - `README.md` - short per-run guide to the generated files.
 - `render_qa/` - advanced maintainer PDF/PNG preview output when explicitly
   requested.
@@ -111,6 +114,11 @@ unresolved evidence; it is never interpreted as proof that the source course
 lacked that component. Malformed or unfamiliar rubric JSON is retained as
 `<label>__rubrics_unparsed.json` instead of being discarded or passed into the
 DOCX renderer as if it were valid.
+Activity and structure JSON use the additive `coursecraft.activities/1` and
+`coursecraft.structure/1` envelopes. Unknown vendor kinds and future fields
+remain allowable evidence; breaking field meaning or join semantics requires a
+new contract version. Both artifacts share the run and source identity recorded
+in `coursecraft.run/1`, including on conservative partial-delivery fallbacks.
 Detected source callouts, notes, cards, and styled highlight sections are kept
 as review cues; when the source HTML wraps a full section, the generated
 Markdown/DOCX wraps the section content, not only the callout title.
@@ -239,8 +247,11 @@ brightspace-blueprint-bundle/
 ├── tests/                     <- pytest suite (golden run over examples/ + unit tests)
 ├── knowledge/                 <- pipeline and Brightspace package references
 ├── schemas/blueprint_schema.json
+├── schemas/activities_schema.json
 ├── schemas/progress_events_schema.json
+├── schemas/run_identity_schema.json
 ├── schemas/rubrics_schema.json
+├── schemas/structure_schema.json
 └── examples/                  <- sample export, worked output, config example
 ```
 

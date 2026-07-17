@@ -1,0 +1,436 @@
+{
+  "schema": "coursecraft.run/1",
+  "run_id": "cc:run:aee2e011-f747-452c-9a20-3b67ff7921f3",
+  "status": "ok",
+  "started_at": "2026-07-17T12:22:37.261192Z",
+  "finished_at": "2026-07-17T12:22:38.515164Z",
+  "source": {
+    "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+    "source_instance_key": "cc:source:d08688cdb116c668b097ac3ef673567150a0001f8bf2b0128cb5f49298a20e36",
+    "lineage_state": "unresolved",
+    "lineage_basis": "logical_fingerprint",
+    "source_name": "sample_export.zip",
+    "logical_fingerprint": {
+      "algorithm": "sha256",
+      "digest": "d08688cdb116c668b097ac3ef673567150a0001f8bf2b0128cb5f49298a20e36",
+      "scope": "logical_file_set",
+      "file_count": 30,
+      "bytes": 21857,
+      "extensions": {
+        "skipped_symlink_count": 0
+      }
+    },
+    "transport_fingerprint": {
+      "algorithm": "sha256",
+      "digest": "8d3f30d12ce71cd75551b40407b59ba52525cebdec61266ca67f852a39f0d64f",
+      "scope": "transport_file",
+      "bytes": 11538,
+      "extensions": {}
+    },
+    "observed_identity": {
+      "source_name": "sample_export.zip",
+      "org_unit_id": null,
+      "course_code": null,
+      "export_timestamp": null,
+      "orgunit_identifier": null,
+      "orgunit_code": null,
+      "orgunit_name": null
+    },
+    "extensions": {}
+  },
+  "producer": {
+    "component": "brightspace-blueprint-bundle",
+    "identity_state": "git",
+    "version": null,
+    "repository": "https://github.com/timebeing92/brightspace-blueprint-bundle.git",
+    "ref": "promote-run-identity",
+    "commit": "231d6dcfccfb46e5d65abd2039aaedcee63bd114",
+    "dirty": true,
+    "extensions": {}
+  },
+  "contracts": [
+    {
+      "schema": "coursecraft.activities/1",
+      "schema_path": "schemas/activities_schema.json",
+      "sha256": "8704770eb98cd9993a5e12235270ef9fae53f306b406023ab950b92c1e8c8f1c",
+      "extensions": {}
+    },
+    {
+      "schema": "coursecraft.blueprint/4",
+      "schema_path": "schemas/blueprint_schema.json",
+      "sha256": "419a6ba45c4ef95478713a62a7e796edc226967a91e309600bf8dc8136071041",
+      "extensions": {}
+    },
+    {
+      "schema": "coursecraft.rubrics/1",
+      "schema_path": "schemas/rubrics_schema.json",
+      "sha256": "8997f8546d803070ec6d38235a25563d3b63a71210b09fb444ed5690ecf3a0b6",
+      "extensions": {}
+    },
+    {
+      "schema": "coursecraft.run/1",
+      "schema_path": "schemas/run_identity_schema.json",
+      "sha256": "d6477e72881b4ca2a6c182f110c9cba300949f3176c1898605491449b0c7de3d",
+      "extensions": {}
+    },
+    {
+      "schema": "coursecraft.structure/1",
+      "schema_path": "schemas/structure_schema.json",
+      "sha256": "858bcca803a5d67b99fb4cdbf348a15096436136ad2f9ef37795aae7cd5c0272",
+      "extensions": {}
+    }
+  ],
+  "parameters": {
+    "qa_requested": true,
+    "external_link_checks_requested": false,
+    "docx_requested": true,
+    "docx_structure_check_requested": true,
+    "docx_render_check_requested": false,
+    "docx_section_layout": "top"
+  },
+  "steps": [
+    {
+      "name": "Establish source identity",
+      "status": "completed",
+      "started_at": "2026-07-17T12:22:37.261192Z",
+      "finished_at": "2026-07-17T12:22:37.270394Z",
+      "artifact_paths": [],
+      "diagnostic_ids": [],
+      "notes": [],
+      "extensions": {}
+    },
+    {
+      "name": "Inventory export files",
+      "status": "completed",
+      "started_at": "2026-07-17T12:22:37.270407Z",
+      "finished_at": "2026-07-17T12:22:37.319813Z",
+      "artifact_paths": [
+        "sample_export__inventory.json",
+        "sample_export__inventory.md"
+      ],
+      "diagnostic_ids": [],
+      "notes": [],
+      "extensions": {}
+    },
+    {
+      "name": "Probe manifest",
+      "status": "completed",
+      "started_at": "2026-07-17T12:22:37.320151Z",
+      "finished_at": "2026-07-17T12:22:37.373460Z",
+      "artifact_paths": [
+        "sample_export__manifest_probe.json",
+        "sample_export__manifest_probe.md"
+      ],
+      "diagnostic_ids": [],
+      "notes": [],
+      "extensions": {}
+    },
+    {
+      "name": "Reconstruct course structure",
+      "status": "completed",
+      "started_at": "2026-07-17T12:22:37.373815Z",
+      "finished_at": "2026-07-17T12:22:37.525162Z",
+      "artifact_paths": [
+        "sample_course__course_structure.json",
+        "sample_course__course_structure.md"
+      ],
+      "diagnostic_ids": [],
+      "notes": [],
+      "extensions": {}
+    },
+    {
+      "name": "Extract course activities",
+      "status": "completed",
+      "started_at": "2026-07-17T12:22:37.525524Z",
+      "finished_at": "2026-07-17T12:22:37.765697Z",
+      "artifact_paths": [
+        "sample_course__course_activities.json",
+        "sample_course__course_activities.md",
+        "sample_course__course_activities.xlsx"
+      ],
+      "diagnostic_ids": [],
+      "notes": [],
+      "extensions": {}
+    },
+    {
+      "name": "Extract rubrics",
+      "status": "completed",
+      "started_at": "2026-07-17T12:22:37.766090Z",
+      "finished_at": "2026-07-17T12:22:37.902072Z",
+      "artifact_paths": [
+        "sample_course__rubrics.json",
+        "sample_course__rubrics.xlsx"
+      ],
+      "diagnostic_ids": [],
+      "notes": [],
+      "extensions": {}
+    },
+    {
+      "name": "Run QA report",
+      "status": "completed",
+      "started_at": "2026-07-17T12:22:37.902415Z",
+      "finished_at": "2026-07-17T12:22:38.072072Z",
+      "artifact_paths": [
+        "sample_course__course_qa.json",
+        "sample_course__course_qa.md"
+      ],
+      "diagnostic_ids": [],
+      "notes": [],
+      "extensions": {}
+    },
+    {
+      "name": "Assemble blueprint model and Markdown",
+      "status": "completed",
+      "started_at": "2026-07-17T12:22:38.072489Z",
+      "finished_at": "2026-07-17T12:22:38.110880Z",
+      "artifact_paths": [
+        "sample_course__blueprint.json",
+        "sample_course__blueprint.md",
+        "sample_course__cps_blueprint.md"
+      ],
+      "diagnostic_ids": [],
+      "notes": [],
+      "extensions": {}
+    },
+    {
+      "name": "Render DOCX",
+      "status": "completed",
+      "started_at": "2026-07-17T12:22:38.110976Z",
+      "finished_at": "2026-07-17T12:22:38.290597Z",
+      "artifact_paths": [
+        "sample_course__blueprint.docx"
+      ],
+      "diagnostic_ids": [],
+      "notes": [],
+      "extensions": {}
+    },
+    {
+      "name": "Render rubrics DOCX",
+      "status": "completed",
+      "started_at": "2026-07-17T12:22:38.290774Z",
+      "finished_at": "2026-07-17T12:22:38.405180Z",
+      "artifact_paths": [
+        "sample_course__rubrics.docx"
+      ],
+      "diagnostic_ids": [],
+      "notes": [],
+      "extensions": {}
+    },
+    {
+      "name": "Check DOCX structure",
+      "status": "completed",
+      "started_at": "2026-07-17T12:22:38.405370Z",
+      "finished_at": "2026-07-17T12:22:38.514108Z",
+      "artifact_paths": [
+        "sample_course__docx_structure.json",
+        "sample_course__docx_structure.md"
+      ],
+      "diagnostic_ids": [],
+      "notes": [],
+      "extensions": {}
+    },
+    {
+      "name": "Render DOCX preview pages",
+      "status": "skipped",
+      "started_at": null,
+      "finished_at": null,
+      "artifact_paths": [],
+      "diagnostic_ids": [],
+      "notes": [
+        "Advanced render preview was not requested."
+      ],
+      "extensions": {}
+    }
+  ],
+  "emitted_files": [
+    {
+      "path": "README.md",
+      "bytes": 990,
+      "sha256": "3389a772132a2c78cd37d311b12b3683fc4843c95e6599d663f30fa48ea59cba",
+      "media_type": "text/markdown",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__blueprint.docx",
+      "bytes": 41791,
+      "sha256": "84696774298c1a64a66bf6ccda6574553d2b45f28d379a910a79cb3f19cfb8dd",
+      "media_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__blueprint.json",
+      "bytes": 31319,
+      "sha256": "c732e5f65d1ebceb0ada85e56147c0cbfcfb657118c80386b438862c28d15bac",
+      "media_type": "application/json",
+      "contract": "coursecraft.blueprint/4",
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__blueprint.md",
+      "bytes": 10501,
+      "sha256": "42c49e15e3ca10b380a47cc40b155689382938175fd79dcea911905f451c5680",
+      "media_type": "text/markdown",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__course_activities.json",
+      "bytes": 41720,
+      "sha256": "658fb9a3fd2b7a79ead69f2d03665dc9e1c0fe14219c5c5a5143a6be6b37d08e",
+      "media_type": "application/json",
+      "contract": "coursecraft.activities/1",
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__course_activities.md",
+      "bytes": 477,
+      "sha256": "2fa44e6c65aa70ead0f7dff9708c087715c5325c0f95789ffbb3d260f3b1a235",
+      "media_type": "text/markdown",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__course_activities.xlsx",
+      "bytes": 11867,
+      "sha256": "c159ec9ecddc5da29e79d9447bc311d6e33f6ca4d34f00eb6d8460124328b636",
+      "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__course_qa.json",
+      "bytes": 1872,
+      "sha256": "9b173a423d619e50780833e44925cb052953568f6906e56a0fc391580988ef72",
+      "media_type": "application/json",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__course_qa.md",
+      "bytes": 1917,
+      "sha256": "33e6aa6f239801663212c5320f7db4839373abcaeda079cb00f87d176caeb9f8",
+      "media_type": "text/markdown",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__course_structure.json",
+      "bytes": 70658,
+      "sha256": "393504684ee1d62e16cdaf7ea8a02742946c65a6d202e190221333f511c49180",
+      "media_type": "application/json",
+      "contract": "coursecraft.structure/1",
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__course_structure.md",
+      "bytes": 2793,
+      "sha256": "954c6d310fbfe40c471a3af021ea08c04529a433c5d7d7414eb08fc6fba23eea",
+      "media_type": "text/markdown",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__cps_blueprint.md",
+      "bytes": 10501,
+      "sha256": "42c49e15e3ca10b380a47cc40b155689382938175fd79dcea911905f451c5680",
+      "media_type": "text/markdown",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__docx_structure.json",
+      "bytes": 557,
+      "sha256": "dbe1092cfc56e9ae41edd4114a3db61b24a8727f87f99912d72d0c8ec69c857b",
+      "media_type": "application/json",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__docx_structure.md",
+      "bytes": 396,
+      "sha256": "194c791e730240b00a4820d9d75ba22aa21c9c4bd20d6a399418c1123f93ad7b",
+      "media_type": "text/markdown",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__pipeline_status.json",
+      "bytes": 1178,
+      "sha256": "eec34b09539b4af22e818bed8cf4626fb0892ea15fa8a5ec38208d6a95cbe2bf",
+      "media_type": "application/json",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__pipeline_status.md",
+      "bytes": 1001,
+      "sha256": "fe210611d3f8a4b7613bbf9f782335ffb5def3e403135a50bfa5f9b826e7c3e7",
+      "media_type": "text/markdown",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__rubrics.docx",
+      "bytes": 37580,
+      "sha256": "046aa5d93ebc7d10bf13685f5f66012c5fbd21131a7498c7ae344a004dd26574",
+      "media_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__rubrics.json",
+      "bytes": 2663,
+      "sha256": "eaf1fea78f741fa212c003882e81501d6c65f7ffe71aeebb28ab24f2b0fe4d4d",
+      "media_type": "application/json",
+      "contract": "coursecraft.rubrics/1",
+      "extensions": {}
+    },
+    {
+      "path": "sample_course__rubrics.xlsx",
+      "bytes": 6014,
+      "sha256": "8951b71d8be2e21b9744ea917dcb287f8c58dc21970ab9c7616ae6d5d018ef89",
+      "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_export__inventory.json",
+      "bytes": 2979,
+      "sha256": "ac2a4f69864c18816df6c05545fba005117f74f437d53b1e04e12661d3b24124",
+      "media_type": "application/json",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_export__inventory.md",
+      "bytes": 1803,
+      "sha256": "c8e8e3361b613413ce735716a6272fafb579e409150ff80c0f4606d5b5da5e4c",
+      "media_type": "text/markdown",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_export__manifest_probe.json",
+      "bytes": 8805,
+      "sha256": "890121eee4773ffb293ab109411c892f1c763eceeb4ffa11b1a2156d6d6ddaa8",
+      "media_type": "application/json",
+      "contract": null,
+      "extensions": {}
+    },
+    {
+      "path": "sample_export__manifest_probe.md",
+      "bytes": 4650,
+      "sha256": "1b51959b12fb33bce80afe683f0bf76aab7a9cd224ad98b952ca9e7bf0a02356",
+      "media_type": "text/markdown",
+      "contract": null,
+      "extensions": {}
+    }
+  ],
+  "receipt_path": "sample_course__run_identity.json",
+  "diagnostics": [],
+  "extensions": {
+    "coursecraft.live_brightspace_operations": "not_performed"
+  }
+}

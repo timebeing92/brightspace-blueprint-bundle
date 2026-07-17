@@ -15,8 +15,11 @@ from urllib.parse import urlsplit, urlunsplit
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_FILES = (
+    "schemas/activities_schema.json",
     "schemas/blueprint_schema.json",
+    "schemas/run_identity_schema.json",
     "schemas/rubrics_schema.json",
+    "schemas/structure_schema.json",
     "schemas/progress_events_schema.json",
 )
 

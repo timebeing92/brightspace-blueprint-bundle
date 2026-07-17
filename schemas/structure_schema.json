@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "coursecraft.structure/1",
+  "title": "CourseCraft Course Structure",
+  "description": "Additive evidence contract over the established manifest tree and extracted HTML topics.",
+  "type": "object",
+  "required": [
+    "schema", "run_id", "source", "export", "label", "kind_counts",
+    "tree", "html_topics", "diagnostics", "extensions"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schema": {"const": "coursecraft.structure/1"},
+    "run_id": {"type": "string", "pattern": "^cc:run:"},
+    "source": {"$ref": "#/definitions/sourceIdentity"},
+    "export": {"type": "string"},
+    "label": {"type": "string"},
+    "kind_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "tree": {"type": "array", "items": {"$ref": "#/definitions/node"}},
+    "html_topics": {"type": "array", "items": {"$ref": "#/definitions/entity"}},
+    "diagnostics": {"type": "array", "items": {"$ref": "#/definitions/diagnostic"}},
+    "extensions": {"type": "object", "additionalProperties": true}
+  },
+  "definitions": {
+    "fingerprint": {
+      "type": "object",
+      "required": ["algorithm", "digest", "scope", "bytes", "extensions"],
+      "additionalProperties": true,
+      "properties": {
+        "algorithm": {"const": "sha256"},
+        "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "scope": {"type": "string", "minLength": 1},
+        "file_count": {"type": "integer", "minimum": 0},
+        "bytes": {"type": "integer", "minimum": 0},
+        "extensions": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "sourceIdentity": {
+      "type": "object",
+      "required": [
+        "source_lineage_key", "source_instance_key", "lineage_state",
+        "lineage_basis", "source_name", "logical_fingerprint",
+        "transport_fingerprint", "observed_identity", "extensions"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "source_lineage_key": {"type": "string", "pattern": "^cc:lineage:"},
+        "source_instance_key": {"type": "string", "pattern": "^cc:source:"},
+        "lineage_state": {"enum": ["resolved", "unresolved"]},
+        "lineage_basis": {"type": "string", "minLength": 1},
+        "source_name": {"type": "string"},
+        "logical_fingerprint": {"$ref": "#/definitions/fingerprint"},
+        "transport_fingerprint": {"oneOf": [{"$ref": "#/definitions/fingerprint"}, {"type": "null"}]},
+        "observed_identity": {"type": "object", "additionalProperties": true},
+        "extensions": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "identity": {
+      "type": "object",
+      "required": ["quality", "basis", "source_lineage_key", "source_aliases", "extensions"],
+      "additionalProperties": true,
+      "properties": {
+        "quality": {"enum": ["durable_source_id", "scoped_source_id", "observed_reference", "fallback", "unresolved"]},
+        "basis": {"type": "string", "minLength": 1},
+        "source_lineage_key": {"type": "string", "pattern": "^cc:lineage:"},
+        "source_aliases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "value"],
+            "additionalProperties": true,
+            "properties": {"kind": {"type": "string"}, "value": {"type": "string"}}
+          }
+        },
+        "extensions": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "entity": {
+      "type": "object",
+      "required": ["entity_key", "identity"],
+      "additionalProperties": true,
+      "properties": {
+        "entity_key": {"type": "string", "pattern": "^cc:entity:"},
+        "identity": {"$ref": "#/definitions/identity"}
+      }
+    },
+    "node": {
+      "allOf": [
+        {"$ref": "#/definitions/entity"},
+        {
+          "type": "object",
+          "required": ["kind", "children", "parent_entity_key"],
+          "additionalProperties": true,
+          "properties": {
+            "kind": {"type": "string", "minLength": 1},
+            "parent_entity_key": {"type": ["string", "null"]},
+            "children": {"type": "array", "items": {"$ref": "#/definitions/node"}}
+          }
+        }
+      ]
+    },
+    "diagnostic": {"oneOf": [{"type": "string"}, {"type": "object", "additionalProperties": true}]}
+  }
+}

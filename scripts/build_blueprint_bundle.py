@@ -35,6 +35,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -46,6 +47,17 @@ from common_xml import (
     safe_label,
     should_divide_labeled_sections,
     xml_safe_text,
+)
+from course_artifact_contracts import (
+    annotate_activity_payload,
+    annotate_structure_payload,
+    build_run_identity,
+    build_source_identity,
+    build_unreadable_source_identity,
+    new_run_id,
+    utc_now,
+    validate_contract,
+    verify_run_identity,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -147,37 +159,69 @@ def rubrics_count(path: Path | None) -> int:
     return len(rubrics) if isinstance(rubrics, list) else 0
 
 
-def fallback_structure_payload(export: str, label: str, message: str) -> dict:
-    return {
-        "export": export,
-        "label": label,
-        "kind_counts": {},
-        "tree": [],
-        "html_topics": [],
-        "diagnostics": [
-            "PARTIAL EXTRACTION: course structure could not be parsed; "
-            f"a minimal review surface was used instead. {message}"
-        ],
-    }
+def fallback_structure_payload(
+    export: str,
+    label: str,
+    message: str,
+    *,
+    run_id: str,
+    source: dict,
+) -> dict:
+    return annotate_structure_payload(
+        {
+            "schema": "coursecraft.structure/1",
+            "run_id": run_id,
+            "source": source,
+            "export": export,
+            "label": label,
+            "kind_counts": {},
+            "tree": [],
+            "html_topics": [],
+            "diagnostics": [
+                "PARTIAL EXTRACTION: course structure could not be parsed; "
+                f"a minimal review surface was used instead. {message}"
+            ],
+            "extensions": {"coursecraft.partial_delivery": True},
+        }
+    )
 
 
-def fallback_activities_payload(export: str, label: str, message: str) -> dict:
-    return {
-        "export": export,
-        "label": label,
-        "export_identity": {},
-        "condition_sets": [],
-        "dropbox_folders": [],
-        "discussions": [],
-        "checklists": [],
-        "quizzes": [],
-        "grade_items": [],
-        "joins": [],
-        "diagnostics": [
-            "PARTIAL EXTRACTION: course activities could not be parsed; "
-            f"empty activity collections were used instead. {message}"
-        ],
-    }
+def fallback_activities_payload(
+    export: str,
+    label: str,
+    message: str,
+    *,
+    run_id: str,
+    source: dict,
+) -> dict:
+    return annotate_activity_payload(
+        {
+            "schema": "coursecraft.activities/1",
+            "run_id": run_id,
+            "source": source,
+            "export": export,
+            "label": label,
+            "export_identity": source.get("observed_identity", {}),
+            "condition_sets": [],
+            "dropbox_folders": [],
+            "discussions": [],
+            "checklists": [],
+            "quizzes": [],
+            "grade_items": [],
+            "joins": [],
+            "diagnostics": [
+                "PARTIAL EXTRACTION: course activities could not be parsed; "
+                f"empty activity collections were used instead. {message}"
+            ],
+            "extensions": {"coursecraft.partial_delivery": True},
+        }
+    )
+
+
+def require_valid_contract(payload: dict) -> None:
+    errors = [issue.render() for issue in validate_contract(payload) if issue.severity == "error"]
+    if errors:
+        raise RuntimeError("fallback contract validation failed:\n" + "\n".join(errors))
 
 
 def concise_issue(message: str) -> str:
@@ -1528,6 +1572,7 @@ def write_bundle_readme(
     rubrics_json: Path | None = None,
     rubrics_workbook: Path | None = None,
     rubrics_docx: Path | None = None,
+    run_identity: Path | None = None,
     include_qa: bool,
     render_qa_dir: Path | None = None,
     run_status: str = "ok",
@@ -1574,6 +1619,11 @@ def write_bundle_readme(
                 f"- `{blueprint_json.name}` (structured model)",
                 "",
                 "Companion artifacts:",
+                (
+                    f"- `{run_identity.name}` (source, producer, contract, step, and checksum receipt)"
+                    if run_identity
+                    else "- run identity receipt unavailable"
+                ),
                 "- package inventory",
                 "- manifest probe",
                 "- course structure JSON/Markdown",
@@ -1676,10 +1726,45 @@ def main(argv: list[str] | None = None) -> int:
     stem = safe_label(label)
     bundle_dir = args.bundle_dir or (args.output_dir / f"{stem}__blueprint_bundle")
     bundle_dir.mkdir(parents=True, exist_ok=True)
+    preexisting_files = sorted(
+        path.relative_to(bundle_dir).as_posix()
+        for path in bundle_dir.rglob("*")
+        if path.is_file()
+    )
     component_issues: list[dict] = []
+    started_at = utc_now()
+    run_id = new_run_id()
+    source_temp_dirs: list[object] = []
+    logical_root: Path | None = None
 
     try:
-        has_rubrics_xml = export_has_rubrics_xml(export)
+        source_root = load_export_root(export, source_temp_dirs, prefix="course_contract_source_")
+        logical_root, _manifest = resolve_export_root(source_root)
+        source_identity = build_source_identity(export, logical_root)
+    except (Exception, SystemExit) as exc:
+        source_identity = build_unreadable_source_identity(export, concise_issue(str(exc)))
+        component_issues.append(
+            {
+                "step": "Establish source identity",
+                "status": "degraded",
+                "message": str(exc),
+            }
+        )
+
+    identity_context = tempfile.TemporaryDirectory(prefix="course_contract_context_")
+    source_temp_dirs.append(identity_context)
+    identity_context_path = Path(identity_context.name) / "source_identity.json"
+    identity_context_path.write_text(
+        json.dumps(source_identity, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+    try:
+        has_rubrics_xml = (
+            (logical_root / "rubrics_d2l.xml").is_file()
+            if logical_root is not None
+            else export_has_rubrics_xml(export)
+        )
     except (Exception, SystemExit) as exc:
         has_rubrics_xml = False
         component_issues.append(
@@ -1702,6 +1787,7 @@ def main(argv: list[str] | None = None) -> int:
     rubrics_docx = bundle_dir / f"{stem}__rubrics.docx"
     status_json = bundle_dir / f"{stem}__pipeline_status.json"
     status_report = bundle_dir / f"{stem}__pipeline_status.md"
+    run_identity_path = bundle_dir / f"{stem}__run_identity.json"
 
     step_timeout = args.step_timeout if args.step_timeout and args.step_timeout > 0 else None
 
@@ -1725,6 +1811,54 @@ def main(argv: list[str] | None = None) -> int:
     if args.render_docx_check:
         step_labels.append("Render DOCX preview pages")
     progress = StepProgress(step_labels, events=args.progress_events, run_label=stem)
+    source_identity_failed = bool(source_identity.get("extensions", {}).get("source_open_error"))
+    contract_steps: list[dict] = [
+        {
+            "name": "Establish source identity",
+            "status": "failed" if source_identity_failed else "completed",
+            "started_at": started_at,
+            "finished_at": utc_now(),
+            "artifact_paths": [],
+            "diagnostic_ids": [],
+            "notes": (
+                [str(source_identity.get("extensions", {}).get("source_open_error"))]
+                if source_identity_failed
+                else []
+            ),
+            "extensions": {},
+        }
+    ]
+
+    def matching_artifacts(patterns: tuple[str, ...]) -> list[str]:
+        return sorted(
+            {
+                path.relative_to(bundle_dir).as_posix()
+                for pattern in patterns
+                for path in bundle_dir.glob(pattern)
+                if path.is_file()
+            }
+        )
+
+    def record_contract_step(
+        name: str,
+        status: str,
+        *,
+        started: str | None = None,
+        patterns: tuple[str, ...] = (),
+        notes: list[str] | None = None,
+    ) -> None:
+        contract_steps.append(
+            {
+                "name": name,
+                "status": status,
+                "started_at": started,
+                "finished_at": utc_now() if started else None,
+                "artifact_paths": matching_artifacts(patterns),
+                "diagnostic_ids": [],
+                "notes": list(notes or []),
+                "extensions": {},
+            }
+        )
 
     def record_issue(step: str, message: str, *, status: str = "failed") -> None:
         component_issues.append(
@@ -1735,38 +1869,67 @@ def main(argv: list[str] | None = None) -> int:
             }
         )
 
-    def run_step(label, fn, fallback=None):
+    def run_step(label, fn, fallback=None, *, patterns: tuple[str, ...] = ()):
+        step_started = utc_now()
         progress.start(label)
         try:
             result = fn()
         except (Exception, SystemExit) as exc:
             progress.end(status="error", message=str(exc))
             record_issue(label, str(exc))
+            recovered = None
             if fallback is not None:
                 try:
-                    return False, fallback(str(exc))
+                    recovered = fallback(str(exc))
                 except (Exception, SystemExit) as recovery_exc:
                     record_issue(
                         f"{label} recovery",
                         str(recovery_exc),
                     )
-            return False, None
+            record_contract_step(
+                label,
+                "failed",
+                started=step_started,
+                patterns=patterns,
+                notes=[concise_issue(str(exc))],
+            )
+            return False, recovered
         progress.end()
+        record_contract_step(
+            label,
+            "completed",
+            started=step_started,
+            patterns=patterns,
+        )
         return True, result
 
     common = [export_arg, "--output-dir", str(bundle_dir)]
     labeled = [*common, "--label", label]
+    contracted_labeled = [
+        *labeled,
+        "--run-id", run_id,
+        "--source-identity", str(identity_context_path),
+    ]
     run_step(
         "Inventory export files",
         lambda: run_workbench_script("export_inventory.py", common, args.quiet, timeout=step_timeout),
+        patterns=("*__inventory.*",),
     )
     run_step(
         "Probe manifest",
         lambda: run_workbench_script("manifest_probe.py", common, args.quiet, timeout=step_timeout),
+        patterns=("*__manifest_probe.*",),
     )
 
     def recover_structure(message: str):
-        payload = fallback_structure_payload(export_arg, label, concise_issue(message))
+        payload = fallback_structure_payload(
+            export_arg,
+            label,
+            concise_issue(message),
+            run_id=run_id,
+            source=source_identity,
+        )
+        require_valid_contract(payload)
         structure_path.write_text(
             json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
@@ -1782,13 +1945,21 @@ def main(argv: list[str] | None = None) -> int:
     run_step(
         "Reconstruct course structure",
         lambda: run_workbench_script(
-            "reconstruct_course_structure.py", [*labeled, "--extract-html"], args.quiet, timeout=step_timeout
+            "reconstruct_course_structure.py", [*contracted_labeled, "--extract-html"], args.quiet, timeout=step_timeout
         ),
         fallback=recover_structure,
+        patterns=(f"{stem}__course_structure.*",),
     )
 
     def recover_activities(message: str):
-        payload = fallback_activities_payload(export_arg, label, concise_issue(message))
+        payload = fallback_activities_payload(
+            export_arg,
+            label,
+            concise_issue(message),
+            run_id=run_id,
+            source=source_identity,
+        )
+        require_valid_contract(payload)
         activities_path.write_text(
             json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
@@ -1803,8 +1974,14 @@ def main(argv: list[str] | None = None) -> int:
 
     run_step(
         "Extract course activities",
-        lambda: run_workbench_script("extract_course_activities.py", labeled, args.quiet, timeout=step_timeout),
+        lambda: run_workbench_script(
+            "extract_course_activities.py",
+            contracted_labeled,
+            args.quiet,
+            timeout=step_timeout,
+        ),
         fallback=recover_activities,
+        patterns=(f"{stem}__course_activities.*",),
     )
 
     rubrics_json: Path | None = None
@@ -1850,6 +2027,7 @@ def main(argv: list[str] | None = None) -> int:
         rubric_ok, _ = run_step(
             "Extract rubrics",
             extract_rubrics,
+            patterns=(f"{stem}__rubrics.*",),
         )
         rubrics_workbook = candidate_workbook if candidate_workbook.exists() else None
         if rubric_ok:
@@ -1859,6 +2037,12 @@ def main(argv: list[str] | None = None) -> int:
                     "Extract rubrics",
                     "The rubric extractor exited successfully but did not emit a rubric workbook.",
                 )
+    else:
+        record_contract_step(
+            "Extract rubrics",
+            "skipped",
+            notes=["The source package did not contain rubrics_d2l.xml."],
+        )
     if not args.skip_qa:
         qa_args = [*labeled]
         if args.check_external_links:
@@ -1866,7 +2050,10 @@ def main(argv: list[str] | None = None) -> int:
         run_step(
             "Run QA report",
             lambda: run_workbench_script("course_qa_report.py", qa_args, args.quiet, timeout=step_timeout),
+            patterns=(f"{stem}__course_qa.*",),
         )
+    else:
+        record_contract_step("Run QA report", "skipped", notes=["Skipped by --skip-qa."])
 
     def assemble():
         model = build_blueprint_model(
@@ -1890,11 +2077,15 @@ def main(argv: list[str] | None = None) -> int:
             export_arg,
             label,
             "The original structure or blueprint assembly was not usable.",
+            run_id=run_id,
+            source=source_identity,
         )
         fallback_activities = fallback_activities_payload(
             export_arg,
             label,
             "The original activity or blueprint assembly was not usable.",
+            run_id=run_id,
+            source=source_identity,
         )
         model = build_blueprint_model(
             fallback_structure,
@@ -1923,6 +2114,11 @@ def main(argv: list[str] | None = None) -> int:
         "Assemble blueprint model and Markdown",
         assemble,
         fallback=recover_blueprint,
+        patterns=(
+            f"{stem}__blueprint.json",
+            f"{stem}__blueprint.md",
+            f"{stem}__cps_blueprint.md",
+        ),
     )
     if assembled is None:
         model = {}
@@ -1962,7 +2158,13 @@ def main(argv: list[str] | None = None) -> int:
 
     docx_written: Path | None = None
     if not args.no_docx:
-        _docx_ok, docx_written = run_step("Render DOCX", render_docx)
+        _docx_ok, docx_written = run_step(
+            "Render DOCX",
+            render_docx,
+            patterns=(f"{stem}__blueprint.docx",),
+        )
+    else:
+        record_contract_step("Render DOCX", "skipped", notes=["Skipped by --no-docx."])
 
     rubrics_docx_written: Path | None = None
 
@@ -2003,7 +2205,11 @@ def main(argv: list[str] | None = None) -> int:
         _rubric_docx_ok, rubrics_docx_written = run_step(
             "Render rubrics DOCX",
             render_rubrics_docx,
+            patterns=(f"{stem}__rubrics.docx",),
         )
+    else:
+        reason = "Skipped by --no-docx." if args.no_docx else "No rubric component was detected."
+        record_contract_step("Render rubrics DOCX", "skipped", notes=[reason])
 
     if not args.no_docx and not args.skip_docx_structure_check:
         qa_args = [
@@ -2023,6 +2229,7 @@ def main(argv: list[str] | None = None) -> int:
                     args.quiet,
                     timeout=step_timeout,
                 ),
+                patterns=(f"{stem}__docx_structure.*",),
             )
         else:
             run_step(
@@ -2030,7 +2237,11 @@ def main(argv: list[str] | None = None) -> int:
                 lambda: (_ for _ in ()).throw(
                     RuntimeError("DOCX structure QA could not run because no blueprint DOCX was emitted.")
                 ),
+                patterns=(f"{stem}__docx_structure.*",),
             )
+    else:
+        reason = "Skipped by --no-docx." if args.no_docx else "Skipped by --skip-docx-structure-check."
+        record_contract_step("Check DOCX structure", "skipped", notes=[reason])
 
     def render_check():
         candidate_dir = bundle_dir / "render_qa"
@@ -2063,7 +2274,11 @@ def main(argv: list[str] | None = None) -> int:
     render_qa_dir: Path | None = None
     if args.render_docx_check:
         if docx_written:
-            _render_ok, render_qa_dir = run_step("Render DOCX preview pages", render_check)
+            _render_ok, render_qa_dir = run_step(
+                "Render DOCX preview pages",
+                render_check,
+                patterns=("render_qa/**/*",),
+            )
         else:
             run_step(
                 "Render DOCX preview pages",
@@ -2072,7 +2287,14 @@ def main(argv: list[str] | None = None) -> int:
                         "Advanced DOCX render preview could not run because no blueprint DOCX was emitted."
                     )
                 ),
+                patterns=("render_qa/**/*",),
             )
+    else:
+        record_contract_step(
+            "Render DOCX preview pages",
+            "skipped",
+            notes=["Advanced render preview was not requested."],
+        )
 
     docx_structure_report = bundle_dir / f"{stem}__docx_structure.md"
     docx_structure_json = bundle_dir / f"{stem}__docx_structure.json"
@@ -2130,12 +2352,69 @@ def main(argv: list[str] | None = None) -> int:
         rubrics_json=rubrics_json,
         rubrics_workbook=rubrics_workbook,
         rubrics_docx=rubrics_docx_written,
+        run_identity=run_identity_path,
         include_qa=not args.skip_qa,
         render_qa_dir=render_qa_dir,
         run_status=run_status,
         issues=component_issues,
         status_report=status_report,
     )
+
+    contract_by_name = {
+        activities_path.name: "coursecraft.activities/1",
+        structure_path.name: "coursecraft.structure/1",
+        blueprint_json.name: "coursecraft.blueprint/4",
+    }
+    if rubrics_json and rubrics_json.exists():
+        contract_by_name[rubrics_json.name] = "coursecraft.rubrics/1"
+    receipt_diagnostics: list[dict] = [dict(issue) for issue in component_issues]
+    if preexisting_files:
+        receipt_diagnostics.append(
+            {
+                "severity": "warning",
+                "code": "preexisting_bundle_files",
+                "message": (
+                    "The run reused a nonempty bundle directory; emitted_files is "
+                    "the verified post-run bundle snapshot."
+                ),
+                "count": len(preexisting_files),
+            }
+        )
+    receipt = build_run_identity(
+        run_id=run_id,
+        source=source_identity,
+        bundle_dir=bundle_dir,
+        receipt_name=run_identity_path.name,
+        started_at=started_at,
+        steps=contract_steps,
+        parameters={
+            "qa_requested": not args.skip_qa,
+            "external_link_checks_requested": bool(args.check_external_links),
+            "docx_requested": not args.no_docx,
+            "docx_structure_check_requested": not args.skip_docx_structure_check,
+            "docx_render_check_requested": bool(args.render_docx_check),
+            "docx_section_layout": args.docx_section_layout,
+        },
+        contract_by_name=contract_by_name,
+        diagnostics=receipt_diagnostics,
+        status=run_status,
+    )
+    contract_errors = [
+        issue.render()
+        for issue in validate_contract(receipt, mode="transform")
+        if issue.severity == "error"
+    ]
+    if contract_errors:
+        raise RuntimeError("run identity contract validation failed:\n" + "\n".join(contract_errors))
+    run_identity_path.write_text(
+        json.dumps(receipt, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    verification_problems = verify_run_identity(receipt, bundle_dir)
+    if verification_problems:
+        raise RuntimeError(
+            "run identity artifact verification failed:\n" + "\n".join(verification_problems)
+        )
 
     if progress.events:
         qa_counts = None
@@ -2185,6 +2464,7 @@ def main(argv: list[str] | None = None) -> int:
                 ),
                 "status_report": str(status_report),
                 "status_json": str(status_json),
+                "run_identity": str(run_identity_path),
             },
             "issues": component_issues,
             "summary": {
@@ -2211,6 +2491,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"rubrics (workbook):   {rubrics_workbook}")
     if rubrics_docx_written:
         print(f"rubrics (docx):       {rubrics_docx_written}")
+    print(f"run identity:         {run_identity_path}")
     return 0 if run_status in {"ok", "partial"} else 1
 
 

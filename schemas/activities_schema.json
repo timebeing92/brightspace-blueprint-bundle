@@ -1,0 +1,117 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "coursecraft.activities/1",
+  "title": "CourseCraft Course Activities",
+  "description": "Additive evidence contract over the established activity collections. Unknown fields and future typed collections are retained.",
+  "type": "object",
+  "required": [
+    "schema", "run_id", "source", "export", "label", "export_identity",
+    "condition_sets", "dropbox_folders", "discussions", "checklists",
+    "quizzes", "grade_items", "joins", "diagnostics", "extensions"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schema": {"const": "coursecraft.activities/1"},
+    "run_id": {"type": "string", "pattern": "^cc:run:"},
+    "source": {"$ref": "#/definitions/sourceIdentity"},
+    "export": {"type": "string"},
+    "label": {"type": "string"},
+    "export_identity": {"type": "object", "additionalProperties": true},
+    "condition_sets": {"type": "array", "items": {"$ref": "#/definitions/entity"}},
+    "dropbox_folders": {"type": "array", "items": {"$ref": "#/definitions/entity"}},
+    "discussions": {"type": "array", "items": {"$ref": "#/definitions/entity"}},
+    "checklists": {"type": "array", "items": {"$ref": "#/definitions/entity"}},
+    "quizzes": {"type": "array", "items": {"$ref": "#/definitions/entity"}},
+    "grade_items": {"type": "array", "items": {"$ref": "#/definitions/entity"}},
+    "joins": {"type": "array", "items": {"$ref": "#/definitions/relationship"}},
+    "diagnostics": {"type": "array", "items": {"$ref": "#/definitions/diagnostic"}},
+    "extensions": {"type": "object", "additionalProperties": true}
+  },
+  "definitions": {
+    "fingerprint": {
+      "type": "object",
+      "required": ["algorithm", "digest", "scope", "bytes", "extensions"],
+      "additionalProperties": true,
+      "properties": {
+        "algorithm": {"const": "sha256"},
+        "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "scope": {"type": "string", "minLength": 1},
+        "file_count": {"type": "integer", "minimum": 0},
+        "bytes": {"type": "integer", "minimum": 0},
+        "extensions": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "sourceIdentity": {
+      "type": "object",
+      "required": [
+        "source_lineage_key", "source_instance_key", "lineage_state",
+        "lineage_basis", "source_name", "logical_fingerprint",
+        "transport_fingerprint", "observed_identity", "extensions"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "source_lineage_key": {"type": "string", "pattern": "^cc:lineage:"},
+        "source_instance_key": {"type": "string", "pattern": "^cc:source:"},
+        "lineage_state": {"enum": ["resolved", "unresolved"]},
+        "lineage_basis": {"type": "string", "minLength": 1},
+        "source_name": {"type": "string"},
+        "logical_fingerprint": {"$ref": "#/definitions/fingerprint"},
+        "transport_fingerprint": {"oneOf": [{"$ref": "#/definitions/fingerprint"}, {"type": "null"}]},
+        "observed_identity": {"type": "object", "additionalProperties": true},
+        "extensions": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "identity": {
+      "type": "object",
+      "required": ["quality", "basis", "source_lineage_key", "source_aliases", "extensions"],
+      "additionalProperties": true,
+      "properties": {
+        "quality": {"enum": ["durable_source_id", "scoped_source_id", "observed_reference", "fallback", "unresolved"]},
+        "basis": {"type": "string", "minLength": 1},
+        "source_lineage_key": {"type": "string", "pattern": "^cc:lineage:"},
+        "source_aliases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "value"],
+            "additionalProperties": true,
+            "properties": {"kind": {"type": "string"}, "value": {"type": "string"}}
+          }
+        },
+        "extensions": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "entity": {
+      "type": "object",
+      "required": ["entity_key", "identity"],
+      "additionalProperties": true,
+      "properties": {
+        "entity_key": {"type": "string", "pattern": "^cc:entity:"},
+        "identity": {"$ref": "#/definitions/identity"}
+      }
+    },
+    "relationship": {
+      "type": "object",
+      "required": ["relationship_key", "source_entity_key", "target_entity_key", "identity"],
+      "additionalProperties": true,
+      "properties": {
+        "relationship_key": {"type": "string", "pattern": "^cc:relationship:"},
+        "source_entity_key": {"type": ["string", "null"]},
+        "target_entity_key": {"type": ["string", "null"]},
+        "identity": {
+          "type": "object",
+          "required": ["quality", "source_lineage_key", "basis", "duplicate_ordinal", "extensions"],
+          "additionalProperties": true,
+          "properties": {
+            "quality": {"enum": ["resolved_endpoints", "partial_endpoints", "evidence_only"]},
+            "source_lineage_key": {"type": "string", "pattern": "^cc:lineage:"},
+            "basis": {"type": "array", "items": {"type": "string"}},
+            "duplicate_ordinal": {"type": "integer", "minimum": 0},
+            "extensions": {"type": "object", "additionalProperties": true}
+          }
+        }
+      }
+    },
+    "diagnostic": {"oneOf": [{"type": "string"}, {"type": "object", "additionalProperties": true}]}
+  }
+}

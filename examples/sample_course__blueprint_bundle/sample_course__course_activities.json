@@ -1,4 +1,40 @@
 {
+  "schema": "coursecraft.activities/1",
+  "run_id": "cc:run:aee2e011-f747-452c-9a20-3b67ff7921f3",
+  "source": {
+    "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+    "source_instance_key": "cc:source:d08688cdb116c668b097ac3ef673567150a0001f8bf2b0128cb5f49298a20e36",
+    "lineage_state": "unresolved",
+    "lineage_basis": "logical_fingerprint",
+    "source_name": "sample_export.zip",
+    "logical_fingerprint": {
+      "algorithm": "sha256",
+      "digest": "d08688cdb116c668b097ac3ef673567150a0001f8bf2b0128cb5f49298a20e36",
+      "scope": "logical_file_set",
+      "file_count": 30,
+      "bytes": 21857,
+      "extensions": {
+        "skipped_symlink_count": 0
+      }
+    },
+    "transport_fingerprint": {
+      "algorithm": "sha256",
+      "digest": "8d3f30d12ce71cd75551b40407b59ba52525cebdec61266ca67f852a39f0d64f",
+      "scope": "transport_file",
+      "bytes": 11538,
+      "extensions": {}
+    },
+    "observed_identity": {
+      "source_name": "sample_export.zip",
+      "org_unit_id": null,
+      "course_code": null,
+      "export_timestamp": null,
+      "orgunit_identifier": null,
+      "orgunit_code": null,
+      "orgunit_name": null
+    },
+    "extensions": {}
+  },
   "export": "examples/sample_export.zip",
   "label": "sample_course",
   "export_identity": {
@@ -15,7 +51,20 @@
       "resource_code": "COND-OPEN",
       "tool": "",
       "operator": "",
-      "conditions": []
+      "conditions": [],
+      "entity_key": "cc:entity:83fe0c27a130792e7878d180ff0af9bc",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "COND-OPEN"
+          }
+        ],
+        "extensions": {}
+      }
     }
   ],
   "dropbox_folders": [
@@ -71,7 +120,24 @@
       "grade_item_name": "Planning Memo",
       "grade_item_out_of": "20",
       "rubrics_resolved": "RUB-1: Planning Memo Rubric",
-      "quicklink_count": 1
+      "quicklink_count": 1,
+      "entity_key": "cc:entity:175b5c35c9499f74dc4673fd99241171",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-A1"
+          },
+          {
+            "kind": "id",
+            "value": "1"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "id": "2",
@@ -103,7 +169,24 @@
       "grade_item_name": "Data Snapshot Worksheet",
       "grade_item_out_of": "10",
       "rubrics_resolved": "",
-      "quicklink_count": 1
+      "quicklink_count": 1,
+      "entity_key": "cc:entity:86df527955193c6252b14b6feeae382d",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-A2"
+          },
+          {
+            "kind": "id",
+            "value": "2"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "id": "3",
@@ -135,7 +218,24 @@
       "grade_item_name": "Reflection Journal",
       "grade_item_out_of": "5",
       "rubrics_resolved": "",
-      "quicklink_count": 1
+      "quicklink_count": 1,
+      "entity_key": "cc:entity:18530ece207639a275670d69b224f643",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-A3"
+          },
+          {
+            "kind": "id",
+            "value": "3"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "id": "4",
@@ -167,7 +267,24 @@
       "grade_item_name": "Unplaced Capstone Draft",
       "grade_item_out_of": "15",
       "rubrics_resolved": "",
-      "quicklink_count": 0
+      "quicklink_count": 0,
+      "entity_key": "cc:entity:f2280dc965bc820f041b2f46c3e49367",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-AU"
+          },
+          {
+            "kind": "id",
+            "value": "4"
+          }
+        ],
+        "extensions": {}
+      }
     }
   ],
   "discussions": [
@@ -191,7 +308,24 @@
       "grade_item_name": "",
       "grade_item_out_of": "",
       "rubrics_resolved": "",
-      "quicklink_count": 0
+      "quicklink_count": 0,
+      "entity_key": "cc:entity:1b1cdbdc99277a8c864e97ef4f3e2b05",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-FORUM"
+          },
+          {
+            "kind": "forum_id",
+            "value": "20"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "kind": "topic",
@@ -225,7 +359,28 @@
       "grade_item_name": "Planning Assumptions",
       "grade_item_out_of": "5",
       "rubrics_resolved": "",
-      "quicklink_count": 1
+      "quicklink_count": 1,
+      "entity_key": "cc:entity:3f23831faf80656b96ec76254abf6537",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-D1"
+          },
+          {
+            "kind": "topic_id",
+            "value": "21"
+          },
+          {
+            "kind": "forum_id",
+            "value": "20"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "kind": "topic",
@@ -259,7 +414,28 @@
       "grade_item_name": "Peer Reply",
       "grade_item_out_of": "5",
       "rubrics_resolved": "",
-      "quicklink_count": 1
+      "quicklink_count": 1,
+      "entity_key": "cc:entity:8054b530f4502350f21efbf70773313a",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-D2"
+          },
+          {
+            "kind": "topic_id",
+            "value": "22"
+          },
+          {
+            "kind": "forum_id",
+            "value": "20"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "kind": "topic",
@@ -293,7 +469,28 @@
       "grade_item_name": "",
       "grade_item_out_of": "",
       "rubrics_resolved": "",
-      "quicklink_count": 0
+      "quicklink_count": 0,
+      "entity_key": "cc:entity:1508664f3e3846f74f331946f9a38280",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-DU"
+          },
+          {
+            "kind": "topic_id",
+            "value": "23"
+          },
+          {
+            "kind": "forum_id",
+            "value": "20"
+          }
+        ],
+        "extensions": {}
+      }
     }
   ],
   "checklists": [
@@ -355,7 +552,24 @@
         }
       ],
       "item_count": 3,
-      "quicklink_count": 1
+      "quicklink_count": 1,
+      "entity_key": "cc:entity:890f20c683f02ce006a64991f53f2bfa",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-CL1"
+          },
+          {
+            "kind": "id",
+            "value": "30"
+          }
+        ],
+        "extensions": {}
+      }
     }
   ],
   "quizzes": [
@@ -424,7 +638,24 @@
       "rubric_ids": [],
       "grade_item_name": "Readiness Quiz",
       "grade_item_out_of": "3",
-      "rubrics_resolved": ""
+      "rubrics_resolved": "",
+      "entity_key": "cc:entity:1549300008406e5a159338fd0bb748b6",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-Q1"
+          },
+          {
+            "kind": "ident",
+            "value": "QUIZ-READY"
+          }
+        ],
+        "extensions": {}
+      }
     }
   ],
   "grade_items": [
@@ -444,7 +675,28 @@
       "exclude_from_final_grade_calc": "",
       "linked_activities": [
         "dropbox_folder: Planning Memo"
-      ]
+      ],
+      "entity_key": "cc:entity:f25f926eae0290e40855f9fc30d30565",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-G-A1"
+          },
+          {
+            "kind": "identifier",
+            "value": "9001"
+          },
+          {
+            "kind": "id",
+            "value": "10"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "id": "11",
@@ -462,7 +714,28 @@
       "exclude_from_final_grade_calc": "",
       "linked_activities": [
         "dropbox_folder: Data Snapshot Worksheet"
-      ]
+      ],
+      "entity_key": "cc:entity:2caf2f4f6392ae3326d657437820faa7",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-G-A2"
+          },
+          {
+            "kind": "identifier",
+            "value": "9002"
+          },
+          {
+            "kind": "id",
+            "value": "11"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "id": "12",
@@ -480,7 +753,28 @@
       "exclude_from_final_grade_calc": "",
       "linked_activities": [
         "dropbox_folder: Reflection Journal"
-      ]
+      ],
+      "entity_key": "cc:entity:20a16febbd212efd839bf24689e584ed",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-G-A3"
+          },
+          {
+            "kind": "identifier",
+            "value": "9003"
+          },
+          {
+            "kind": "id",
+            "value": "12"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "id": "13",
@@ -498,7 +792,28 @@
       "exclude_from_final_grade_calc": "",
       "linked_activities": [
         "quiz: Readiness Quiz"
-      ]
+      ],
+      "entity_key": "cc:entity:131cb030cca95c263af7349b1f65f3e8",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-G-Q1"
+          },
+          {
+            "kind": "identifier",
+            "value": "9004"
+          },
+          {
+            "kind": "id",
+            "value": "13"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "id": "14",
@@ -516,7 +831,28 @@
       "exclude_from_final_grade_calc": "",
       "linked_activities": [
         "discussion_topic: Planning Assumptions"
-      ]
+      ],
+      "entity_key": "cc:entity:28b12a3b9b6b58afd360f6377ae5624d",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-G-D1"
+          },
+          {
+            "kind": "identifier",
+            "value": "9005"
+          },
+          {
+            "kind": "id",
+            "value": "14"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "id": "15",
@@ -534,7 +870,28 @@
       "exclude_from_final_grade_calc": "",
       "linked_activities": [
         "discussion_topic: Peer Reply"
-      ]
+      ],
+      "entity_key": "cc:entity:587aaadedfe25662a8524cf6b088be31",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-G-D2"
+          },
+          {
+            "kind": "identifier",
+            "value": "9006"
+          },
+          {
+            "kind": "id",
+            "value": "15"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "id": "16",
@@ -552,7 +909,28 @@
       "exclude_from_final_grade_calc": "",
       "linked_activities": [
         "dropbox_folder: Unplaced Capstone Draft"
-      ]
+      ],
+      "entity_key": "cc:entity:8685cc55e440d8a65d0380a103da469a",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-G-AU"
+          },
+          {
+            "kind": "identifier",
+            "value": "9007"
+          },
+          {
+            "kind": "id",
+            "value": "16"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "id": "17",
@@ -568,7 +946,28 @@
       "max_grade": "10",
       "is_bonus": "",
       "exclude_from_final_grade_calc": "",
-      "linked_activities": []
+      "linked_activities": [],
+      "entity_key": "cc:entity:51cdaab4ca246d3e899006b5b13a319b",
+      "identity": {
+        "quality": "durable_source_id",
+        "basis": "resource_code",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "resource_code",
+            "value": "CODE-G-ORPHAN"
+          },
+          {
+            "kind": "identifier",
+            "value": "9008"
+          },
+          {
+            "kind": "id",
+            "value": "17"
+          }
+        ],
+        "extensions": {}
+      }
     }
   ],
   "joins": [
@@ -578,7 +977,23 @@
       "source_code": "CODE-A1",
       "join_type": "grade_item",
       "target": "CODE-G-A1",
-      "resolved": "yes"
+      "resolved": "yes",
+      "source_entity_key": "cc:entity:175b5c35c9499f74dc4673fd99241171",
+      "target_entity_key": "cc:entity:f25f926eae0290e40855f9fc30d30565",
+      "relationship_key": "cc:relationship:b3d28c983e305667ab90b0236405ce9c",
+      "identity": {
+        "quality": "resolved_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "dropbox_folder",
@@ -586,7 +1001,23 @@
       "source_code": "CODE-A1",
       "join_type": "rubric",
       "target": "RUB-1",
-      "resolved": "yes"
+      "resolved": "yes",
+      "source_entity_key": "cc:entity:175b5c35c9499f74dc4673fd99241171",
+      "target_entity_key": null,
+      "relationship_key": "cc:relationship:9e00227c3b2198221a15f86e3422b0fa",
+      "identity": {
+        "quality": "partial_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "dropbox_folder",
@@ -594,7 +1025,23 @@
       "source_code": "CODE-A1",
       "join_type": "condition_set",
       "target": "COND-OPEN",
-      "resolved": "yes"
+      "resolved": "yes",
+      "source_entity_key": "cc:entity:175b5c35c9499f74dc4673fd99241171",
+      "target_entity_key": "cc:entity:83fe0c27a130792e7878d180ff0af9bc",
+      "relationship_key": "cc:relationship:0d963af28e7908a27ebf919498415d56",
+      "identity": {
+        "quality": "resolved_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "dropbox_folder",
@@ -602,7 +1049,23 @@
       "source_code": "CODE-A1",
       "join_type": "manifest_quicklink",
       "target": "1 link(s)",
-      "resolved": "yes"
+      "resolved": "yes",
+      "source_entity_key": "cc:entity:175b5c35c9499f74dc4673fd99241171",
+      "target_entity_key": null,
+      "relationship_key": "cc:relationship:51f71143a216cda9c198e39522feed3c",
+      "identity": {
+        "quality": "partial_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "dropbox_folder",
@@ -610,7 +1073,23 @@
       "source_code": "CODE-A2",
       "join_type": "grade_item",
       "target": "CODE-G-A2",
-      "resolved": "yes"
+      "resolved": "yes",
+      "source_entity_key": "cc:entity:86df527955193c6252b14b6feeae382d",
+      "target_entity_key": "cc:entity:2caf2f4f6392ae3326d657437820faa7",
+      "relationship_key": "cc:relationship:88dd72232fbe91592dd1310dfed18462",
+      "identity": {
+        "quality": "resolved_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "dropbox_folder",
@@ -618,7 +1097,23 @@
       "source_code": "CODE-A2",
       "join_type": "manifest_quicklink",
       "target": "1 link(s)",
-      "resolved": "yes"
+      "resolved": "yes",
+      "source_entity_key": "cc:entity:86df527955193c6252b14b6feeae382d",
+      "target_entity_key": null,
+      "relationship_key": "cc:relationship:1a854a7c0b00ec085342e3572d1eaf51",
+      "identity": {
+        "quality": "partial_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "dropbox_folder",
@@ -626,7 +1121,23 @@
       "source_code": "CODE-A3",
       "join_type": "grade_item",
       "target": "CODE-G-A3",
-      "resolved": "yes"
+      "resolved": "yes",
+      "source_entity_key": "cc:entity:18530ece207639a275670d69b224f643",
+      "target_entity_key": "cc:entity:20a16febbd212efd839bf24689e584ed",
+      "relationship_key": "cc:relationship:84fc23255b0bd61e58cb104d4e62e2b7",
+      "identity": {
+        "quality": "resolved_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "dropbox_folder",
@@ -634,7 +1145,23 @@
       "source_code": "CODE-A3",
       "join_type": "manifest_quicklink",
       "target": "1 link(s)",
-      "resolved": "yes"
+      "resolved": "yes",
+      "source_entity_key": "cc:entity:18530ece207639a275670d69b224f643",
+      "target_entity_key": null,
+      "relationship_key": "cc:relationship:42005167669edec01d3175d83c1c3618",
+      "identity": {
+        "quality": "partial_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "dropbox_folder",
@@ -642,7 +1169,23 @@
       "source_code": "CODE-AU",
       "join_type": "grade_item",
       "target": "CODE-G-AU",
-      "resolved": "yes"
+      "resolved": "yes",
+      "source_entity_key": "cc:entity:f2280dc965bc820f041b2f46c3e49367",
+      "target_entity_key": "cc:entity:8685cc55e440d8a65d0380a103da469a",
+      "relationship_key": "cc:relationship:7f42203a510d8ca3ff38c5dc6f95dfbb",
+      "identity": {
+        "quality": "resolved_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "dropbox_folder",
@@ -650,7 +1193,23 @@
       "source_code": "CODE-AU",
       "join_type": "manifest_quicklink",
       "target": "0 link(s)",
-      "resolved": "none"
+      "resolved": "none",
+      "source_entity_key": "cc:entity:f2280dc965bc820f041b2f46c3e49367",
+      "target_entity_key": null,
+      "relationship_key": "cc:relationship:ccc391100fac7950bb508b1f56508e89",
+      "identity": {
+        "quality": "partial_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "discussion_topic",
@@ -658,7 +1217,23 @@
       "source_code": "CODE-D1",
       "join_type": "grade_item",
       "target": "CODE-G-D1",
-      "resolved": "yes"
+      "resolved": "yes",
+      "source_entity_key": "cc:entity:3f23831faf80656b96ec76254abf6537",
+      "target_entity_key": "cc:entity:28b12a3b9b6b58afd360f6377ae5624d",
+      "relationship_key": "cc:relationship:6c2372dd6c33a27ef7bb1726d8dddc42",
+      "identity": {
+        "quality": "resolved_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "discussion_topic",
@@ -666,7 +1241,23 @@
       "source_code": "CODE-D1",
       "join_type": "manifest_quicklink",
       "target": "1 link(s)",
-      "resolved": "yes"
+      "resolved": "yes",
+      "source_entity_key": "cc:entity:3f23831faf80656b96ec76254abf6537",
+      "target_entity_key": null,
+      "relationship_key": "cc:relationship:ed416753d15413b59dbbdcf07dceae78",
+      "identity": {
+        "quality": "partial_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "discussion_topic",
@@ -674,7 +1265,23 @@
       "source_code": "CODE-D2",
       "join_type": "grade_item",
       "target": "CODE-G-D2",
-      "resolved": "yes"
+      "resolved": "yes",
+      "source_entity_key": "cc:entity:8054b530f4502350f21efbf70773313a",
+      "target_entity_key": "cc:entity:587aaadedfe25662a8524cf6b088be31",
+      "relationship_key": "cc:relationship:ec0645d7e1fdb38367f199681d5b0819",
+      "identity": {
+        "quality": "resolved_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "discussion_topic",
@@ -682,7 +1289,23 @@
       "source_code": "CODE-D2",
       "join_type": "manifest_quicklink",
       "target": "1 link(s)",
-      "resolved": "yes"
+      "resolved": "yes",
+      "source_entity_key": "cc:entity:8054b530f4502350f21efbf70773313a",
+      "target_entity_key": null,
+      "relationship_key": "cc:relationship:6abb9776921a2beca2fbb24be21ac17d",
+      "identity": {
+        "quality": "partial_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "discussion_topic",
@@ -690,7 +1313,23 @@
       "source_code": "CODE-DU",
       "join_type": "manifest_quicklink",
       "target": "0 link(s)",
-      "resolved": "none"
+      "resolved": "none",
+      "source_entity_key": "cc:entity:1508664f3e3846f74f331946f9a38280",
+      "target_entity_key": null,
+      "relationship_key": "cc:relationship:06ea413e4077c2e8427f29f298162564",
+      "identity": {
+        "quality": "partial_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "checklist",
@@ -698,7 +1337,23 @@
       "source_code": "CODE-CL1",
       "join_type": "manifest_quicklink",
       "target": "1 link(s)",
-      "resolved": "yes"
+      "resolved": "yes",
+      "source_entity_key": "cc:entity:890f20c683f02ce006a64991f53f2bfa",
+      "target_entity_key": null,
+      "relationship_key": "cc:relationship:2dc95d4b623ef4a4df9d5c22288ae7c2",
+      "identity": {
+        "quality": "partial_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "quiz",
@@ -706,7 +1361,23 @@
       "source_code": "CODE-Q1",
       "join_type": "grade_item",
       "target": "CODE-G-Q1",
-      "resolved": "yes"
+      "resolved": "yes",
+      "source_entity_key": "cc:entity:1549300008406e5a159338fd0bb748b6",
+      "target_entity_key": "cc:entity:131cb030cca95c263af7349b1f65f3e8",
+      "relationship_key": "cc:relationship:b9e25aed8339e0dd27e346d38b975d2f",
+      "identity": {
+        "quality": "resolved_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "quiz",
@@ -714,7 +1385,23 @@
       "source_code": "CODE-Q1",
       "join_type": "manifest_quicklink",
       "target": "1 link(s)",
-      "resolved": "yes"
+      "resolved": "yes",
+      "source_entity_key": "cc:entity:1549300008406e5a159338fd0bb748b6",
+      "target_entity_key": null,
+      "relationship_key": "cc:relationship:e515deffe09922092d528302cc6c1e9c",
+      "identity": {
+        "quality": "partial_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     },
     {
       "source_kind": "grade_item",
@@ -722,8 +1409,25 @@
       "source_code": "CODE-G-ORPHAN",
       "join_type": "linked_activity",
       "target": "(none found in dropbox/discussions/quizzes)",
-      "resolved": "none"
+      "resolved": "none",
+      "source_entity_key": "cc:entity:51cdaab4ca246d3e899006b5b13a319b",
+      "target_entity_key": null,
+      "relationship_key": "cc:relationship:8da5f2881e8a2aa998268ee9695dc283",
+      "identity": {
+        "quality": "partial_endpoints",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "basis": [
+          "source_kind",
+          "source_code",
+          "join_type",
+          "target",
+          "resolved"
+        ],
+        "duplicate_ordinal": 0,
+        "extensions": {}
+      }
     }
   ],
-  "diagnostics": []
+  "diagnostics": [],
+  "extensions": {}
 }

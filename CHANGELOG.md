@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-07-17 — Activity, structure, and run identity contracts
+
+- Promoted the workbench-proven `coursecraft.activities/1`,
+  `coursecraft.structure/1`, and `coursecraft.run/1` contracts without removing
+  or renaming established activity/structure fields.
+- Activity and structure artifacts now share stable source, run, entity, and
+  relationship identity while preserving unknown kinds and additive evidence.
+- Every usable run emits `<label>__run_identity.json` with logical/transport
+  source fingerprints, bundle release or git identity, schema checksums, step
+  outcomes, artifact checksums, and the explicit no-live-LMS boundary.
+- Partial-delivery fallbacks emit valid activity/structure contracts and the
+  receipt records their failed source step instead of presenting them as clean
+  extraction.
+- `coursecraft.progress/1` adds `outputs.run_identity`; release manifests now
+  receipt all six portable schemas.
+- Added unknown-shape examples, checksum/tamper tests, cross-contract coherence
+  checks, and current worked-example evidence.
+
 ## 2026-07-16 — v1.2.0 normal runs no longer need LibreOffice
 
 Published from commit `ec0ba6aad29cd24b0b54094ea69d6546648e526d`.

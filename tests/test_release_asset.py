@@ -43,8 +43,11 @@ class BundleReleaseAssetTests(unittest.TestCase):
         self.assertEqual(
             [row["schema"] for row in rows],
             [
+                "coursecraft.activities/1",
                 "coursecraft.blueprint/4",
+                "coursecraft.run/1",
                 "coursecraft.rubrics/1",
+                "coursecraft.structure/1",
                 "coursecraft.progress/1",
             ],
         )

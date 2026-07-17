@@ -46,6 +46,12 @@ from common_xml import (
     resolve_export_root,
     safe_label,
 )
+from course_artifact_contracts import (
+    annotate_structure_payload,
+    load_source_identity,
+    new_run_id,
+    validate_contract,
+)
 
 URL_SCHEMES = ("http://", "https://", "data:", "mailto:", "javascript:", "tel:", "#", "//")
 QUICKLINK_TYPE = re.compile(r"[?&]type=([A-Za-z]+)")
@@ -1308,10 +1314,18 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Where to write outputs (default: <repo>/workspace/review)",
     )
+    parser.add_argument("--run-id", default="", help="Optional shared coursecraft run ID supplied by an orchestrator.")
+    parser.add_argument(
+        "--source-identity",
+        type=Path,
+        default=None,
+        help="Optional precomputed source-identity JSON supplied by an orchestrator.",
+    )
     args = parser.parse_args(argv)
 
     holder: list = []
-    root = load_export_root(args.export.expanduser().resolve(), holder)
+    source_arg = args.export.expanduser().resolve()
+    root = load_export_root(source_arg, holder)
     label = args.label or safe_label(args.export.stem if args.export.is_file() else args.export.name)
 
     diagnostics: list[str] = []
@@ -1347,27 +1361,38 @@ def main(argv: list[str] | None = None) -> int:
     md_path = output_dir / f"{stem}.md"
     json_path = output_dir / f"{stem}.json"
     md_path.write_text(render_markdown(label, tree, topics, diagnostics), encoding="utf-8")
-    json_path.write_text(
-        json.dumps(
-            {
-                "export": str(args.export),
-                "label": label,
-                "kind_counts": count_kinds(tree),
-                "tree": tree,
-                "html_topics": topics,
-                "diagnostics": diagnostics,
-            },
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
+    source_identity = load_source_identity(
+        args.source_identity.expanduser().resolve() if args.source_identity else None,
+        source_arg=source_arg,
+        logical_root=root,
     )
+    run_id = args.run_id or new_run_id()
+    payload = annotate_structure_payload(
+        {
+            "schema": "coursecraft.structure/1",
+            "run_id": run_id,
+            "source": source_identity,
+            "export": str(args.export),
+            "label": label,
+            "kind_counts": count_kinds(tree),
+            "tree": tree,
+            "html_topics": topics,
+            "diagnostics": diagnostics,
+            "extensions": {},
+        }
+    )
+    contract_errors = [issue.render() for issue in validate_contract(payload) if issue.severity == "error"]
+    if contract_errors:
+        raise SystemExit("error: coursecraft.structure/1 validation failed:\n" + "\n".join(contract_errors))
+    json_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
     counts = count_kinds(tree)
     print(f"items: {sum(counts.values())} ({counts.get('module', 0)} modules)")
     if args.extract_html:
         print(f"html topics extracted: {len(topics)}")
     print(f"diagnostics: {len(diagnostics)}")
+    print("schema: coursecraft.structure/1")
+    print(f"run id: {run_id}")
     print(f"report: {md_path}")
     print(f"json: {json_path}")
     return 0

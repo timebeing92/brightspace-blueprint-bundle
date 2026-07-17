@@ -71,7 +71,8 @@
             "docx_structure_report": {"type": ["string", "null"]},
             "docx_structure_json": {"type": ["string", "null"]},
             "status_report": {"type": ["string", "null"]},
-            "status_json": {"type": ["string", "null"]}
+            "status_json": {"type": ["string", "null"]},
+            "run_identity": {"type": ["string", "null"], "description": "Portable coursecraft.run/1 source, producer, contract, step, and checksum receipt"}
           }
         },
         "issues": {

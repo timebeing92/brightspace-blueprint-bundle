@@ -10,6 +10,7 @@ Primary outputs:
 - `sample_course__blueprint.json` (structured model)
 
 Companion artifacts:
+- `sample_course__run_identity.json` (source, producer, contract, step, and checksum receipt)
 - package inventory
 - manifest probe
 - course structure JSON/Markdown

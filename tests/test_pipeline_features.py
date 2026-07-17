@@ -91,10 +91,30 @@ def test_progress_events_stream(tmp_path):
     assert run_end["outputs"]["rubrics_docx"], "rubric DOCX path missing from run_end outputs"
     assert run_end["outputs"]["status_report"], "pipeline status Markdown missing"
     assert run_end["outputs"]["status_json"], "pipeline status JSON missing"
+    assert run_end["outputs"]["run_identity"], "run identity receipt missing"
     assert run_end["issues"] == []
     assert run_end["summary"]["weeks"] == 2
     assert run_end["summary"]["rubrics"] == 1
     assert run_end["summary"]["qa"] == {"breaks": 0, "warnings": 2, "notes": 7}
+
+    bundle = Path(run_end["bundle_dir"])
+    receipt = json.loads(Path(run_end["outputs"]["run_identity"]).read_text(encoding="utf-8"))
+    jsonschema.validate(
+        receipt,
+        json.loads((BUNDLE_ROOT / "schemas" / "run_identity_schema.json").read_text(encoding="utf-8")),
+    )
+    activities = json.loads((bundle / "sample_course__course_activities.json").read_text(encoding="utf-8"))
+    structure = json.loads((bundle / "sample_course__course_structure.json").read_text(encoding="utf-8"))
+    assert receipt["schema"] == "coursecraft.run/1"
+    assert receipt["status"] == "ok"
+    assert receipt["run_id"] == activities["run_id"] == structure["run_id"]
+    assert receipt["source"] == activities["source"] == structure["source"]
+    assert {row["contract"] for row in receipt["emitted_files"]} >= {
+        "coursecraft.activities/1",
+        "coursecraft.structure/1",
+        "coursecraft.blueprint/4",
+        "coursecraft.rubrics/1",
+    }
 
     # No human banners when events are on.
     assert "== [1/" not in proc.stdout
@@ -143,6 +163,12 @@ def test_docx_qa_failure_yields_partial_deliverable(
         ),
     )
     assert any(issue["step"] == "Check DOCX structure" for issue in run_end["issues"])
+    receipt = json.loads(Path(run_end["outputs"]["run_identity"]).read_text(encoding="utf-8"))
+    assert receipt["status"] == "partial"
+    assert any(
+        step["name"] == "Check DOCX structure" and step["status"] == "failed"
+        for step in receipt["steps"]
+    )
 
     bundle = output_dir / "sample_course__blueprint_bundle"
     assert (bundle / "sample_course__blueprint.md").is_file()
@@ -206,6 +232,12 @@ def test_malformed_rubric_json_does_not_block_blueprint(
     assert any(issue["step"] == "Extract rubrics" for issue in run_end["issues"])
     assert run_end["outputs"]["rubrics_json"] is None
     assert run_end["outputs"]["rubrics_unparsed"]
+    receipt = json.loads(Path(run_end["outputs"]["run_identity"]).read_text(encoding="utf-8"))
+    assert receipt["status"] == "partial"
+    assert any(
+        step["name"] == "Extract rubrics" and step["status"] == "failed"
+        for step in receipt["steps"]
+    )
 
     bundle = output_dir / "sample_course__blueprint_bundle"
     assert (bundle / "sample_course__blueprint.md").is_file()

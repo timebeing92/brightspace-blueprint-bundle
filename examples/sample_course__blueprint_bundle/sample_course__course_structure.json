@@ -1,4 +1,40 @@
 {
+  "schema": "coursecraft.structure/1",
+  "run_id": "cc:run:aee2e011-f747-452c-9a20-3b67ff7921f3",
+  "source": {
+    "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+    "source_instance_key": "cc:source:d08688cdb116c668b097ac3ef673567150a0001f8bf2b0128cb5f49298a20e36",
+    "lineage_state": "unresolved",
+    "lineage_basis": "logical_fingerprint",
+    "source_name": "sample_export.zip",
+    "logical_fingerprint": {
+      "algorithm": "sha256",
+      "digest": "d08688cdb116c668b097ac3ef673567150a0001f8bf2b0128cb5f49298a20e36",
+      "scope": "logical_file_set",
+      "file_count": 30,
+      "bytes": 21857,
+      "extensions": {
+        "skipped_symlink_count": 0
+      }
+    },
+    "transport_fingerprint": {
+      "algorithm": "sha256",
+      "digest": "8d3f30d12ce71cd75551b40407b59ba52525cebdec61266ca67f852a39f0d64f",
+      "scope": "transport_file",
+      "bytes": 11538,
+      "extensions": {}
+    },
+    "observed_identity": {
+      "source_name": "sample_export.zip",
+      "org_unit_id": null,
+      "course_code": null,
+      "export_timestamp": null,
+      "orgunit_identifier": null,
+      "orgunit_code": null,
+      "orgunit_name": null
+    },
+    "extensions": {}
+  },
   "export": "examples/sample_export.zip",
   "label": "sample_course",
   "kind_counts": {
@@ -34,7 +70,29 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:a489c602aa42bc9c43620abc3784eded",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "P0A"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_COURSE_INTRO"
+              },
+              {
+                "kind": "href",
+                "value": "pages/course-introduction.html"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:aeec9e042f39d1e74dae8376c963f949"
         },
         {
           "title": "Course Description",
@@ -47,7 +105,29 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:5d27b4a49e23c8cf997108795f3d8810",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "P0B"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_COURSE_DESCRIPTION"
+              },
+              {
+                "kind": "href",
+                "value": "pages/course-description.html"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:aeec9e042f39d1e74dae8376c963f949"
         },
         {
           "title": "Course Materials",
@@ -60,7 +140,29 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:f2b87b4db6cc896d90151136ef10db33",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "P0C"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_COURSE_MATERIALS"
+              },
+              {
+                "kind": "href",
+                "value": "pages/course-materials.html"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:aeec9e042f39d1e74dae8376c963f949"
         },
         {
           "title": "Course Learning Outcomes",
@@ -73,7 +175,29 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:e05d9c76944881a4f3dae03c93672517",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "P0D"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_COURSE_OUTCOMES"
+              },
+              {
+                "kind": "href",
+                "value": "pages/course-outcomes.html"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:aeec9e042f39d1e74dae8376c963f949"
         },
         {
           "title": "Project Roadmap and Setup",
@@ -86,9 +210,49 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:a5642e25e8032a9b18550bc704ba1c68",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "P0E"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_PROJECT_ROADMAP"
+              },
+              {
+                "kind": "href",
+                "value": "pages/project-roadmap.html"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:aeec9e042f39d1e74dae8376c963f949"
         }
-      ]
+      ],
+      "entity_key": "cc:entity:aeec9e042f39d1e74dae8376c963f949",
+      "identity": {
+        "quality": "scoped_source_id",
+        "basis": "identifier",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "identifier",
+            "value": "M0"
+          },
+          {
+            "kind": "identifierref",
+            "value": "RES_MOD0"
+          }
+        ],
+        "extensions": {}
+      },
+      "parent_entity_key": null
     },
     {
       "title": "Week 1",
@@ -113,7 +277,29 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:7146d038d3aaa697349d7450307b9c5e",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "P1"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_W1_OVERVIEW"
+              },
+              {
+                "kind": "href",
+                "value": "pages/week1-overview.html"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:02f86dd4cf53d0da7f43747c90ba5af4"
         },
         {
           "title": "Week 1 Learning Objectives",
@@ -126,7 +312,29 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:52a528f1e558cd5d5869492678d369ff",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "P2"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_W1_OBJECTIVES"
+              },
+              {
+                "kind": "href",
+                "value": "pages/week1-objectives.html"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:02f86dd4cf53d0da7f43747c90ba5af4"
         },
         {
           "title": "Week 1 Learning Materials and Resources",
@@ -139,7 +347,29 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:b12e6fd5c402224f155b813865c61cef",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "P3"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_W1_MATERIALS"
+              },
+              {
+                "kind": "href",
+                "value": "pages/week1-materials.html"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:02f86dd4cf53d0da7f43747c90ba5af4"
         },
         {
           "title": "Case Packet PDF",
@@ -152,7 +382,29 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:70e6d371153123b231c6d9d4c28288a7",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "P4"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_W1_CASE_PACKET"
+              },
+              {
+                "kind": "href",
+                "value": "files/week1-case-packet.pdf"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:02f86dd4cf53d0da7f43747c90ba5af4"
         },
         {
           "title": "Scenario Lab",
@@ -165,7 +417,29 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:998e9a9ac6b2606fdd97d69a5e6876d4",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "P5"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_W1_SCENARIO"
+              },
+              {
+                "kind": "href",
+                "value": "pages/week1-scenario-lab.html"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:02f86dd4cf53d0da7f43747c90ba5af4"
         },
         {
           "title": "Planning Memo",
@@ -178,7 +452,33 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:34754feea8fe9593b2750f0436924ef4",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "A1"
+              },
+              {
+                "kind": "rcode",
+                "value": "CODE-A1"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_DROPBOX_A1"
+              },
+              {
+                "kind": "href",
+                "value": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=dropbox&rCode=CODE-A1"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:02f86dd4cf53d0da7f43747c90ba5af4"
         },
         {
           "title": "Data Snapshot Worksheet",
@@ -191,7 +491,33 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:254cf2496f2ba8b2a0ca21b2234d84d4",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "A2"
+              },
+              {
+                "kind": "rcode",
+                "value": "CODE-A2"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_DROPBOX_A2"
+              },
+              {
+                "kind": "href",
+                "value": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=dropbox&rCode=CODE-A2"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:02f86dd4cf53d0da7f43747c90ba5af4"
         },
         {
           "title": "Readiness Quiz",
@@ -204,7 +530,33 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:50bc796e2598136ebc7352df7ca61e81",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "Q1"
+              },
+              {
+                "kind": "rcode",
+                "value": "CODE-Q1"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_QUIZ_Q1"
+              },
+              {
+                "kind": "href",
+                "value": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=quiz&rCode=CODE-Q1"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:02f86dd4cf53d0da7f43747c90ba5af4"
         },
         {
           "title": "Planning Assumptions Discussion",
@@ -217,7 +569,33 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:bcfdc87043dfc0a72a6ebc58a3c67eac",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "D1"
+              },
+              {
+                "kind": "rcode",
+                "value": "CODE-D1"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_DISCUSS_D1"
+              },
+              {
+                "kind": "href",
+                "value": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=discuss&rCode=CODE-D1"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:02f86dd4cf53d0da7f43747c90ba5af4"
         },
         {
           "title": "Peer Reply Discussion",
@@ -230,7 +608,33 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:755d6ec4a7739d3729be79d6980f104c",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "D2"
+              },
+              {
+                "kind": "rcode",
+                "value": "CODE-D2"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_DISCUSS_D2"
+              },
+              {
+                "kind": "href",
+                "value": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=discuss&rCode=CODE-D2"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:02f86dd4cf53d0da7f43747c90ba5af4"
         },
         {
           "title": "Week 1 Checklist",
@@ -243,7 +647,33 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:3982079cb45a2a09a8644b8b83519f4f",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "C1"
+              },
+              {
+                "kind": "rcode",
+                "value": "CODE-CL1"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_CHECKLIST_C1"
+              },
+              {
+                "kind": "href",
+                "value": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=checklist&rCode=CODE-CL1"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:02f86dd4cf53d0da7f43747c90ba5af4"
         },
         {
           "title": "Draft Quiz - Hidden",
@@ -256,7 +686,33 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:27be4a3066464cdbfc9f10c7d2135733",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "HQ1"
+              },
+              {
+                "kind": "rcode",
+                "value": "CODE-QH"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_HIDDEN_QUIZ"
+              },
+              {
+                "kind": "href",
+                "value": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=quiz&rCode=CODE-QH"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:02f86dd4cf53d0da7f43747c90ba5af4"
         },
         {
           "title": "Instructor Notes Draft",
@@ -269,9 +725,49 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:6b8a64298c5ccb554de4ccbdb40cfaba",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "HF1"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_HIDDEN_FILE"
+              },
+              {
+                "kind": "href",
+                "value": "files/hidden-instructor-notes.docx"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:02f86dd4cf53d0da7f43747c90ba5af4"
         }
-      ]
+      ],
+      "entity_key": "cc:entity:02f86dd4cf53d0da7f43747c90ba5af4",
+      "identity": {
+        "quality": "scoped_source_id",
+        "basis": "identifier",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "identifier",
+            "value": "M1"
+          },
+          {
+            "kind": "identifierref",
+            "value": "RES_MOD1"
+          }
+        ],
+        "extensions": {}
+      },
+      "parent_entity_key": null
     },
     {
       "title": "Week 2",
@@ -296,7 +792,29 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:c16d43b6c39a55dbab826dea9081f77d",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "P6"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_W2_COMBINED"
+              },
+              {
+                "kind": "href",
+                "value": "pages/week2-overview-materials.html"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:f46609a0c05d294afe981e3116adda5e"
         },
         {
           "title": "Week 2 Practice and Reflection",
@@ -309,7 +827,29 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:6e12b950c9a845fb93110850b4da0416",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "P7"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_W2_PRACTICE"
+              },
+              {
+                "kind": "href",
+                "value": "pages/week2-practice.html"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:f46609a0c05d294afe981e3116adda5e"
         },
         {
           "title": "Reflection Journal",
@@ -322,7 +862,33 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:ea25c5f4af6d56645f5b80a96db20d9f",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "A3"
+              },
+              {
+                "kind": "rcode",
+                "value": "CODE-A3"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_DROPBOX_A3"
+              },
+              {
+                "kind": "href",
+                "value": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=dropbox&rCode=CODE-A3"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:f46609a0c05d294afe981e3116adda5e"
         },
         {
           "title": "Hidden Faculty Setup Page",
@@ -335,9 +901,49 @@
           "resource_code": "",
           "description": "",
           "flags": [],
-          "children": []
+          "children": [],
+          "entity_key": "cc:entity:9bed203ea849bc97bd39a66c7f7db1a4",
+          "identity": {
+            "quality": "scoped_source_id",
+            "basis": "identifier",
+            "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+            "source_aliases": [
+              {
+                "kind": "identifier",
+                "value": "HP2"
+              },
+              {
+                "kind": "identifierref",
+                "value": "RES_HIDDEN_PAGE"
+              },
+              {
+                "kind": "href",
+                "value": "pages/hidden-faculty-setup.html"
+              }
+            ],
+            "extensions": {}
+          },
+          "parent_entity_key": "cc:entity:f46609a0c05d294afe981e3116adda5e"
         }
-      ]
+      ],
+      "entity_key": "cc:entity:f46609a0c05d294afe981e3116adda5e",
+      "identity": {
+        "quality": "scoped_source_id",
+        "basis": "identifier",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "identifier",
+            "value": "M2"
+          },
+          {
+            "kind": "identifierref",
+            "value": "RES_MOD2"
+          }
+        ],
+        "extensions": {}
+      },
+      "parent_entity_key": null
     }
   ],
   "html_topics": [
@@ -369,7 +975,24 @@
       "missing_refs": [],
       "server_refs": [],
       "images_missing_alt": 0,
-      "images_missing_alt_refs": []
+      "images_missing_alt_refs": [],
+      "entity_key": "cc:entity:5969871d615f8b41f4c38e88209e4e96",
+      "identity": {
+        "quality": "observed_reference",
+        "basis": "href",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "href",
+            "value": "pages/course-introduction.html"
+          },
+          {
+            "kind": "manifest_title",
+            "value": "Course Introduction"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "manifest_title": "Course Description",
@@ -399,7 +1022,24 @@
       "missing_refs": [],
       "server_refs": [],
       "images_missing_alt": 0,
-      "images_missing_alt_refs": []
+      "images_missing_alt_refs": [],
+      "entity_key": "cc:entity:2d33c7c8d5d6f1d1677499393b54ea89",
+      "identity": {
+        "quality": "observed_reference",
+        "basis": "href",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "href",
+            "value": "pages/course-description.html"
+          },
+          {
+            "kind": "manifest_title",
+            "value": "Course Description"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "manifest_title": "Course Materials",
@@ -439,7 +1079,24 @@
       "missing_refs": [],
       "server_refs": [],
       "images_missing_alt": 0,
-      "images_missing_alt_refs": []
+      "images_missing_alt_refs": [],
+      "entity_key": "cc:entity:1f06d1ffcf02d4b8420a77c98ebd2a43",
+      "identity": {
+        "quality": "observed_reference",
+        "basis": "href",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "href",
+            "value": "pages/course-materials.html"
+          },
+          {
+            "kind": "manifest_title",
+            "value": "Course Materials"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "manifest_title": "Course Learning Outcomes",
@@ -489,7 +1146,24 @@
       "missing_refs": [],
       "server_refs": [],
       "images_missing_alt": 0,
-      "images_missing_alt_refs": []
+      "images_missing_alt_refs": [],
+      "entity_key": "cc:entity:33e663200dfbc17c798d3c70617574c9",
+      "identity": {
+        "quality": "observed_reference",
+        "basis": "href",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "href",
+            "value": "pages/course-outcomes.html"
+          },
+          {
+            "kind": "manifest_title",
+            "value": "Course Learning Outcomes"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "manifest_title": "Project Roadmap and Setup",
@@ -573,7 +1247,24 @@
       "missing_refs": [],
       "server_refs": [],
       "images_missing_alt": 0,
-      "images_missing_alt_refs": []
+      "images_missing_alt_refs": [],
+      "entity_key": "cc:entity:c65349a582772f8abb6c24569a726274",
+      "identity": {
+        "quality": "observed_reference",
+        "basis": "href",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "href",
+            "value": "pages/project-roadmap.html"
+          },
+          {
+            "kind": "manifest_title",
+            "value": "Project Roadmap and Setup"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "manifest_title": "Week 1 Overview",
@@ -711,7 +1402,24 @@
       "images_missing_alt": 1,
       "images_missing_alt_refs": [
         "../assets/equation-screenshot.png"
-      ]
+      ],
+      "entity_key": "cc:entity:9c452550a10b50b83ffd39e6094bbd88",
+      "identity": {
+        "quality": "observed_reference",
+        "basis": "href",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "href",
+            "value": "pages/week1-overview.html"
+          },
+          {
+            "kind": "manifest_title",
+            "value": "Week 1 Overview"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "manifest_title": "Week 1 Learning Objectives",
@@ -751,7 +1459,24 @@
       "missing_refs": [],
       "server_refs": [],
       "images_missing_alt": 0,
-      "images_missing_alt_refs": []
+      "images_missing_alt_refs": [],
+      "entity_key": "cc:entity:8840bd395a1db494bbde44f80b5fb646",
+      "identity": {
+        "quality": "observed_reference",
+        "basis": "href",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "href",
+            "value": "pages/week1-objectives.html"
+          },
+          {
+            "kind": "manifest_title",
+            "value": "Week 1 Learning Objectives"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "manifest_title": "Week 1 Learning Materials and Resources",
@@ -894,7 +1619,24 @@
       "missing_refs": [],
       "server_refs": [],
       "images_missing_alt": 0,
-      "images_missing_alt_refs": []
+      "images_missing_alt_refs": [],
+      "entity_key": "cc:entity:7e6cea7bd566461fea0bfdc0ae559ac0",
+      "identity": {
+        "quality": "observed_reference",
+        "basis": "href",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "href",
+            "value": "pages/week1-materials.html"
+          },
+          {
+            "kind": "manifest_title",
+            "value": "Week 1 Learning Materials and Resources"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "manifest_title": "Case Packet PDF",
@@ -930,7 +1672,24 @@
       "images_missing_alt": 0,
       "images_missing_alt_refs": [],
       "skipped_body_extraction": true,
-      "extraction_note": "non-HTML course file"
+      "extraction_note": "non-HTML course file",
+      "entity_key": "cc:entity:21529c233ff7fa79a6bcc8232db73733",
+      "identity": {
+        "quality": "observed_reference",
+        "basis": "href",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "href",
+            "value": "files/week1-case-packet.pdf"
+          },
+          {
+            "kind": "manifest_title",
+            "value": "Case Packet PDF"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "manifest_title": "Scenario Lab",
@@ -1003,7 +1762,24 @@
       "missing_refs": [],
       "server_refs": [],
       "images_missing_alt": 0,
-      "images_missing_alt_refs": []
+      "images_missing_alt_refs": [],
+      "entity_key": "cc:entity:0431c98772c255dc6fa8ba32859bbe68",
+      "identity": {
+        "quality": "observed_reference",
+        "basis": "href",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "href",
+            "value": "pages/week1-scenario-lab.html"
+          },
+          {
+            "kind": "manifest_title",
+            "value": "Scenario Lab"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "manifest_title": "Draft Quiz - Hidden",
@@ -1042,7 +1818,24 @@
       "images_missing_alt_refs": [],
       "skipped_body_extraction": false,
       "hidden_manifest_item": true,
-      "extraction_note": "hidden/faculty-facing manifest link extracted"
+      "extraction_note": "hidden/faculty-facing manifest link extracted",
+      "entity_key": "cc:entity:e6091894b0dd75d04a60f7a84b0d845e",
+      "identity": {
+        "quality": "observed_reference",
+        "basis": "href",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "href",
+            "value": "/d2l/common/dialogs/quickLink/quickLink.d2l?type=quiz&rCode=CODE-QH"
+          },
+          {
+            "kind": "manifest_title",
+            "value": "Draft Quiz - Hidden"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "manifest_title": "Instructor Notes Draft",
@@ -1081,7 +1874,24 @@
       "images_missing_alt_refs": [],
       "skipped_body_extraction": true,
       "hidden_manifest_item": true,
-      "extraction_note": "hidden/faculty-facing manifest item"
+      "extraction_note": "hidden/faculty-facing manifest item",
+      "entity_key": "cc:entity:a3626b0a3f55bcd77f6e90c11f924dd7",
+      "identity": {
+        "quality": "observed_reference",
+        "basis": "href",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "href",
+            "value": "files/hidden-instructor-notes.docx"
+          },
+          {
+            "kind": "manifest_title",
+            "value": "Instructor Notes Draft"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "manifest_title": "Week 2 Overview and Learning Materials",
@@ -1155,7 +1965,24 @@
       "missing_refs": [],
       "server_refs": [],
       "images_missing_alt": 0,
-      "images_missing_alt_refs": []
+      "images_missing_alt_refs": [],
+      "entity_key": "cc:entity:b996ce93a920f8d1921f3fd9976cff24",
+      "identity": {
+        "quality": "observed_reference",
+        "basis": "href",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "href",
+            "value": "pages/week2-overview-materials.html"
+          },
+          {
+            "kind": "manifest_title",
+            "value": "Week 2 Overview and Learning Materials"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "manifest_title": "Week 2 Practice and Reflection",
@@ -1202,7 +2029,24 @@
       "missing_refs": [],
       "server_refs": [],
       "images_missing_alt": 0,
-      "images_missing_alt_refs": []
+      "images_missing_alt_refs": [],
+      "entity_key": "cc:entity:b84cd203ea2cb1d4e77635bd5637aa57",
+      "identity": {
+        "quality": "observed_reference",
+        "basis": "href",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "href",
+            "value": "pages/week2-practice.html"
+          },
+          {
+            "kind": "manifest_title",
+            "value": "Week 2 Practice and Reflection"
+          }
+        ],
+        "extensions": {}
+      }
     },
     {
       "manifest_title": "Hidden Faculty Setup Page",
@@ -1250,7 +2094,24 @@
       "images_missing_alt": 0,
       "images_missing_alt_refs": [],
       "hidden_manifest_item": true,
-      "extraction_note": "hidden/faculty-facing HTML body extracted"
+      "extraction_note": "hidden/faculty-facing HTML body extracted",
+      "entity_key": "cc:entity:109ccb40351e5db99c1d179e5e6b6c7a",
+      "identity": {
+        "quality": "observed_reference",
+        "basis": "href",
+        "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
+        "source_aliases": [
+          {
+            "kind": "href",
+            "value": "pages/hidden-faculty-setup.html"
+          },
+          {
+            "kind": "manifest_title",
+            "value": "Hidden Faculty Setup Page"
+          }
+        ],
+        "extensions": {}
+      }
     }
   ],
   "diagnostics": [
@@ -1260,5 +2121,6 @@
     "hidden content 'Hidden Faculty Setup Page': included as hidden/faculty-facing HTML body: pages/hidden-faculty-setup.html",
     "Package scope: hidden manifest-linked non-HTML files preserved as references: 1 file(s), 38 B total; by type: document: 1 / 38 B; largest: files/hidden-instructor-notes.docx (38 B)",
     "Package scope: files not directly linked from the visible manifest: 8 file(s), 971 B total; by type: frontend_support: 1 / 585 B, xml: 3 / 234 B, image: 3 / 112 B, document: 1 / 40 B; largest: practice/week1-sort.practice.json (585 B), conditionalrelease_d2l.xml (108 B), survey_d2l_1.xml (78 B), links_d2l.xml (48 B), assets/equation-screenshot.png (47 B), files/unlinked-faculty-deck.pptx (40 B), assets/planning-cycle.png (35 B), assets/unused-diagram.png (30 B) (may include support assets referenced inside HTML pages)"
-  ]
+  ],
+  "extensions": {}
 }
