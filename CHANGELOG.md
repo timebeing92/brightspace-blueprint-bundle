@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2026-07-17 — v1.3.0 run identity and linked syllabus evidence
 
 - Added routine export-linked syllabus inspection for the common
   welcome/getting-started module shapes. Both direct manifest syllabus items
@@ -24,7 +24,7 @@
   831 exposed this failure mode in a separate mapping parser; the bundle
   extractor was already safe, and the test now prevents regression.
 
-## 2026-07-17 — Activity, structure, and run identity contracts
+### Activity, structure, and run identity contracts
 
 - Promoted the workbench-proven `coursecraft.activities/1`,
   `coursecraft.structure/1`, and `coursecraft.run/1` contracts without removing

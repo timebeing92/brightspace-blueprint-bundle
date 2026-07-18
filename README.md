@@ -1,5 +1,7 @@
 # Brightspace Blueprint Bundle
 
+Current release: **1.3.0**
+
 Turn a Brightspace/D2L course export into a source-traceable course blueprint:
 Markdown, DOCX, JSON, activity workbook, optional rubric grid documents,
 inventory files, and QA reports.
