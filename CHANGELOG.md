@@ -2,6 +2,10 @@
 
 ## 2026-07-17 — v1.3.0 run identity and linked syllabus evidence
 
+Published from commit `0b197d95b8b1a5593f92772e664b1d04c5441677`.
+Release asset SHA-256:
+`342a64a72862db541dde3dc7c168b1c3a1566dc4c1efc2d1e0321e8a3b4cd490`.
+
 - Added routine export-linked syllabus inspection for the common
   welcome/getting-started module shapes. Both direct manifest syllabus items
   and syllabus anchors nested inside package-local HTML are recognized. The
