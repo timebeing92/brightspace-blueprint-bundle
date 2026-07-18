@@ -160,8 +160,10 @@ was deployed and verified against the live asset.
 
 ## Extraction quality
 
-- **Linked syllabus supplement implemented 2026-07-17.** Visible manifest
-  syllabus items are now inventoried routinely. Recognized allowed-host HTML is
+- **Linked syllabus supplement implemented 2026-07-17.** Visible direct
+  manifest syllabus items and nested syllabus anchors inside package-local
+  welcome/resources HTML are now inventoried routinely. Recognized allowed-host
+  HTML is
   fetched best-effort, retained and checksummed, and used only to supplement an
   otherwise-missing description, required-materials field, or course-outcomes
   field. Package-local export text retains precedence; comparisons, conflicts,

@@ -2,8 +2,11 @@
 
 ## Unreleased
 
-- Added routine manifest-linked syllabus inspection for the common
-  welcome/getting-started module shape. Recognized syllabus HTML is retained
+- Added routine export-linked syllabus inspection for the common
+  welcome/getting-started module shapes. Both direct manifest syllabus items
+  and syllabus anchors nested inside package-local HTML are recognized. The
+  latter preserves its containing manifest placement and HTML href. Recognized
+  syllabus HTML is retained
   with URL/SHA-256/manifest provenance and may supply otherwise-missing course
   description, required-material, or course-outcome blocks. Package-local text
   always wins; comparisons and unknown shapes stay diagnostic; all network or
@@ -12,7 +15,9 @@
 - Bundle release assets now checksum the two critical extraction entry points
   and gate a machine-readable `linked_syllabus_supplement` capability. A ref
   without the required primary-authority, provenance, and non-fatal controls
-  cannot be packaged as supporting the procedure.
+  cannot be packaged as supporting the procedure. The capability now also
+  declares and verifies both `manifest_item_link` and `package_html_link`
+  discovery shapes.
 - Added a course-derived regression gate proving that headings wrapped in
   inline `<strong>` or `<span>` markup retain their `h1`-`h4` structure and
   still route to Learning Objectives or Learning Materials. EDU 807 and EDU

@@ -853,21 +853,41 @@ def html_to_segments(
 # --------------------------------------------------------------------------- #
 
 
-def discover_syllabus_references(nodes: list[dict]) -> list[dict]:
-    """Return manifest-linked syllabus references with their course placement.
+def _iter_block_runs(blocks: list[dict]):
+    for block in blocks:
+        yield from block.get("runs", []) or []
+        yield from _iter_block_runs(block.get("blocks", []) or [])
+
+
+def discover_syllabus_references(
+    nodes: list[dict], html_topics: list[dict] | None = None
+) -> list[dict]:
+    """Return export-linked syllabus references with their course placement.
 
     Discovery is always local and deterministic. Fetching is a separate,
     explicitly bounded best-effort step so a network or page-shape failure can
-    never erase the export-derived deliverable.
+    never erase the export-derived deliverable. References may be direct
+    manifest links or external syllabus anchors inside package-local HTML.
     """
     references: list[dict] = []
     seen: set[tuple[str, str]] = set()
+    placements: dict[str, dict] = {}
 
     def visit(items: list[dict], ancestors: tuple[str, ...]) -> None:
         for node in items:
             title = clean(node.get("title", ""))
             href = html.unescape(clean(node.get("href", "")))
             path = tuple(part for part in (*ancestors, title) if part)
+            if _is_local_href(href):
+                placements.setdefault(
+                    _href_path_part(href),
+                    {
+                        "manifest_item_identifier": node.get("identifier", ""),
+                        "manifest_resource_identifier": node.get("identifierref", ""),
+                        "manifest_path": " > ".join(path),
+                        "is_hidden": bool(node.get("is_hidden")),
+                    },
+                )
             if href.startswith(("http://", "https://")) and (
                 "syllab" in title.casefold() or "syllab" in href.casefold()
             ):
@@ -882,12 +902,54 @@ def discover_syllabus_references(nodes: list[dict]) -> list[dict]:
                             "manifest_resource_identifier": node.get("identifierref", ""),
                             "manifest_path": " > ".join(path),
                             "is_hidden": bool(node.get("is_hidden")),
+                            "discovery": "manifest_item_link",
                             "evidence_role": "supplemental_linked_syllabus",
                         }
                     )
             visit(node.get("children", []), path)
 
     visit(nodes, ())
+    direct_urls = {reference["url"] for reference in references}
+    nested_urls: set[str] = set()
+    for topic in html_topics or []:
+        topic_href = clean(topic.get("href", ""))
+        placement = placements.get(_href_path_part(topic_href), {})
+        for segment in topic.get("body_segments", []) or []:
+            for run in _iter_block_runs(segment.get("blocks", []) or []):
+                url = html.unescape(clean(run.get("href", "")))
+                title = clean(run.get("text", ""))
+                if not url.startswith(("http://", "https://")):
+                    continue
+                if "syllab" not in title.casefold() and "syllab" not in url.casefold():
+                    continue
+                if url in direct_urls or url in nested_urls:
+                    continue
+                nested_urls.add(url)
+                container_path = placement.get("manifest_path") or clean(
+                    topic.get("manifest_title", "")
+                )
+                references.append(
+                    {
+                        "title": title or "Syllabus",
+                        "url": url,
+                        "manifest_item_identifier": placement.get(
+                            "manifest_item_identifier", ""
+                        ),
+                        "manifest_resource_identifier": placement.get(
+                            "manifest_resource_identifier", ""
+                        ),
+                        "manifest_path": " > ".join(
+                            part for part in (container_path, title) if part
+                        ),
+                        "is_hidden": bool(
+                            placement.get("is_hidden")
+                            or topic.get("hidden_manifest_item")
+                        ),
+                        "discovery": "package_html_link",
+                        "container_href": topic_href,
+                        "evidence_role": "supplemental_linked_syllabus",
+                    }
+                )
     return references
 
 
@@ -1053,6 +1115,7 @@ def extract_syllabus_front_matter(
 def collect_syllabus_supplements(
     nodes: list[dict],
     *,
+    html_topics: list[dict] | None = None,
     output_dir: Path,
     stem: str,
     fetch_enabled: bool,
@@ -1060,7 +1123,7 @@ def collect_syllabus_supplements(
     allowed_hosts: set[str],
     diagnostics: list[str],
 ) -> list[dict]:
-    references = discover_syllabus_references(nodes)
+    references = discover_syllabus_references(nodes, html_topics)
     if not references:
         return []
 
@@ -1737,6 +1800,7 @@ def main(argv: list[str] | None = None) -> int:
     }
     syllabus_references = collect_syllabus_supplements(
         tree,
+        html_topics=topics,
         output_dir=output_dir,
         stem=stem,
         fetch_enabled=bool(args.extract_html and not args.no_syllabus_fetch),

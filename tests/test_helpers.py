@@ -184,6 +184,97 @@ class TestHtmlToText:
             for note in primary_model["diagnostics"]
         )
 
+    def test_nested_package_html_syllabus_link_is_discovered_and_fetched(
+        self, tmp_path, monkeypatch
+    ):
+        syllabus_html = b"""<html><body>
+        <h2>Course Description</h2><p>Nested-link description.</p>
+        <h2>Course Outcomes</h2><ul><li>Interpret nested evidence.</li></ul>
+        </body></html>"""
+
+        class FakeResponse:
+            status = 200
+            headers = {"Content-Type": "text/html; charset=UTF-8"}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self, _limit):
+                return syllabus_html
+
+        monkeypatch.setattr(rcs, "urlopen", lambda *_args, **_kwargs: FakeResponse())
+        nodes = [
+            {
+                "title": "Welcome and Getting Started",
+                "identifier": "MODULE-1",
+                "identifierref": "RES-MODULE-1",
+                "href": "",
+                "is_hidden": False,
+                "children": [
+                    {
+                        "title": "Course Resources and Student Resources",
+                        "identifier": "ITEM-RESOURCES",
+                        "identifierref": "RES-RESOURCES",
+                        "href": "Course Resources.html",
+                        "is_hidden": False,
+                        "children": [],
+                    }
+                ],
+            }
+        ]
+        html_topics = [
+            {
+                "manifest_title": "Course Resources and Student Resources",
+                "href": "Course Resources.html",
+                "body_segments": [
+                    {
+                        "heading": "Course Resources",
+                        "blocks": [
+                            {
+                                "kind": "p",
+                                "runs": [
+                                    {
+                                        "text": "EDU 615 Syllabus and Schedule",
+                                        "href": "https://syllabi.une.edu/edu/edu-615/",
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ],
+            }
+        ]
+        diagnostics = []
+
+        references = rcs.collect_syllabus_supplements(
+            nodes,
+            html_topics=html_topics,
+            output_dir=tmp_path,
+            stem="fixture__course_structure",
+            fetch_enabled=True,
+            timeout=1,
+            allowed_hosts={"syllabi.une.edu"},
+            diagnostics=diagnostics,
+        )
+
+        assert len(references) == 1
+        reference = references[0]
+        assert reference["discovery"] == "package_html_link"
+        assert reference["container_href"] == "Course Resources.html"
+        assert reference["manifest_item_identifier"] == "ITEM-RESOURCES"
+        assert reference["manifest_path"] == (
+            "Welcome and Getting Started > Course Resources and Student Resources > "
+            "EDU 615 Syllabus and Schedule"
+        )
+        assert reference["fetch_status"] == "fetched"
+        assert set(reference["front_matter"]) == {
+            "course_description",
+            "course_learning_outcomes",
+        }
+
     def test_linked_syllabus_fetch_failure_remains_diagnostic(
         self, tmp_path, monkeypatch
     ):

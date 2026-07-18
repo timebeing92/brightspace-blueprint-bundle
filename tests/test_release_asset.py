@@ -73,6 +73,10 @@ class BundleReleaseAssetTests(unittest.TestCase):
         ]
         self.assertEqual(capability["status"], "enabled_by_default")
         self.assertEqual(capability["primary_authority"], "package_local_export")
+        self.assertEqual(
+            capability["discovery_shapes"],
+            ["manifest_item_link", "package_html_link"],
+        )
 
     def test_linked_syllabus_capability_requires_runtime_markers(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

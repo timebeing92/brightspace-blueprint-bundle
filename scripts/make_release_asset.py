@@ -122,6 +122,7 @@ def release_capabilities(root: Path) -> dict[str, dict[str, Any]]:
         "scripts/reconstruct_course_structure.py": (
             "collect_syllabus_supplements",
             "supplemental_linked_syllabus",
+            "package_html_link",
             "DEFAULT_SYLLABUS_HOSTS",
         ),
     }
@@ -139,6 +140,7 @@ def release_capabilities(root: Path) -> dict[str, dict[str, Any]]:
             "evidence_role": "supplemental_linked_syllabus",
             "primary_authority": "package_local_export",
             "network_boundary": "allowlisted_best_effort_nonfatal",
+            "discovery_shapes": ["manifest_item_link", "package_html_link"],
             "runtime_files": list(RUNTIME_FILES),
         }
     }

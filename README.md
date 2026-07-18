@@ -153,14 +153,16 @@ bash run_blueprint.sh /path/to/export.zip \
   --check-external-links
 ```
 
-The manifest's own syllabus item is handled separately from broad link QA.
-During normal HTML extraction, the bundle inventories a visible syllabus link
-and makes a non-fatal best-effort fetch from the recognized
-`syllabi.une.edu` host. Exact fetched bytes, URL, SHA-256, manifest placement,
-and extracted description/outcome/material headings are preserved. Package-
-local course content remains primary; syllabus text fills a field only when
-that field was otherwise empty. Use `--no-syllabus-fetch` for an inventory-only
-offline run. Other syllabus hosts require an explicit `--syllabus-host` value.
+The course's syllabus path is handled separately from broad link QA. During
+normal HTML extraction, the bundle inventories both direct manifest syllabus
+items and external syllabus anchors nested inside package-local welcome or
+resources pages, then makes a non-fatal best-effort fetch from the recognized
+`syllabi.une.edu` host. Exact fetched bytes, URL, SHA-256, discovery shape,
+manifest placement, containing HTML href, and extracted
+description/outcome/material headings are preserved. Package-local course
+content remains primary; syllabus text fills a field only when that field was
+otherwise empty. Use `--no-syllabus-fetch` for an inventory-only offline run.
+Other syllabus hosts require an explicit `--syllabus-host` value.
 
 Write to a different base output folder:
 
