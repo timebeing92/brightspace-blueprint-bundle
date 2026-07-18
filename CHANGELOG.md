@@ -18,6 +18,11 @@
   cannot be packaged as supporting the procedure. The capability now also
   declares and verifies both `manifest_item_link` and `package_html_link`
   discovery shapes.
+- Run-identity generation now recognizes the enclosing
+  `coursecraft.runner_release/1` manifest used by portable and managed Blueprint
+  Wizard packages. Combined releases therefore record the exact Bundle
+  version, repository, ref, and commit instead of falling back to an unknown
+  producer when the Bundle has no `.git` directory of its own.
 - Added a course-derived regression gate proving that headings wrapped in
   inline `<strong>` or `<span>` markup retain their `h1`-`h4` structure and
   still route to Learning Objectives or Learning Materials. EDU 807 and EDU

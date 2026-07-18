@@ -20,6 +20,7 @@ from scripts.course_artifact_contracts import (
     build_source_identity,
     logical_file_set_fingerprint,
     new_run_id,
+    producer_identity,
     validate_contract,
     verify_run_identity,
 )
@@ -250,6 +251,78 @@ def test_run_receipt_hashes_artifacts_and_detects_tampering(tmp_path: Path) -> N
     assert verify_run_identity(receipt, bundle) == []
     artifact.write_text("changed\n", encoding="utf-8")
     assert "checksum mismatch" in verify_run_identity(receipt, bundle)[0]
+
+
+def test_producer_identity_reads_enclosing_runner_release(tmp_path: Path) -> None:
+    bundle_root = tmp_path / "brightspace-blueprint-bundle"
+    bundle_root.mkdir()
+    (bundle_root / "VERSION").write_text("1.3.0\n", encoding="utf-8")
+    (tmp_path / "RELEASE_MANIFEST.json").write_text(
+        json.dumps(
+            {
+                "schema": "coursecraft.runner_release/1",
+                "version": "2.8.0",
+                "bundle": {
+                    "version": "1.3.0",
+                    "repository": "https://github.com/example/bundle.git",
+                    "ref": "b" * 40,
+                    "commit": "b" * 40,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    identity = producer_identity(bundle_root)
+
+    assert identity == {
+        "component": "brightspace-blueprint-bundle",
+        "identity_state": "release",
+        "version": "1.3.0",
+        "repository": "https://github.com/example/bundle.git",
+        "ref": "b" * 40,
+        "commit": "b" * 40,
+        "dirty": False,
+        "extensions": {
+            "release_schema": "coursecraft.runner_release/1",
+            "release_manifest_scope": "enclosing_runner_release",
+        },
+    }
+
+
+def test_component_bundle_release_takes_precedence_over_enclosing_release(
+    tmp_path: Path,
+) -> None:
+    bundle_root = tmp_path / "brightspace-blueprint-bundle"
+    bundle_root.mkdir()
+    (bundle_root / "RELEASE_MANIFEST.json").write_text(
+        json.dumps(
+            {
+                "schema": "coursecraft.bundle_release/1",
+                "version": "1.3.0",
+                "source": {
+                    "repository": "https://github.com/example/bundle.git",
+                    "ref": "c" * 40,
+                    "commit": "c" * 40,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "RELEASE_MANIFEST.json").write_text(
+        json.dumps(
+            {
+                "schema": "coursecraft.runner_release/1",
+                "bundle": {"commit": "p" * 40},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    identity = producer_identity(bundle_root)
+
+    assert identity["commit"] == "c" * 40
+    assert identity["extensions"]["release_manifest_scope"] == "component"
 
 
 def test_logical_fingerprint_skips_symlinks(tmp_path: Path) -> None:

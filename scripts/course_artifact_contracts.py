@@ -411,23 +411,48 @@ def validate_contract(payload: dict[str, Any], *, mode: str = "transform") -> li
 
 
 def producer_identity(repo_root: Path = REPO_ROOT) -> dict[str, Any]:
-    release_manifest = repo_root / "RELEASE_MANIFEST.json"
-    if release_manifest.is_file():
+    release_manifests = (
+        (repo_root / "RELEASE_MANIFEST.json", "component"),
+        (repo_root.parent / "RELEASE_MANIFEST.json", "enclosing_runner_release"),
+    )
+    for release_manifest, scope in release_manifests:
+        if not release_manifest.is_file():
+            continue
         try:
             release = json.loads(release_manifest.read_text(encoding="utf-8"))
-            source = release.get("source", {})
+            release_schema = release.get("schema")
+            if release_schema == "coursecraft.bundle_release/1":
+                source = release.get("source", {})
+                version = release.get("version")
+            elif release_schema == "coursecraft.runner_release/1":
+                source = release.get("bundle", {})
+                version = source.get("version")
+                if not version:
+                    version_path = repo_root / "VERSION"
+                    version = (
+                        version_path.read_text(encoding="utf-8").strip()
+                        if version_path.is_file()
+                        else None
+                    )
+            else:
+                continue
+            if not isinstance(source, dict) or not source.get("commit"):
+                continue
             return {
                 "component": "brightspace-blueprint-bundle",
                 "identity_state": "release",
-                "version": release.get("version"),
+                "version": version,
                 "repository": source.get("repository"),
                 "ref": source.get("ref"),
                 "commit": source.get("commit"),
                 "dirty": False,
-                "extensions": {"release_schema": release.get("schema")},
+                "extensions": {
+                    "release_schema": release_schema,
+                    "release_manifest_scope": scope,
+                },
             }
         except (OSError, json.JSONDecodeError):
-            pass
+            continue
 
     def git(*args: str) -> str:
         result = subprocess.run(
