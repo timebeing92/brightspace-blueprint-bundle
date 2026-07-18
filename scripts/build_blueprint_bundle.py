@@ -31,6 +31,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from difflib import SequenceMatcher
 import json
 import re
 import subprocess
@@ -579,6 +580,19 @@ def _plain_blocks(text: str) -> list[dict]:
     return [{"kind": "p", "level": 0, "runs": [{"text": text, "href": ""}]}] if text else []
 
 
+def _blocks_text(blocks: list[dict]) -> str:
+    parts: list[str] = []
+    for block in blocks or []:
+        for run in block.get("runs", []):
+            value = clean_text(run.get("text", ""))
+            if value:
+                parts.append(value)
+        nested = _blocks_text(block.get("blocks") or [])
+        if nested:
+            parts.append(nested)
+    return "\n".join(parts).strip()
+
+
 def _page_default_bucket(page: str) -> str:
     """Bucket for a page classified only by its title: week-titled or untitled
     pages read as the week's own narrative (overview); any other distinctly
@@ -899,7 +913,7 @@ def format_quiz(quiz: dict | None, link_node: dict | None = None) -> dict:
 # --------------------------------------------------------------------------- #
 # Course-level front matter (segment-aware)
 # --------------------------------------------------------------------------- #
-def find_front_matter(structure: dict, category: str) -> list[dict]:
+def find_export_front_matter(structure: dict, category: str) -> list[dict]:
     """Find a course-level field as blocks, preferring a matching *segment*.
 
     Looks first for a topic segment whose heading matches the category, then
@@ -913,23 +927,28 @@ def find_front_matter(structure: dict, category: str) -> list[dict]:
         "introduction": ("course introduction", "welcome", "start here", "course overview", "introduction"),
     }[category]
     heading_terms = {
-        "description": ("course description", "catalog description"),
-        "materials": ("textbook", "required materials", "course materials", "materials for this course"),
-        "outcomes": ("course learning outcomes", "course outcomes"),
+        "description": ("course description", "catalog description", "description"),
+        "materials": (
+            "textbook", "required materials", "course materials",
+            "materials for this course", "required texts",
+        ),
+        "outcomes": (
+            "course learning outcomes", "course outcomes", "student learning outcomes",
+            "learning objectives and outcomes",
+        ),
         "introduction": ("course introduction",),
     }[category]
 
-    if category in ("materials", "outcomes"):
-        for topic in structure.get("html_topics", []):
-            if topic.get("hidden_manifest_item"):
-                continue
-            title = f"{topic.get('manifest_title', '')} {topic.get('html_title', '')}"
-            if _is_week_scoped_title(title):
-                continue
-            for seg in topic.get("body_segments", []):
-                heading = seg.get("heading", "").lower()
-                if heading and any(term in heading for term in heading_terms) and seg.get("blocks"):
-                    return seg["blocks"]
+    for topic in structure.get("html_topics", []):
+        if topic.get("hidden_manifest_item"):
+            continue
+        title = f"{topic.get('manifest_title', '')} {topic.get('html_title', '')}"
+        if _is_week_scoped_title(title):
+            continue
+        for seg in topic.get("body_segments", []):
+            heading = seg.get("heading", "").lower()
+            if heading and any(term in heading for term in heading_terms) and seg.get("blocks"):
+                return seg["blocks"]
 
     for topic in structure.get("html_topics", []):
         if topic.get("hidden_manifest_item"):
@@ -946,6 +965,58 @@ def find_front_matter(structure: dict, category: str) -> list[dict]:
         if topic.get("body_text"):
             return _plain_blocks(topic["body_text"])
     return []
+
+
+SYLLABUS_FRONT_MATTER_KEYS = {
+    "description": "course_description",
+    "materials": "required_materials",
+    "outcomes": "course_learning_outcomes",
+}
+
+
+def syllabus_front_matter_candidates(structure: dict, category: str) -> list[dict]:
+    field = SYLLABUS_FRONT_MATTER_KEYS.get(category)
+    if not field:
+        return []
+    candidates: list[dict] = []
+    extensions = structure.get("extensions") or {}
+    for reference in extensions.get("syllabus_references", []) or []:
+        candidate = (reference.get("front_matter") or {}).get(field)
+        if not isinstance(candidate, dict) or not candidate.get("blocks"):
+            continue
+        candidates.append(
+            {
+                "field": field,
+                "blocks": candidate["blocks"],
+                "text": candidate.get("text") or _blocks_text(candidate["blocks"]),
+                "heading": candidate.get("heading", ""),
+                "url": reference.get("url", ""),
+                "artifact_path": reference.get("artifact_path", ""),
+                "sha256": reference.get("sha256", ""),
+            }
+        )
+    return candidates
+
+
+def find_syllabus_front_matter(structure: dict, category: str) -> list[dict]:
+    candidates = syllabus_front_matter_candidates(structure, category)
+    if not candidates:
+        return []
+    unique_text = {
+        re.sub(r"\s+", " ", clean_text(candidate["text"])).casefold()
+        for candidate in candidates
+        if clean_text(candidate["text"])
+    }
+    if len(unique_text) > 1:
+        return []
+    return candidates[0]["blocks"]
+
+
+def find_front_matter(structure: dict, category: str) -> list[dict]:
+    """Prefer package-local course content, then a linked-syllabus supplement."""
+    return find_export_front_matter(structure, category) or find_syllabus_front_matter(
+        structure, category
+    )
 
 
 FRONT_MATTER_LABELS = {
@@ -965,9 +1036,55 @@ def front_matter_diagnostics(structure: dict, front_matter: dict[str, list[dict]
     checked_sources = "extracted non-hidden course-level HTML topic titles and headings"
     if source_notes:
         checked_sources += "; " + " ".join(source_notes)
+    syllabus_references = (structure.get("extensions") or {}).get(
+        "syllabus_references", []
+    ) or []
+    if syllabus_references:
+        checked_sources += "; manifest-linked syllabus evidence recorded in course structure"
+    else:
+        checked_sources += "; no manifest-linked syllabus item was discovered"
     diagnostics: list[str] = []
+    category_by_key = {
+        "course_description": "description",
+        "required_materials": "materials",
+        "course_learning_outcomes": "outcomes",
+        "course_introduction": "introduction",
+    }
     for key, label in FRONT_MATTER_LABELS.items():
-        if front_matter.get(key):
+        category = category_by_key[key]
+        package_blocks = find_export_front_matter(structure, category)
+        syllabus_candidates = syllabus_front_matter_candidates(structure, category)
+        if package_blocks:
+            if syllabus_candidates:
+                package_text = re.sub(r"\s+", " ", _blocks_text(package_blocks)).strip().casefold()
+                syllabus_text = re.sub(
+                    r"\s+", " ", clean_text(syllabus_candidates[0]["text"])
+                ).strip().casefold()
+                similarity = SequenceMatcher(None, package_text, syllabus_text).ratio()
+                if package_text == syllabus_text:
+                    comparison = "matches after whitespace/case normalization"
+                elif similarity >= 0.85:
+                    comparison = f"substantially overlaps ({similarity:.0%} similarity)"
+                else:
+                    comparison = f"differs ({similarity:.0%} similarity)"
+                diagnostics.append(
+                    f"Linked syllabus comparison: {label} {comparison}; package-local "
+                    f"content retained as primary. Supplemental source: "
+                    f"{syllabus_candidates[0]['url']}."
+                )
+            continue
+        if syllabus_candidates and front_matter.get(key):
+            diagnostics.append(
+                f"Front matter: {label} not found in package-local course pages; "
+                f"supplemented verbatim from the manifest-linked syllabus "
+                f"{syllabus_candidates[0]['url']}."
+            )
+            continue
+        if len(syllabus_candidates) > 1 and not front_matter.get(key):
+            diagnostics.append(
+                f"Front matter: {label} has conflicting linked-syllabus candidates; "
+                "none was promoted automatically."
+            )
             continue
         diagnostics.append(
             f"Front matter: {label} not found in {checked_sources}; rendered as Needs review."
@@ -1627,6 +1744,7 @@ def write_bundle_readme(
                 "- package inventory",
                 "- manifest probe",
                 "- course structure JSON/Markdown",
+                "- manifest-linked syllabus inventory and retained supplemental source when available",
                 "- course activities JSON/Markdown/workbook",
                 *rubric_lines,
                 qa_line,
@@ -1680,6 +1798,23 @@ def main(argv: list[str] | None = None) -> int:
         type=float,
         default=8.0,
         help="Per-URL timeout in seconds when --check-external-links is used",
+    )
+    parser.add_argument(
+        "--no-syllabus-fetch",
+        action="store_true",
+        help="Inventory linked syllabi without fetching supplemental description/outcome/material evidence.",
+    )
+    parser.add_argument(
+        "--syllabus-timeout",
+        type=float,
+        default=8.0,
+        help="Per-syllabus fetch timeout in seconds (default: 8).",
+    )
+    parser.add_argument(
+        "--syllabus-host",
+        action="append",
+        default=[],
+        help="Additional allowed syllabus hostname; may be repeated.",
     )
     parser.add_argument("--no-docx", action="store_true", help="Do not render the DOCX blueprint")
     parser.add_argument(
@@ -1942,13 +2077,29 @@ def main(argv: list[str] | None = None) -> int:
         )
         return payload
 
+    structure_args = [
+        *contracted_labeled,
+        "--extract-html",
+        "--syllabus-timeout",
+        str(args.syllabus_timeout),
+    ]
+    if args.no_syllabus_fetch:
+        structure_args.append("--no-syllabus-fetch")
+    for syllabus_host in args.syllabus_host:
+        structure_args.extend(["--syllabus-host", syllabus_host])
     run_step(
         "Reconstruct course structure",
         lambda: run_workbench_script(
-            "reconstruct_course_structure.py", [*contracted_labeled, "--extract-html"], args.quiet, timeout=step_timeout
+            "reconstruct_course_structure.py",
+            structure_args,
+            args.quiet,
+            timeout=step_timeout,
         ),
         fallback=recover_structure,
-        patterns=(f"{stem}__course_structure.*",),
+        patterns=(
+            f"{stem}__course_structure.*",
+            f"{stem}__course_structure__syllabus_sources/**/*",
+        ),
     )
 
     def recover_activities(message: str):
@@ -2390,6 +2541,9 @@ def main(argv: list[str] | None = None) -> int:
         parameters={
             "qa_requested": not args.skip_qa,
             "external_link_checks_requested": bool(args.check_external_links),
+            "linked_syllabus_fetch_requested": not args.no_syllabus_fetch,
+            "linked_syllabus_timeout_seconds": args.syllabus_timeout,
+            "linked_syllabus_additional_hosts": list(args.syllabus_host),
             "docx_requested": not args.no_docx,
             "docx_structure_check_requested": not args.skip_docx_structure_check,
             "docx_render_check_requested": bool(args.render_docx_check),

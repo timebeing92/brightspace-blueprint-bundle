@@ -153,6 +153,15 @@ bash run_blueprint.sh /path/to/export.zip \
   --check-external-links
 ```
 
+The manifest's own syllabus item is handled separately from broad link QA.
+During normal HTML extraction, the bundle inventories a visible syllabus link
+and makes a non-fatal best-effort fetch from the recognized
+`syllabi.une.edu` host. Exact fetched bytes, URL, SHA-256, manifest placement,
+and extracted description/outcome/material headings are preserved. Package-
+local course content remains primary; syllabus text fills a field only when
+that field was otherwise empty. Use `--no-syllabus-fetch` for an inventory-only
+offline run. Other syllabus hosts require an explicit `--syllabus-host` value.
+
 Write to a different base output folder:
 
 ```bash
@@ -182,6 +191,9 @@ bash run_blueprint.sh /path/to/export.zip \
 | `--skip-qa` | Skip `course_qa_report.py`. |
 | `--check-external-links` | Fetch and check external URLs during QA. Offline inventory remains the default. |
 | `--external-link-timeout N` | Per-URL timeout in seconds for external-link checks. |
+| `--no-syllabus-fetch` | Inventory the manifest-linked syllabus without fetching supplemental evidence. |
+| `--syllabus-timeout N` | Per-syllabus best-effort fetch timeout; default is 8 seconds. |
+| `--syllabus-host HOST` | Add an allowed syllabus hostname; may be repeated. |
 | `--no-docx` | Produce Markdown and JSON only. |
 | `--render-docx-check` | Advanced maintainer preview: render the DOCX to PDF/PNG pages for human inspection. |
 | `--docx-section-layout top\|left` | DOCX weekly section-label layout; `top` is the default. |
@@ -207,8 +219,10 @@ python3 scripts/make_release_asset.py --ref <full-bundle-commit>
 
 The command refuses a dirty worktree by default. It writes a reproducible
 `dist/brightspace-blueprint-bundle-vX.Y.Z.tar.gz`, a sidecar SHA-256 file, and
-an embedded `RELEASE_MANIFEST.json` recording the source commit and contract
-hashes.
+an embedded `RELEASE_MANIFEST.json` recording the source commit, contract
+hashes, critical extractor hashes, and the gated linked-syllabus capability.
+The release builder refuses a selected ref that advertises that procedure but
+does not contain its primary-authority, non-fatal-fetch, and provenance hooks.
 
 ## How To Review A Run
 
@@ -221,7 +235,9 @@ Start with the generated DOCX or Markdown blueprint. Then check the QA report:
 - Front-matter diagnostics say which candidate sources were checked when a field
   remains `Needs review`.
 - External links are inventoried by default. They are fetched only when
-  `--check-external-links` is used.
+  `--check-external-links` is used. The manifest-linked syllabus is the bounded
+  exception described above: it is supplemental course evidence, fetched by
+  default from recognized hosts, and can be disabled independently.
 
 The default structural DOCX report is the normal verification surface. When a
 renderer, template, or layout change warrants a manual compatibility preview,

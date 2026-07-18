@@ -1,6 +1,7 @@
 """Unit tests for the small shared helpers the pipeline scripts rely on."""
 from __future__ import annotations
 
+import hashlib
 import sys
 from pathlib import Path
 
@@ -44,6 +45,176 @@ class TestHtmlToText:
         # script/style payloads, not surface them as course text.
         raw = "<style>p{color:red}</style><p>Visible</p><script>alert('x')</script>"
         assert eca.html_to_text(raw) == "Visible"
+
+    def test_nested_inline_heading_markup_survives_segmentation_and_routing(self):
+        raw = """
+        <h2><strong>Student Learning Outcomes:</strong></h2>
+        <ul><li>Explore the literature related to the proposed study.</li></ul>
+        <h2><span>Learning Materials</span></h2>
+        <p>Read the assigned chapter.</p>
+        """
+
+        segments = rcs.html_to_segments(raw)
+
+        assert [(row["heading"], row["level"]) for row in segments] == [
+            ("Student Learning Outcomes:", 2),
+            ("Learning Materials", 2),
+        ]
+        routed = list(
+            bbb.route_topic(
+                {
+                    "manifest_title": "Week 1 Overview & Course Materials",
+                    "html_title": "Week 1",
+                    "href": "Week 1.html",
+                    "body_segments": segments,
+                }
+            )
+        )
+        assert [row["bucket"] for row in routed] == ["objectives", "resources"]
+        assert rcs.blocks_to_text(routed[0]["blocks"]) == (
+            "Explore the literature related to the proposed study."
+        )
+
+    def test_linked_syllabus_supplements_missing_fields_but_export_stays_primary(
+        self, tmp_path, monkeypatch
+    ):
+        syllabus_html = b"""<html><body>
+        <h2><strong>Description</strong></h2>
+        <p>Supplemental linked-syllabus description.</p>
+        <h2>Materials</h2><h3><span>Required:</span></h3>
+        <ul><li>One required text.</li></ul>
+        <h2>Learning Objectives and Outcomes</h2>
+        <h4><strong>Course Outcomes:</strong></h4>
+        <ul><li>Analyze evidence from multiple sources.</li></ul>
+        </body></html>"""
+
+        class FakeResponse:
+            status = 200
+            headers = {"Content-Type": "text/html; charset=UTF-8"}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self, _limit):
+                return syllabus_html
+
+        monkeypatch.setattr(rcs, "urlopen", lambda *_args, **_kwargs: FakeResponse())
+        nodes = [
+            {
+                "title": "Welcome, Syllabus, and Getting Started",
+                "identifier": "MODULE-1",
+                "identifierref": "RES-MODULE-1",
+                "href": "",
+                "is_hidden": False,
+                "children": [
+                    {
+                        "title": "Course Syllabus",
+                        "identifier": "ITEM-SYLLABUS",
+                        "identifierref": "RES-SYLLABUS",
+                        "href": "https://syllabi.une.edu/example/course/",
+                        "is_hidden": False,
+                        "children": [],
+                    }
+                ],
+            }
+        ]
+        diagnostics = []
+        references = rcs.collect_syllabus_supplements(
+            nodes,
+            output_dir=tmp_path,
+            stem="fixture__course_structure",
+            fetch_enabled=True,
+            timeout=1,
+            allowed_hosts={"syllabi.une.edu"},
+            diagnostics=diagnostics,
+        )
+        assert references[0]["sha256"] == hashlib.sha256(syllabus_html).hexdigest()
+        assert set(references[0]["front_matter"]) == {
+            "course_description",
+            "required_materials",
+            "course_learning_outcomes",
+        }
+        assert (tmp_path / references[0]["artifact_path"]).read_bytes() == syllabus_html
+
+        structure_payload = {
+            "tree": [],
+            "html_topics": [],
+            "diagnostics": diagnostics,
+            "extensions": {"syllabus_references": references},
+        }
+        model = bbb.build_blueprint_model(
+            structure_payload,
+            {},
+            label="fixture",
+            course_number="COURSE 101",
+            course_title="Fixture Course",
+            term="Fall 2026",
+            template_reference="test",
+        )
+        assert "Supplemental linked-syllabus description" in bbb._blocks_text(
+            model["front_matter"]["course_description"]
+        )
+        assert any("supplemented verbatim" in note for note in model["diagnostics"])
+
+        primary = [{"kind": "p", "level": 0, "runs": [{"text": "Primary export text.", "href": ""}]}]
+        structure_payload["html_topics"] = [
+            {
+                "manifest_title": "Course Overview",
+                "html_title": "Course Overview",
+                "body_segments": [
+                    {"heading": "Description", "level": 2, "blocks": primary}
+                ],
+            }
+        ]
+        primary_model = bbb.build_blueprint_model(
+            structure_payload,
+            {},
+            label="fixture",
+            course_number="COURSE 101",
+            course_title="Fixture Course",
+            term="Fall 2026",
+            template_reference="test",
+        )
+        assert primary_model["front_matter"]["course_description"] == primary
+        assert any(
+            "package-local content retained as primary" in note
+            for note in primary_model["diagnostics"]
+        )
+
+    def test_linked_syllabus_fetch_failure_remains_diagnostic(
+        self, tmp_path, monkeypatch
+    ):
+        def unavailable(*_args, **_kwargs):
+            raise RuntimeError("fixture unexpected shape")
+
+        monkeypatch.setattr(rcs, "urlopen", unavailable)
+        diagnostics = []
+        references = rcs.collect_syllabus_supplements(
+            [
+                {
+                    "title": "Course Syllabus",
+                    "identifier": "ITEM-SYLLABUS",
+                    "identifierref": "RES-SYLLABUS",
+                    "href": "https://syllabi.une.edu/example/course/",
+                    "is_hidden": False,
+                    "children": [],
+                }
+            ],
+            output_dir=tmp_path,
+            stem="fixture__course_structure",
+            fetch_enabled=True,
+            timeout=1,
+            allowed_hosts={"syllabi.une.edu"},
+            diagnostics=diagnostics,
+        )
+
+        assert references[0]["fetch_status"] == "fetch_error"
+        assert references[0]["front_matter"] == {}
+        assert "Unexpected linked-syllabus RuntimeError" in references[0]["diagnostics"][0]
+        assert any("fetch_error" in note for note in diagnostics)
 
 
 class TestXmlSafeText:

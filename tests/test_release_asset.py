@@ -55,6 +55,35 @@ class BundleReleaseAssetTests(unittest.TestCase):
             expected = hashlib.sha256((ROOT / row["path"]).read_bytes()).hexdigest()
             self.assertEqual(row["sha256"], expected)
 
+    def test_runtime_receipt_and_linked_syllabus_capability(self) -> None:
+        rows = release.runtime_receipt(ROOT)
+        self.assertEqual(
+            [row["path"] for row in rows],
+            [
+                "scripts/build_blueprint_bundle.py",
+                "scripts/reconstruct_course_structure.py",
+            ],
+        )
+        for row in rows:
+            expected = hashlib.sha256((ROOT / row["path"]).read_bytes()).hexdigest()
+            self.assertEqual(row["sha256"], expected)
+
+        capability = release.release_capabilities(ROOT)[
+            "linked_syllabus_supplement"
+        ]
+        self.assertEqual(capability["status"], "enabled_by_default")
+        self.assertEqual(capability["primary_authority"], "package_local_export")
+
+    def test_linked_syllabus_capability_requires_runtime_markers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for relative in release.RUNTIME_FILES:
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("placeholder\n", encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "lacks linked-syllabus"):
+                release.release_capabilities(root)
+
 
 if __name__ == "__main__":
     unittest.main()

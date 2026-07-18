@@ -22,14 +22,18 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import re
 import sys
 from collections import Counter
+from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import unquote
+from urllib.error import HTTPError, URLError
+from urllib.parse import unquote, urlparse
+from urllib.request import Request, urlopen
 import xml.etree.ElementTree as ET
 
 from common_xml import (
@@ -70,6 +74,8 @@ CORE_PACKAGE_FILES = {
     "questiondb.xml",
     "orgunitconfig.xml",
 }
+DEFAULT_SYLLABUS_HOSTS = ("syllabi.une.edu",)
+MAX_SYLLABUS_BYTES = 5 * 1024 * 1024
 
 
 def _href_path_part(href: str) -> str:
@@ -842,6 +848,331 @@ def html_to_segments(
     return segments
 
 
+# --------------------------------------------------------------------------- #
+# Linked syllabus discovery and best-effort supplementary evidence
+# --------------------------------------------------------------------------- #
+
+
+def discover_syllabus_references(nodes: list[dict]) -> list[dict]:
+    """Return manifest-linked syllabus references with their course placement.
+
+    Discovery is always local and deterministic. Fetching is a separate,
+    explicitly bounded best-effort step so a network or page-shape failure can
+    never erase the export-derived deliverable.
+    """
+    references: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+
+    def visit(items: list[dict], ancestors: tuple[str, ...]) -> None:
+        for node in items:
+            title = clean(node.get("title", ""))
+            href = html.unescape(clean(node.get("href", "")))
+            path = tuple(part for part in (*ancestors, title) if part)
+            if href.startswith(("http://", "https://")) and (
+                "syllab" in title.casefold() or "syllab" in href.casefold()
+            ):
+                key = (href, node.get("identifier", "") or title)
+                if key not in seen:
+                    seen.add(key)
+                    references.append(
+                        {
+                            "title": title or "Syllabus",
+                            "url": href,
+                            "manifest_item_identifier": node.get("identifier", ""),
+                            "manifest_resource_identifier": node.get("identifierref", ""),
+                            "manifest_path": " > ".join(path),
+                            "is_hidden": bool(node.get("is_hidden")),
+                            "evidence_role": "supplemental_linked_syllabus",
+                        }
+                    )
+            visit(node.get("children", []), path)
+
+    visit(nodes, ())
+    return references
+
+
+def _allowed_syllabus_host(url: str, allowed_hosts: set[str]) -> bool:
+    hostname = (urlparse(url).hostname or "").casefold().rstrip(".")
+    return any(
+        hostname == allowed or hostname.endswith(f".{allowed}")
+        for allowed in allowed_hosts
+    )
+
+
+def _response_charset(content_type: str) -> str:
+    match = re.search(r"charset=([^;\s]+)", content_type or "", flags=re.IGNORECASE)
+    return match.group(1).strip("\"'") if match else "utf-8"
+
+
+def _syllabus_heading_score(field: str, heading: str, ancestors: tuple[str, ...]) -> int:
+    value = re.sub(r"\s+", " ", clean(heading)).strip(" :").casefold()
+    parent_text = " | ".join(part.casefold() for part in ancestors)
+    if not value:
+        return -1
+
+    if field == "course_description":
+        if value == "course description":
+            return 130
+        if value == "description":
+            return 120
+        if "course description" in value:
+            return 110
+        return 50 if value.endswith("description") else -1
+
+    if field == "course_learning_outcomes":
+        if "program" in value and "course" not in value:
+            return -1
+        if value in {"course learning outcomes", "course outcomes", "student learning outcomes"}:
+            return 140
+        if "course" in value and ("outcome" in value or "objective" in value):
+            return 130
+        if value == "learning objectives and outcomes":
+            return 115
+        if "learning outcome" in value or "student learning outcome" in value:
+            return 105
+        if "objective" in value and "course" in parent_text:
+            return 90
+        return -1
+
+    if field == "required_materials":
+        if value in {"required materials", "required course materials", "required texts", "textbooks"}:
+            return 140
+        if value in {"required", "required readings", "required textbooks"} and any(
+            term in parent_text for term in ("material", "text", "reading", "resource")
+        ):
+            return 135
+        if "required" in value and any(
+            term in value for term in ("material", "text", "reading", "resource")
+        ):
+            return 130
+        if value in {"materials", "course materials"}:
+            return 90
+        if "textbook" in value:
+            return 100
+        return -1
+
+    return -1
+
+
+def _segment_ancestors(segments: list[dict]) -> list[tuple[str, ...]]:
+    stack: list[tuple[int, str]] = []
+    output: list[tuple[str, ...]] = []
+    for segment in segments:
+        level = int(segment.get("level") or 0)
+        heading = clean(segment.get("heading", ""))
+        while stack and (level <= 0 or stack[-1][0] >= level):
+            stack.pop()
+        output.append(tuple(value for _depth, value in stack))
+        if heading and level > 0:
+            stack.append((level, heading))
+    return output
+
+
+def _section_blocks(segments: list[dict], index: int) -> list[dict]:
+    target = segments[index]
+    target_level = int(target.get("level") or 0)
+    blocks = list(target.get("blocks") or [])
+    for following in segments[index + 1 :]:
+        level = int(following.get("level") or 0)
+        heading = clean(following.get("heading", ""))
+        if heading and target_level > 0 and level <= target_level:
+            break
+        child_blocks = list(following.get("blocks") or [])
+        if not child_blocks:
+            continue
+        if heading:
+            blocks.append(
+                {
+                    "kind": "label",
+                    "level": 0,
+                    "runs": [{"text": f"{heading}:", "href": ""}],
+                }
+            )
+        blocks.extend(child_blocks)
+    return blocks
+
+
+def _annotate_syllabus_blocks(blocks: list[dict], source: dict[str, str]) -> list[dict]:
+    annotated: list[dict] = []
+    for original in blocks:
+        block = dict(original)
+        block["runs"] = [dict(run) for run in original.get("runs", [])]
+        meta = {str(key): str(value) for key, value in (original.get("meta") or {}).items()}
+        meta.update(source)
+        block["meta"] = meta
+        if original.get("blocks") is not None:
+            block["blocks"] = _annotate_syllabus_blocks(original.get("blocks") or [], source)
+        annotated.append(block)
+    return annotated
+
+
+def extract_syllabus_front_matter(
+    segments: list[dict],
+    *,
+    source_url: str,
+    source_sha256: str,
+    source_artifact: str,
+) -> dict[str, dict]:
+    """Extract verbatim supplemental fields from recognizable syllabus headings."""
+    ancestors_by_index = _segment_ancestors(segments)
+    fields: dict[str, dict] = {}
+    for field in ("course_description", "course_learning_outcomes", "required_materials"):
+        candidates: list[tuple[int, int, list[dict]]] = []
+        for index, segment in enumerate(segments):
+            heading = clean(segment.get("heading", ""))
+            score = _syllabus_heading_score(field, heading, ancestors_by_index[index])
+            if score < 0:
+                continue
+            blocks = _section_blocks(segments, index)
+            if blocks_to_text(blocks):
+                candidates.append((score, index, blocks))
+        if not candidates:
+            continue
+        score, index, blocks = max(candidates, key=lambda item: (item[0], -item[1]))
+        heading = clean(segments[index].get("heading", ""))
+        source = {
+            "source_role": "supplemental_linked_syllabus",
+            "source_url": source_url,
+            "source_sha256": source_sha256,
+            "source_artifact": source_artifact,
+            "source_heading": heading,
+            "extraction": "linked_syllabus_heading_section",
+        }
+        annotated = _annotate_syllabus_blocks(blocks, source)
+        fields[field] = {
+            "heading": heading,
+            "heading_level": int(segments[index].get("level") or 0),
+            "match_score": score,
+            "blocks": annotated,
+            "text": blocks_to_text(annotated),
+            "extensions": {},
+        }
+    return fields
+
+
+def collect_syllabus_supplements(
+    nodes: list[dict],
+    *,
+    output_dir: Path,
+    stem: str,
+    fetch_enabled: bool,
+    timeout: float,
+    allowed_hosts: set[str],
+    diagnostics: list[str],
+) -> list[dict]:
+    references = discover_syllabus_references(nodes)
+    if not references:
+        return []
+
+    source_dir = output_dir / f"{stem}__syllabus_sources"
+    output: list[dict] = []
+    for index, reference in enumerate(references, start=1):
+        record = {
+            **reference,
+            "fetch_status": "inventory_only",
+            "http_status": None,
+            "content_type": "",
+            "bytes": 0,
+            "sha256": "",
+            "fetched_at": None,
+            "artifact_path": "",
+            "front_matter": {},
+            "diagnostics": [],
+            "extensions": {},
+        }
+        url = reference["url"]
+        if reference.get("is_hidden"):
+            record["fetch_status"] = "skipped_hidden"
+            record["diagnostics"].append("Hidden manifest syllabus link was inventoried but not fetched.")
+        elif not fetch_enabled:
+            record["diagnostics"].append("Fetch disabled; manifest syllabus link was inventoried only.")
+        elif not _allowed_syllabus_host(url, allowed_hosts):
+            record["fetch_status"] = "skipped_unapproved_host"
+            record["diagnostics"].append(
+                f"Host {urlparse(url).hostname or '(missing)'} is not in the syllabus fetch allow-list."
+            )
+        else:
+            request = Request(
+                url,
+                headers={
+                    "User-Agent": "CourseCraft linked-syllabus supplement/1",
+                    "Accept": "text/html,application/xhtml+xml,application/pdf;q=0.8,*/*;q=0.2",
+                },
+            )
+            try:
+                with urlopen(request, timeout=timeout) as response:
+                    data = response.read(MAX_SYLLABUS_BYTES + 1)
+                    if len(data) > MAX_SYLLABUS_BYTES:
+                        raise ValueError(
+                            f"linked syllabus exceeded the {MAX_SYLLABUS_BYTES}-byte safety limit"
+                        )
+                    content_type = response.headers.get("Content-Type", "")
+                    suffix = ".pdf" if "pdf" in content_type.casefold() else ".html"
+                    digest = hashlib.sha256(data).hexdigest()
+                    url_key = hashlib.sha256(url.encode("utf-8")).hexdigest()[:10]
+                    filename = f"{index:02d}_{safe_label(reference['title'])}_{url_key}{suffix}"
+                    artifact = source_dir / filename
+                    source_dir.mkdir(parents=True, exist_ok=True)
+                    artifact.write_bytes(data)
+                    artifact_relative = artifact.relative_to(output_dir).as_posix()
+                    record.update(
+                        {
+                            "fetch_status": "fetched",
+                            "http_status": getattr(response, "status", None),
+                            "content_type": content_type,
+                            "bytes": len(data),
+                            "sha256": digest,
+                            "fetched_at": datetime.now(timezone.utc)
+                            .replace(microsecond=0)
+                            .isoformat()
+                            .replace("+00:00", "Z"),
+                            "artifact_path": artifact_relative,
+                        }
+                    )
+                    looks_html = "html" in content_type.casefold() or data.lstrip().startswith(b"<")
+                    if looks_html:
+                        raw = data.decode(_response_charset(content_type), errors="replace")
+                        parse_diagnostics: list[str] = []
+                        segments = html_to_segments(raw, diagnostics=parse_diagnostics)
+                        record["front_matter"] = extract_syllabus_front_matter(
+                            segments,
+                            source_url=url,
+                            source_sha256=digest,
+                            source_artifact=artifact_relative,
+                        )
+                        record["extensions"]["segment_count"] = len(segments)
+                        record["diagnostics"].extend(parse_diagnostics)
+                        if not record["front_matter"]:
+                            record["diagnostics"].append(
+                                "Fetched HTML, but no recognized description, course-outcome, or required-material heading was found."
+                            )
+                    else:
+                        record["diagnostics"].append(
+                            "Fetched source was retained, but this runtime only extracts supplemental fields from HTML."
+                        )
+            except HTTPError as exc:
+                record["fetch_status"] = "fetch_error"
+                record["http_status"] = exc.code
+                record["diagnostics"].append(f"HTTP error: {exc.reason}")
+            except (URLError, OSError, TimeoutError, ValueError) as exc:
+                record["fetch_status"] = "fetch_error"
+                record["diagnostics"].append(str(getattr(exc, "reason", exc)))
+            except Exception as exc:  # optional evidence must never erase the export deliverable
+                record["fetch_status"] = "fetch_error"
+                record["diagnostics"].append(
+                    f"Unexpected linked-syllabus {type(exc).__name__}: {exc}"
+                )
+
+        fields = sorted(record["front_matter"])
+        field_note = f"; extracted {', '.join(fields)}" if fields else ""
+        diagnostics.append(
+            f"Linked syllabus: {reference['title']} — {record['fetch_status']}{field_note}; "
+            f"source remains supplemental ({url})."
+        )
+        output.append(record)
+    return output
+
+
 def load_resources(manifest_root: ET.Element) -> dict[str, dict]:
     resources: dict[str, dict] = {}
     for elem in manifest_root.iter():
@@ -1265,7 +1596,13 @@ def render_tree(nodes: list[dict], indent: int = 0) -> list[str]:
     return lines
 
 
-def render_markdown(label: str, tree: list[dict], topics: list[dict], diagnostics: list[str]) -> str:
+def render_markdown(
+    label: str,
+    tree: list[dict],
+    topics: list[dict],
+    diagnostics: list[str],
+    syllabus_references: list[dict] | None = None,
+) -> str:
     counts = count_kinds(tree)
     lines = [
         f"# Course Structure — {label}",
@@ -1297,6 +1634,22 @@ def render_markdown(label: str, tree: list[dict], topics: list[dict], diagnostic
                 "Verbatim body text is preserved for HTML/text topics; non-HTML course files are linked without decoding.",
             ]
         )
+    if syllabus_references:
+        lines.extend(["", "## Linked syllabus evidence", ""])
+        for reference in syllabus_references:
+            fields = ", ".join(sorted(reference.get("front_matter", {}))) or "none"
+            artifact = reference.get("artifact_path") or "not retained"
+            lines.extend(
+                [
+                    f"- **{reference.get('title') or 'Syllabus'}** — "
+                    f"{reference.get('fetch_status', 'inventory_only')}; "
+                    f"supplemental fields: {fields}",
+                    f"  - Manifest path: {reference.get('manifest_path') or '(not recorded)'}",
+                    f"  - URL: {reference.get('url')}",
+                    f"  - Retained artifact: {artifact}",
+                    f"  - SHA-256: {reference.get('sha256') or 'not fetched'}",
+                ]
+            )
     lines.extend(["", "## Diagnostics", ""])
     lines.extend(f"- {d}" for d in diagnostics) if diagnostics else lines.append("- None.")
     lines.append("")
@@ -1308,6 +1661,26 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("export", type=Path, help="Unpacked export directory or export ZIP")
     parser.add_argument("--label", default="", help="Label for output filenames (default: folder name)")
     parser.add_argument("--extract-html", action="store_true", help="Also extract HTML topic text and check page references")
+    parser.add_argument(
+        "--no-syllabus-fetch",
+        action="store_true",
+        help=(
+            "Inventory manifest-linked syllabi without fetching them. By default, "
+            "--extract-html performs a non-fatal best-effort fetch from recognized hosts."
+        ),
+    )
+    parser.add_argument(
+        "--syllabus-timeout",
+        type=float,
+        default=8.0,
+        help="Per-syllabus fetch timeout in seconds (default: 8).",
+    )
+    parser.add_argument(
+        "--syllabus-host",
+        action="append",
+        default=[],
+        help="Additional allowed syllabus hostname; may be repeated.",
+    )
     parser.add_argument(
         "--output-dir",
         type=Path,
@@ -1358,9 +1731,25 @@ def main(argv: list[str] | None = None) -> int:
     output_dir = args.output_dir or (Path(__file__).resolve().parents[1] / "workspace" / "review")
     output_dir.mkdir(parents=True, exist_ok=True)
     stem = f"{safe_label(label)}__course_structure"
+    allowed_syllabus_hosts = {
+        *(host.casefold().rstrip(".") for host in DEFAULT_SYLLABUS_HOSTS),
+        *(host.casefold().rstrip(".") for host in args.syllabus_host if host.strip()),
+    }
+    syllabus_references = collect_syllabus_supplements(
+        tree,
+        output_dir=output_dir,
+        stem=stem,
+        fetch_enabled=bool(args.extract_html and not args.no_syllabus_fetch),
+        timeout=max(0.1, args.syllabus_timeout),
+        allowed_hosts=allowed_syllabus_hosts,
+        diagnostics=diagnostics,
+    )
     md_path = output_dir / f"{stem}.md"
     json_path = output_dir / f"{stem}.json"
-    md_path.write_text(render_markdown(label, tree, topics, diagnostics), encoding="utf-8")
+    md_path.write_text(
+        render_markdown(label, tree, topics, diagnostics, syllabus_references),
+        encoding="utf-8",
+    )
     source_identity = load_source_identity(
         args.source_identity.expanduser().resolve() if args.source_identity else None,
         source_arg=source_arg,
@@ -1378,7 +1767,16 @@ def main(argv: list[str] | None = None) -> int:
             "tree": tree,
             "html_topics": topics,
             "diagnostics": diagnostics,
-            "extensions": {},
+            "extensions": {
+                "syllabus_references": syllabus_references,
+                "linked_syllabus_policy": {
+                    "evidence_role": "supplemental_linked_syllabus",
+                    "fetch_requested": bool(args.extract_html and not args.no_syllabus_fetch),
+                    "allowed_hosts": sorted(allowed_syllabus_hosts),
+                    "package_local_content_precedence": True,
+                    "extensions": {},
+                },
+            },
         }
     )
     contract_errors = [issue.render() for issue in validate_contract(payload) if issue.severity == "error"]
@@ -1390,6 +1788,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"items: {sum(counts.values())} ({counts.get('module', 0)} modules)")
     if args.extract_html:
         print(f"html topics extracted: {len(topics)}")
+    print(
+        f"syllabus links: {len(syllabus_references)} "
+        f"({sum(1 for item in syllabus_references if item.get('fetch_status') == 'fetched')} fetched)"
+    )
     print(f"diagnostics: {len(diagnostics)}")
     print("schema: coursecraft.structure/1")
     print(f"run id: {run_id}")

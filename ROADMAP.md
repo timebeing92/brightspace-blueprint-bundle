@@ -160,6 +160,15 @@ was deployed and verified against the live asset.
 
 ## Extraction quality
 
+- **Linked syllabus supplement implemented 2026-07-17.** Visible manifest
+  syllabus items are now inventoried routinely. Recognized allowed-host HTML is
+  fetched best-effort, retained and checksummed, and used only to supplement an
+  otherwise-missing description, required-materials field, or course-outcomes
+  field. Package-local export text retains precedence; comparisons, conflicts,
+  fetch failures, PDFs, and unseen page shapes remain explicit diagnostics and
+  cannot stop the deliverable. Runner release receipts checksum both the
+  orchestrator and structure extractor that implement this boundary.
+
 - **Log dedupe suppressions.** `topic_skip_match_key` drops a weekly topic at
   ≥0.92 token overlap with a before-week page; when it fires, name the
   suppressed page in diagnostics so boilerplate-heavy real pages aren't lost

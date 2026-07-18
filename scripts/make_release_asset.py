@@ -22,6 +22,10 @@ CONTRACT_FILES = (
     "schemas/structure_schema.json",
     "schemas/progress_events_schema.json",
 )
+RUNTIME_FILES = (
+    "scripts/build_blueprint_bundle.py",
+    "scripts/reconstruct_course_structure.py",
+)
 
 
 def run_git(repo: Path, *args: str) -> str:
@@ -99,6 +103,47 @@ def contract_receipt(root: Path) -> list[dict[str, str]]:
     return rows
 
 
+def runtime_receipt(root: Path) -> list[dict[str, str]]:
+    """Receipt the exact extraction entry points shipped in the release."""
+    return [
+        {"path": relative, "sha256": sha256_file(root / relative)}
+        for relative in RUNTIME_FILES
+    ]
+
+
+def release_capabilities(root: Path) -> dict[str, dict[str, Any]]:
+    """Refuse to advertise linked-syllabus handling without its runtime hooks."""
+    required_markers = {
+        "scripts/build_blueprint_bundle.py": (
+            "--no-syllabus-fetch",
+            "linked_syllabus_fetch_requested",
+            "content retained as primary",
+        ),
+        "scripts/reconstruct_course_structure.py": (
+            "collect_syllabus_supplements",
+            "supplemental_linked_syllabus",
+            "DEFAULT_SYLLABUS_HOSTS",
+        ),
+    }
+    for relative, markers in required_markers.items():
+        source = (root / relative).read_text(encoding="utf-8")
+        missing = [marker for marker in markers if marker not in source]
+        if missing:
+            raise RuntimeError(
+                f"Selected bundle lacks linked-syllabus release markers in {relative}: "
+                + ", ".join(missing)
+            )
+    return {
+        "linked_syllabus_supplement": {
+            "status": "enabled_by_default",
+            "evidence_role": "supplemental_linked_syllabus",
+            "primary_authority": "package_local_export",
+            "network_boundary": "allowlisted_best_effort_nonfatal",
+            "runtime_files": list(RUNTIME_FILES),
+        }
+    }
+
+
 def normalized_tar_gz(source: Path, output: Path, prefix: str) -> None:
     """Write a reproducible gzip-compressed tar archive."""
     with output.open("wb") as raw:
@@ -132,6 +177,8 @@ def release_manifest(
             "commit": commit,
         },
         "contracts": contract_receipt(staged_root),
+        "runtime_files": runtime_receipt(staged_root),
+        "capabilities": release_capabilities(staged_root),
     }
 
 

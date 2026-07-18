@@ -2122,5 +2122,16 @@
     "Package scope: hidden manifest-linked non-HTML files preserved as references: 1 file(s), 38 B total; by type: document: 1 / 38 B; largest: files/hidden-instructor-notes.docx (38 B)",
     "Package scope: files not directly linked from the visible manifest: 8 file(s), 971 B total; by type: frontend_support: 1 / 585 B, xml: 3 / 234 B, image: 3 / 112 B, document: 1 / 40 B; largest: practice/week1-sort.practice.json (585 B), conditionalrelease_d2l.xml (108 B), survey_d2l_1.xml (78 B), links_d2l.xml (48 B), assets/equation-screenshot.png (47 B), files/unlinked-faculty-deck.pptx (40 B), assets/planning-cycle.png (35 B), assets/unused-diagram.png (30 B) (may include support assets referenced inside HTML pages)"
   ],
-  "extensions": {}
+  "extensions": {
+    "syllabus_references": [],
+    "linked_syllabus_policy": {
+      "evidence_role": "supplemental_linked_syllabus",
+      "fetch_requested": true,
+      "allowed_hosts": [
+        "syllabi.une.edu"
+      ],
+      "package_local_content_precedence": true,
+      "extensions": {}
+    }
+  }
 }

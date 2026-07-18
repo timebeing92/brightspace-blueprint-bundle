@@ -14,6 +14,7 @@ Companion artifacts:
 - package inventory
 - manifest probe
 - course structure JSON/Markdown
+- manifest-linked syllabus inventory and retained supplemental source when available
 - course activities JSON/Markdown/workbook
 - `sample_course__rubrics.json` (rubric grids)
 - `sample_course__rubrics.xlsx` (rubric review workbook)

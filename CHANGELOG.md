@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+- Added routine manifest-linked syllabus inspection for the common
+  welcome/getting-started module shape. Recognized syllabus HTML is retained
+  with URL/SHA-256/manifest provenance and may supply otherwise-missing course
+  description, required-material, or course-outcome blocks. Package-local text
+  always wins; comparisons and unknown shapes stay diagnostic; all network or
+  parsing failures are non-fatal. An inventory-only opt-out and explicit host
+  allow-list keep the network boundary visible.
+- Bundle release assets now checksum the two critical extraction entry points
+  and gate a machine-readable `linked_syllabus_supplement` capability. A ref
+  without the required primary-authority, provenance, and non-fatal controls
+  cannot be packaged as supporting the procedure.
+- Added a course-derived regression gate proving that headings wrapped in
+  inline `<strong>` or `<span>` markup retain their `h1`-`h4` structure and
+  still route to Learning Objectives or Learning Materials. EDU 807 and EDU
+  831 exposed this failure mode in a separate mapping parser; the bundle
+  extractor was already safe, and the test now prevents regression.
+
 ## 2026-07-17 — Activity, structure, and run identity contracts
 
 - Promoted the workbench-proven `coursecraft.activities/1`,
