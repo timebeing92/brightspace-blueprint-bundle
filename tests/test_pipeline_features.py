@@ -93,6 +93,7 @@ def test_progress_events_stream(tmp_path):
     assert run_end["outputs"]["status_json"], "pipeline status JSON missing"
     assert run_end["outputs"]["run_identity"], "run identity receipt missing"
     assert run_end["issues"] == []
+    assert run_end["delivery"] == {"usable": True, "empty": False, "core_failures": []}
     assert run_end["summary"]["weeks"] == 2
     assert run_end["summary"]["rubrics"] == 1
     assert run_end["summary"]["qa"] == {"breaks": 0, "warnings": 2, "notes": 7}
@@ -163,6 +164,9 @@ def test_docx_qa_failure_yields_partial_deliverable(
         ),
     )
     assert any(issue["step"] == "Check DOCX structure" for issue in run_end["issues"])
+    # A failed DOCX check is not a core evidence step: the partial stays usable.
+    assert run_end["delivery"]["usable"] is True
+    assert run_end["delivery"]["core_failures"] == []
     receipt = json.loads(Path(run_end["outputs"]["run_identity"]).read_text(encoding="utf-8"))
     assert receipt["status"] == "partial"
     assert any(
@@ -230,6 +234,7 @@ def test_malformed_rubric_json_does_not_block_blueprint(
         ),
     )
     assert any(issue["step"] == "Extract rubrics" for issue in run_end["issues"])
+    assert run_end["delivery"]["usable"] is True
     assert run_end["outputs"]["rubrics_json"] is None
     assert run_end["outputs"]["rubrics_unparsed"]
     receipt = json.loads(Path(run_end["outputs"]["run_identity"]).read_text(encoding="utf-8"))
@@ -248,3 +253,54 @@ def test_malformed_rubric_json_does_not_block_blueprint(
         encoding="utf-8"
     )
     assert "Rubric JSON is malformed" in status_text
+
+
+def test_unreadable_input_reports_unusable_delivery(tmp_path, monkeypatch, capsys):
+    """Deliverables emitted for an unreadable source must say so: the run
+    stays `partial` (documents exist) but `delivery.usable` is false and the
+    failed core evidence steps are named."""
+    monkeypatch.chdir(BUNDLE_ROOT)
+    not_an_export = tmp_path / "notes.zip"
+    not_an_export.write_text("this is not a zip archive", encoding="utf-8")
+    output_dir = tmp_path / "unusable"
+    code = pipeline.main(
+        [
+            str(not_an_export),
+            "--label", "unusable_demo",
+            "--output-dir", str(output_dir),
+            "--progress-events",
+        ]
+    )
+
+    assert code == 0
+    events = []
+    for line in capsys.readouterr().out.splitlines():
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict) and "event" in payload:
+            events.append(payload)
+    run_end = events[-1]
+    assert run_end["event"] == "run_end"
+    assert run_end["status"] == "partial"
+    jsonschema.validate(
+        run_end,
+        json.loads(
+            (BUNDLE_ROOT / "schemas" / "progress_events_schema.json").read_text(
+                encoding="utf-8"
+            )
+        ),
+    )
+    delivery = run_end["delivery"]
+    assert delivery["usable"] is False
+    assert delivery["empty"] is True
+    assert "Probe manifest" in delivery["core_failures"]
+    assert "Reconstruct course structure" in delivery["core_failures"]
+
+    status_json = json.loads(
+        Path(run_end["outputs"]["status_json"]).read_text(encoding="utf-8")
+    )
+    assert status_json["delivery"] == delivery
+    status_text = Path(run_end["outputs"]["status_report"]).read_text(encoding="utf-8")
+    assert "NOT USABLE" in status_text

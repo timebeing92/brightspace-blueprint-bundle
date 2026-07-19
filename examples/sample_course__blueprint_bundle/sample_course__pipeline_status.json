@@ -54,5 +54,10 @@
       "path": "sample_course__docx_structure.json"
     }
   ],
-  "review_required": false
+  "review_required": false,
+  "delivery": {
+    "usable": true,
+    "empty": false,
+    "core_failures": []
+  }
 }

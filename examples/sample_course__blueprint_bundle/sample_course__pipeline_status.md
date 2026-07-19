@@ -2,6 +2,8 @@
 
 **Status: COMPLETE — all requested components finished.**
 
+Delivery: usable.
+
 Source export: `examples/sample_export.zip`
 
 ## Delivered Files

@@ -230,6 +230,65 @@ def concise_issue(message: str) -> str:
     return lines[0] if lines else "Unknown component failure"
 
 
+# Steps whose failure means the deliverables cannot faithfully mirror the
+# export. `run_end.delivery` reports them so consumers can distinguish a
+# reviewable partial from a hollow one instead of inferring it. "Establish
+# source identity" is the pre-step contract check that fails when the source
+# cannot be opened at all.
+CORE_EVIDENCE_STEPS = (
+    "Establish source identity",
+    "Inventory export files",
+    "Probe manifest",
+    "Reconstruct course structure",
+    "Extract course activities",
+)
+
+
+def classify_delivery(
+    *,
+    primary_deliverable_exists: bool,
+    component_issues: list[dict],
+    weeks_count: int,
+) -> dict:
+    """Additive delivery classification for run_end and the status artifacts.
+
+    ``usable`` is a producer fact — a primary deliverable exists and every
+    core evidence step completed. ``empty`` is a separate fact (no weekly
+    structure), deliberately not folded into ``usable``: a faithfully
+    mirrored empty course stays usable, and interpretation belongs to
+    consumers.
+    """
+    core_failures = sorted(
+        {
+            str(issue.get("step"))
+            for issue in component_issues
+            if issue.get("step") in CORE_EVIDENCE_STEPS
+        }
+    )
+    return {
+        "usable": bool(primary_deliverable_exists) and not core_failures,
+        "empty": weeks_count == 0,
+        "core_failures": core_failures,
+    }
+
+
+def delivery_status_line(delivery: dict | None) -> str | None:
+    if not delivery:
+        return None
+    if not delivery.get("usable"):
+        failed = ", ".join(delivery.get("core_failures") or []) or "unknown"
+        return (
+            "Delivery: **NOT USABLE** — core evidence steps failed "
+            f"({failed}); the emitted documents do not mirror the export."
+        )
+    if delivery.get("empty"):
+        return (
+            "Delivery: usable, but the export produced no weekly structure — "
+            "the blueprint mirrors an empty course."
+        )
+    return "Delivery: usable."
+
+
 def write_pipeline_status(
     json_path: Path,
     markdown_path: Path,
@@ -239,6 +298,7 @@ def write_pipeline_status(
     source: str,
     issues: list[dict],
     delivered_paths: list[Path],
+    delivery: dict | None = None,
 ) -> None:
     delivered = [
         {
@@ -256,6 +316,8 @@ def write_pipeline_status(
         "delivered": delivered,
         "review_required": bool(issues),
     }
+    if delivery is not None:
+        payload["delivery"] = delivery
     json_path.write_text(
         json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
@@ -275,6 +337,11 @@ def write_pipeline_status(
         "",
         f"**Status: {status_text}**",
         "",
+    ]
+    delivery_line = delivery_status_line(delivery)
+    if delivery_line:
+        lines.extend([delivery_line, ""])
+    lines += [
         f"Source export: `{source}`",
         "",
         "## Delivered Files",
@@ -2463,6 +2530,11 @@ def main(argv: list[str] | None = None) -> int:
                 "Finalize bundle",
                 "No Markdown or DOCX blueprint deliverable was emitted.",
             )
+    delivery = classify_delivery(
+        primary_deliverable_exists=primary_deliverable_exists,
+        component_issues=component_issues,
+        weeks_count=len(model.get("weeks", [])),
+    )
 
     delivered_paths = [
         blueprint_md,
@@ -2491,6 +2563,7 @@ def main(argv: list[str] | None = None) -> int:
         source=export_arg,
         issues=component_issues,
         delivered_paths=[path for path in delivered_paths if path is not None],
+        delivery=delivery,
     )
 
     write_bundle_readme(
@@ -2621,6 +2694,7 @@ def main(argv: list[str] | None = None) -> int:
                 "run_identity": str(run_identity_path),
             },
             "issues": component_issues,
+            "delivery": delivery,
             "summary": {
                 "weeks": len(model.get("weeks", [])),
                 "rubrics": rubrics_count(rubrics_json),

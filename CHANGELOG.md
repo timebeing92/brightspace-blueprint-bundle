@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-07-19 — v1.3.1 machine-readable delivery usability
+
+- `coursecraft.progress/1` `run_end` gains an additive `delivery` object —
+  `{"usable", "empty", "core_failures"}` — so consumers can distinguish a
+  reviewable partial from a hollow one (deliverables emitted while core
+  evidence steps failed) without inferring it from step names. The same
+  object is recorded in the `pipeline_status` JSON artifact, and the
+  pipeline-status report carries a matching human line. `empty` (zero
+  extracted weeks) is reported as a separate fact and does not make a
+  faithfully mirrored empty course unusable. Producers ≤ 1.3.0 simply omit
+  the field; the consumer rule is documented in
+  `knowledge/PROGRESS_EVENTS_CONTRACT.md`.
+
 ## 2026-07-17 — v1.3.0 run identity and linked syllabus evidence
 
 Published from commit `0b197d95b8b1a5593f92772e664b1d04c5441677`.
