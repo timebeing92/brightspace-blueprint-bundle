@@ -326,10 +326,17 @@ def write_pipeline_status(
     if status == "ok":
         status_text = "COMPLETE — all requested components finished."
     elif status == "partial":
-        status_text = (
-            "PARTIAL — usable deliverables were produced, but one or more "
-            "components need review."
-        )
+        # status describes pipeline completion; usability is delivery's call.
+        if delivery is not None and not delivery.get("usable"):
+            status_text = (
+                "PARTIAL — the pipeline finished with component failures, and "
+                "the emitted documents do not usably mirror the export."
+            )
+        else:
+            status_text = (
+                "PARTIAL — usable deliverables were produced, but one or more "
+                "components need review."
+            )
     else:
         status_text = "ERROR — no primary blueprint deliverable could be completed."
     lines = [
@@ -1762,6 +1769,7 @@ def write_bundle_readme(
     run_status: str = "ok",
     issues: list[dict] | None = None,
     status_report: Path | None = None,
+    delivery: dict | None = None,
 ) -> None:
     issues = list(issues or [])
     qa_line = "- course QA report" if include_qa else "- course QA report skipped by command option"
@@ -1791,6 +1799,7 @@ def write_bundle_readme(
                 "",
                 f"Source export: `{export}`",
                 f"Run status: **{run_status.upper()}**",
+                *([delivery_status_line(delivery)] if delivery_status_line(delivery) else []),
                 (
                     f"Review `{status_report.name}` before using the bundle."
                     if status_report and issues
@@ -2582,6 +2591,7 @@ def main(argv: list[str] | None = None) -> int:
         run_status=run_status,
         issues=component_issues,
         status_report=status_report,
+        delivery=delivery,
     )
 
     contract_by_name = {

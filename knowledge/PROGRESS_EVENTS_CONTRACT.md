@@ -39,13 +39,23 @@ continue and the terminal `run_end` is `partial` with structured `issues`.
 `error` is reserved for a run with no primary blueprint deliverable.
 
 Since 1.3.1 `run_end` also carries an additive `delivery` object:
-`{"usable": bool, "empty": bool, "core_failures": [step names]}`. `usable` is
-false when any core evidence step failed ("Establish source identity",
-"Inventory export files", "Probe manifest", "Reconstruct course structure",
-"Extract course activities") — the emitted documents exist but do not mirror
-the export. `empty` reports zero extracted weeks as a separate fact; a
-faithfully mirrored empty course remains `usable`. The same object appears in
-the `pipeline_status` JSON artifact.
+`{"usable": bool, "empty": bool, "core_failures": [step names]}`. The three
+verdicts answer different questions and must not be conflated:
+
+- `status` describes **pipeline completion** — did the steps run, and was at
+  least one primary deliverable emitted? It says nothing about fidelity.
+- `delivery.usable` describes whether the emitted primary documents
+  **faithfully represent the export**. It is false when any core evidence
+  step failed ("Establish source identity", "Inventory export files",
+  "Probe manifest", "Reconstruct course structure",
+  "Extract course activities").
+- `delivery.empty` describes **extracted course structure** (zero weeks) and
+  is not itself a usability verdict: a faithfully mirrored empty course
+  remains `usable`.
+
+A `partial` run may therefore be unusable. The same object appears in the
+`pipeline_status` JSON artifact, and the human status/README lines state the
+same verdict in words.
 
 ## Rules for consumers
 

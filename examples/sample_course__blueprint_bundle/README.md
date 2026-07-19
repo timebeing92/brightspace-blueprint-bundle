@@ -2,6 +2,7 @@
 
 Source export: `examples/sample_export.zip`
 Run status: **OK**
+Delivery: usable.
 No component failures were recorded.
 
 Primary outputs:

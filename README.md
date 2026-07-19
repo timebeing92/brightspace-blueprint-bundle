@@ -111,7 +111,10 @@ steps below in order:
 Markdown is always produced. DOCX is produced when `python-docx` is available.
 If a recoverable extractor, rubric, QA, DOCX, or render component fails, the
 pipeline continues with conservative fallbacks where possible, marks the run
-`partial`, and preserves every usable artifact. Missing output remains
+`partial`, preserves every recoverable artifact, and states in
+`run_end.delivery` whether the primary documents usably mirror the export —
+`status` alone is a completion verdict, not a usability claim. Missing
+output remains
 unresolved evidence; it is never interpreted as proof that the source course
 lacked that component. Malformed or unfamiliar rubric JSON is retained as
 `<label>__rubrics_unparsed.json` instead of being discarded or passed into the

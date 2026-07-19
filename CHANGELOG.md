@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-07-19 — v1.3.2 delivery-language coherence
+
+- Every surface that speaks about a run now uses one vocabulary: `status`
+  describes pipeline completion, `delivery.usable` describes whether the
+  primary documents faithfully represent the export, and `delivery.empty`
+  describes extracted structure without being a usability verdict. The
+  progress schema description no longer claims every partial run has a
+  usable deliverable; an unusable partial's pipeline-status report no longer
+  opens with "usable deliverables were produced" before saying NOT USABLE;
+  and the in-bundle README carries the same delivery line as the status
+  report. A focused test renders an unusable partial and asserts the human
+  artifacts contain no contradictory usability claim. No event fields
+  changed; v1.3.1 consumers read v1.3.2 events unchanged.
+
 ## 2026-07-19 — v1.3.1 machine-readable delivery usability
 
 Published from commit `be0ef5c4ae0e8133aa861f07584f9e5990b4315b`.

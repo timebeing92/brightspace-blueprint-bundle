@@ -302,5 +302,13 @@ def test_unreadable_input_reports_unusable_delivery(tmp_path, monkeypatch, capsy
         Path(run_end["outputs"]["status_json"]).read_text(encoding="utf-8")
     )
     assert status_json["delivery"] == delivery
+    # The human-facing artifacts must not contradict the delivery verdict.
     status_text = Path(run_end["outputs"]["status_report"]).read_text(encoding="utf-8")
     assert "NOT USABLE" in status_text
+    assert "do not usably mirror" in status_text
+    assert "usable deliverables were produced" not in status_text
+    readme_text = (
+        Path(run_end["bundle_dir"]) / "README.md"
+    ).read_text(encoding="utf-8")
+    assert "NOT USABLE" in readme_text
+    assert "usable deliverables were produced" not in readme_text
