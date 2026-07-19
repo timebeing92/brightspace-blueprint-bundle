@@ -2,6 +2,10 @@
 
 ## 2026-07-19 — v1.3.1 machine-readable delivery usability
 
+Published from commit `be0ef5c4ae0e8133aa861f07584f9e5990b4315b`.
+Release asset SHA-256:
+`b6db8319737d2e7d0e0194c13726c43f940238f1491998201bab53d7504efef8`.
+
 - `coursecraft.progress/1` `run_end` gains an additive `delivery` object —
   `{"usable", "empty", "core_failures"}` — so consumers can distinguish a
   reviewable partial from a hollow one (deliverables emitted while core
