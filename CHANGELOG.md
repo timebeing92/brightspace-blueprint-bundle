@@ -2,6 +2,10 @@
 
 ## 2026-07-19 — v1.3.2 delivery-language coherence
 
+Published from commit `f346ee78c61f103d7d4b98facc78febf8ac241b5`.
+Release asset SHA-256:
+`e85ff3ca033b066ef3bd758a576be3a3f315d1f97bd0f247f292c5efc0fb02c7`.
+
 - Every surface that speaks about a run now uses one vocabulary: `status`
   describes pipeline completion, `delivery.usable` describes whether the
   primary documents faithfully represent the export, and `delivery.empty`
