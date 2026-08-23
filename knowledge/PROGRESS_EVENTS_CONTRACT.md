@@ -82,3 +82,22 @@ same verdict in words.
   historical step/summary output — existing scripted consumers rely on it.
 - `tests/test_pipeline_features.py::test_progress_events_stream` guards the
   flow shape; extend it with any new event or field.
+
+## Deferred Weave output convergence
+
+Review status recorded 2026-08-22: Rubric Loom Weave emits six optional
+`run_end.outputs` paths—`import_zip`, `rubrics_xml`,
+`normalized_authoring_json`, `mapping_report`, `review_report`, and
+`diagnostics_json`—under this same `/1` identifier. Its expanded schema is on
+Rubric Bundle `main` and releases v1.1.0 through v1.3.2, while this canonical
+Blueprint copy, the retained Workbench share, and Catalog still omit them.
+
+The recommended path is to ratify those already-shipped optional fields as an
+additive `/1` evolution rather than introduce a second event profile. That
+recommendation remains tabled in ecosystem promotion record
+`PR-2026-923-progress-weave-output-convergence`; it is not a contract change.
+Before editing this schema, inventory and replay every known consumer against
+additive fields and strict validation, then propagate one reviewed schema to
+all declared copies in the same cross-repository promotion. Do not loosen
+`additionalProperties` or the ecosystem parity check merely to remove the
+visible mismatch.

@@ -136,6 +136,13 @@ Backlog items needed before broad catalog intake:
   `coursecraft.progress/1` `run_end.outputs` when new catalog-relevant
   artifacts are added, so intake tools do not glob. Rubric paths are now
   explicit.
+- **Weave progress-output convergence held, recommendation recorded
+  2026-08-22.** Rubric Loom has already shipped six optional artifact paths
+  under `/1`; prefer reviewing them as one additive shared-contract evolution
+  rather than creating a second profile. No schema change is authorized yet.
+  Resume through ecosystem record
+  `PR-2026-923-progress-weave-output-convergence`, full consumer conformance,
+  and byte-identical cross-repository propagation.
 - **Run identity promotion complete, 2026-07-17.** The bundle emits
   `<label>__run_identity.json` (`coursecraft.run/1`) and exposes it through
   `coursecraft.progress/1` `run_end.outputs.run_identity`. It supplies the
