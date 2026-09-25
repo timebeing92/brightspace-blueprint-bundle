@@ -23,6 +23,7 @@ SCHEMA_REGISTRY = {
     "coursecraft.activities/1": SCHEMA_ROOT / "activities_schema.json",
     "coursecraft.structure/1": SCHEMA_ROOT / "structure_schema.json",
     "coursecraft.run/1": SCHEMA_ROOT / "run_identity_schema.json",
+    "coursecraft.run/2": SCHEMA_ROOT / "run_identity_2_schema.json",
     "coursecraft.blueprint/4": SCHEMA_ROOT / "blueprint_schema.json",
     "coursecraft.rubrics/1": SCHEMA_ROOT / "rubrics_schema.json",
 }
@@ -96,7 +97,7 @@ def _child_text(root: ET.Element, name: str) -> str | None:
 
 
 def observe_export_identity(source_arg: Path, logical_root: Path) -> dict[str, Any]:
-    """Recover only identity evidence already present in names or orgunit XML."""
+    """Observe package evidence; timestamps in names are not verified export dates."""
     identity: dict[str, Any] = {
         "source_name": source_arg.name,
         "org_unit_id": None,
@@ -105,12 +106,18 @@ def observe_export_identity(source_arg: Path, logical_root: Path) -> dict[str, A
         "orgunit_identifier": None,
         "orgunit_code": None,
         "orgunit_name": None,
+        "manifest_identifier": None,
+        "manifest_title": None,
+        "manifest_course_code": None,
+        "organization_title": None,
+        "org_unit_id_basis": None,
     }
     candidates = [source_arg.stem if source_arg.is_file() else source_arg.name, logical_root.name]
     for candidate in candidates:
         match = EXPORT_NAME_PATTERN.search(candidate or "")
         if match:
             identity["org_unit_id"] = match.group("org_unit_id")
+            identity["org_unit_id_basis"] = "export_name"
             identity["course_code"] = match.group("course_code")
             identity["export_timestamp"] = match.group("timestamp")
             break
@@ -127,7 +134,73 @@ def observe_export_identity(source_arg: Path, logical_root: Path) -> dict[str, A
             )
             identity["orgunit_code"] = _child_text(root, "code")
             identity["orgunit_name"] = _child_text(root, "name")
+    manifest = logical_root / "imsmanifest.xml"
+    if manifest.is_file():
+        try:
+            root = ET.parse(manifest).getroot()
+        except ET.ParseError:
+            root = None
+        if root is not None and _local_name(root.tag) == "manifest":
+            identity["manifest_identifier"] = root.get("identifier")
+            # Only the package's own LOM/general metadata, never item titles
+            # or nested resource metadata, is course-level title evidence.
+            def child(parent: ET.Element | None, name: str) -> ET.Element | None:
+                return next((el for el in parent if _local_name(el.tag) == name), None) if parent is not None else None
+
+            general = child(child(child(root, "metadata"), "lom"), "general")
+            for tag, field in (("title", "manifest_title"), ("keyword", "manifest_course_code")):
+                node = child(general, tag)
+                if node is not None:
+                    identity[field] = "".join(node.itertext()).strip() or None
+            organization = child(child(root, "organizations"), "organization")
+            title = child(organization, "title")
+            if title is not None:
+                identity["organization_title"] = "".join(title.itertext()).strip() or None
+            # D2L encodes the numeric org unit in this manifest identifier.
+            # This also makes an unpacked/renamed transport independently usable.
+            numeric = re.fullmatch(r"D2L_(\d+)", identity["manifest_identifier"] or "")
+            if not identity["org_unit_id"] and numeric:
+                identity["org_unit_id"] = numeric.group(1)
+                identity["org_unit_id_basis"] = "manifest_identifier"
     return identity
+
+
+def lineage_candidates(observed: dict[str, Any]) -> list[dict[str, Any]]:
+    """Evidence inventory, not permission to equate aliases across courses."""
+    classes = (
+        ("orgunit_identifier", "export_instance_alias"),
+        ("org_unit_id", "course_identifier"),
+        ("manifest_identifier", "package_lineage_identifier"),
+        ("orgunit_code", "mutable_label"),
+        ("course_code", "mutable_label"),
+        ("manifest_course_code", "mutable_label"),
+    )
+    return [
+        {"basis": basis, "value": str(observed[basis]), "stability_class": stability}
+        for basis, stability in classes if observed.get(basis) not in (None, "")
+    ]
+
+
+def verify_source_identity_v2(source: dict[str, Any]) -> list[str]:
+    """Check semantics not expressible as JSON Schema (including computed keys)."""
+    observed = source["observed_identity"]
+    numeric = str(observed.get("org_unit_id") or "")
+    manifest = str(observed.get("manifest_identifier") or "")
+    manifest_numeric = re.fullmatch(r"D2L_(\d+)", manifest)
+    conflict = bool(manifest_numeric and numeric and manifest_numeric.group(1) != numeric)
+    resolved = bool(re.fullmatch(r"\d+", numeric) and manifest and not conflict)
+    basis = "org_unit_id+manifest_identifier" if resolved else "logical_fingerprint"
+    digest = source["logical_fingerprint"]["digest"]
+    parts = (numeric, manifest) if resolved else (digest,)
+    expected = {
+        "source_lineage_key": _scoped_key("lineage", basis, *parts),
+        "source_instance_key": f"cc:source:{digest}",
+        "lineage_state": "resolved" if resolved else "unresolved",
+        "lineage_basis": basis,
+        "lineage_candidates": lineage_candidates(observed),
+        "lineage_diagnostics": ["numeric_org_unit_conflicts_with_manifest"] if conflict else ([] if resolved else ["primary_identifiers_incomplete"]),
+    }
+    return [f"run/2 source {field} disagrees with observed evidence" for field, value in expected.items() if source.get(field) != value]
 
 
 def build_source_identity(
@@ -137,18 +210,17 @@ def build_source_identity(
     observed_identity: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     logical = logical_file_set_fingerprint(logical_root)
-    observed = dict(observed_identity or observe_export_identity(source_arg, logical_root))
-    evidence_order = (
-        ("orgunit_identifier", observed.get("orgunit_identifier")),
-        ("org_unit_id", observed.get("org_unit_id")),
-        ("orgunit_code", observed.get("orgunit_code")),
-        ("course_code", observed.get("course_code")),
-    )
-    lineage_basis, lineage_value = next(
-        ((name, str(value)) for name, value in evidence_order if value not in (None, "")),
-        ("logical_fingerprint", logical["digest"]),
-    )
-    lineage_state = "resolved" if lineage_basis != "logical_fingerprint" else "unresolved"
+    observed = observe_export_identity(source_arg, logical_root)
+    # Older extractor callers provide only part of the observation envelope.
+    # Do not let their null fields erase newly recovered package metadata.
+    observed.update({key: value for key, value in (observed_identity or {}).items() if value not in (None, "")})
+    numeric = str(observed.get("org_unit_id") or "")
+    manifest = str(observed.get("manifest_identifier") or "")
+    manifest_numeric = re.fullmatch(r"D2L_(\d+)", manifest)
+    conflict = bool(manifest_numeric and numeric and manifest_numeric.group(1) != numeric)
+    resolved = bool(re.fullmatch(r"\d+", numeric) and manifest and not conflict)
+    lineage_basis = "org_unit_id+manifest_identifier" if resolved else "logical_fingerprint"
+    key_parts = (numeric, manifest) if resolved else (logical["digest"],)
     transport = None
     if source_arg.is_file():
         transport = {
@@ -159,10 +231,12 @@ def build_source_identity(
             "extensions": {},
         }
     return {
-        "source_lineage_key": _scoped_key("lineage", lineage_basis, lineage_value),
+        "source_lineage_key": _scoped_key("lineage", lineage_basis, *key_parts),
         "source_instance_key": f"cc:source:{logical['digest']}",
-        "lineage_state": lineage_state,
+        "lineage_state": "resolved" if resolved else "unresolved",
         "lineage_basis": lineage_basis,
+        "lineage_candidates": lineage_candidates(observed),
+        "lineage_diagnostics": ["numeric_org_unit_conflicts_with_manifest"] if conflict else ([] if resolved else ["primary_identifiers_incomplete"]),
         "source_name": source_arg.name,
         "logical_fingerprint": logical,
         "transport_fingerprint": transport,
@@ -399,14 +473,18 @@ def validate_contract(payload: dict[str, Any], *, mode: str = "transform") -> li
     except ImportError:
         return [ContractIssue("warning", "jsonschema_unavailable", "jsonschema is not installed.")]
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    validator_class = jsonschema.validators.validator_for(schema)
+    validator_class.check_schema(schema)
     errors = sorted(
-        jsonschema.Draft7Validator(schema).iter_errors(payload),
+        validator_class(schema, format_checker=jsonschema.FormatChecker()).iter_errors(payload),
         key=lambda error: [str(part) for part in error.absolute_path],
     )
     issues = []
     for error in errors:
         location = "/".join(str(part) for part in error.absolute_path) or "(root)"
         issues.append(ContractIssue("error", "schema_validation", f"{location}: {error.message}"))
+    if not errors and schema_id == "coursecraft.run/2":
+        issues.extend(ContractIssue("error", "source_identity", problem) for problem in verify_source_identity_v2(payload["source"]))
     return issues
 
 
@@ -558,15 +636,18 @@ def build_run_identity(
     contract_by_name: dict[str, str],
     diagnostics: list[Any] | None = None,
     status: str | None = None,
+    schema_id: str = "coursecraft.run/1",
 ) -> dict[str, Any]:
-    schema_ids = sorted({"coursecraft.run/1", *[value for value in contract_by_name.values() if value]})
+    if schema_id not in {"coursecraft.run/1", "coursecraft.run/2"}:
+        raise ValueError(f"unsupported run identity schema: {schema_id}")
+    schema_ids = sorted({schema_id, *[value for value in contract_by_name.values() if value]})
     resolved_status = status or (
         "partial"
         if any(step.get("status") in {"failed", "unresolved"} for step in steps)
         else "ok"
     )
     return {
-        "schema": "coursecraft.run/1",
+        "schema": schema_id,
         "run_id": run_id,
         "status": resolved_status,
         "started_at": started_at,

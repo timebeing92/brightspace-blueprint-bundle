@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-09-25 — local run/2 promotion (unreleased)
+
+- Adopted the reviewed Workbench run/2 identity and title changes from
+  `dd194fd20a4c8188eda656b37c7cad03a2689ef7`. Numeric org unit plus manifest
+  identifier establishes primary lineage; configuration UUID remains an
+  export-instance alias. Candidate evidence and unresolved cases stay explicit.
+- Package metadata supplies offline title evidence. Matching fetched syllabus
+  headers may improve placeholder titles, retaining provenance and excluding
+  session suffixes from template display titles. Fetch request and success remain
+  separate. Historical run/1 schemas and receipts are unchanged.
+- Preserved standalone progress, partial delivery and release identity behavior.
+  An unreadable input still receives an unresolved run/1 failure receipt: it is
+  not claimed to be a successfully observed run/2 package.
+- This is a local commit promotion, not a release or hosted deployment. Older
+  Creator+ reconstruction drift remains outside this bounded transfer.
+
 ## 2026-07-19 — v1.3.2 delivery-language coherence
 
 Published from commit `f346ee78c61f103d7d4b98facc78febf8ac241b5`.

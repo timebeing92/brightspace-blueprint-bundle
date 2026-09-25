@@ -1,5 +1,13 @@
 # Roadmap / backlog
 
+## Run/2 local promotion — 2026-09-25
+
+The reviewed upstream contract is adopted locally with retained run/1 support.
+Catalog consumes both; legacy key transitions require explicit reconciliation.
+No release, remote push or hosted producer pin is implied. The older Creator+
+reconstruction changes are not included; that adoption remains a separate review.
+Cross-repository record: PR-2026-933-run2-lineage-contract.
+
 Candidate improvements, roughly ordered. Sourced from the 2026-07-09 audit;
 items graduate to `CHANGELOG.md` when done. Receipts over milestones: an item
 is only done when a real run demonstrates it.

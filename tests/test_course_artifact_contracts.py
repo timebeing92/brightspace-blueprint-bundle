@@ -33,7 +33,7 @@ SCHEMA_ROOT = REPO_ROOT / "schemas"
 def write_source(root: Path, *, lineage: bool = True, body: str = "alpha") -> Path:
     root.mkdir(parents=True)
     (root / "imsmanifest.xml").write_text(
-        f"<manifest identifier='M1'><metadata>{body}</metadata></manifest>\n",
+        f"<manifest identifier='{'D2L_123' if lineage else 'M1'}'><metadata>{body}</metadata></manifest>\n",
         encoding="utf-8",
     )
     if lineage:
@@ -119,7 +119,7 @@ def test_refresh_identity_separates_lineage_from_exact_source(tmp_path: Path) ->
     refreshed = tmp_path / "refreshed"
     shutil.copytree(first, refreshed)
     (refreshed / "imsmanifest.xml").write_text(
-        "<manifest identifier='M1'><metadata>changed</metadata></manifest>\n",
+        "<manifest identifier='D2L_123'><metadata>changed</metadata></manifest>\n",
         encoding="utf-8",
     )
 
@@ -147,7 +147,7 @@ def test_entity_key_is_stable_across_refresh_when_alias_is_stable(tmp_path: Path
     first = write_source(tmp_path / "first")
     refreshed = tmp_path / "refreshed"
     shutil.copytree(first, refreshed)
-    (refreshed / "imsmanifest.xml").write_text("<manifest identifier='M2'/>\n", encoding="utf-8")
+    (refreshed / "imsmanifest.xml").write_text("<manifest identifier='D2L_123'/>\n", encoding="utf-8")
     first_source = build_source_identity(first, first)
     refreshed_source = build_source_identity(refreshed, refreshed)
 

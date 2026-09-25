@@ -102,11 +102,11 @@ def test_progress_events_stream(tmp_path):
     receipt = json.loads(Path(run_end["outputs"]["run_identity"]).read_text(encoding="utf-8"))
     jsonschema.validate(
         receipt,
-        json.loads((BUNDLE_ROOT / "schemas" / "run_identity_schema.json").read_text(encoding="utf-8")),
+        json.loads((BUNDLE_ROOT / "schemas" / "run_identity_2_schema.json").read_text(encoding="utf-8")),
     )
     activities = json.loads((bundle / "sample_course__course_activities.json").read_text(encoding="utf-8"))
     structure = json.loads((bundle / "sample_course__course_structure.json").read_text(encoding="utf-8"))
-    assert receipt["schema"] == "coursecraft.run/1"
+    assert receipt["schema"] == "coursecraft.run/2"
     assert receipt["status"] == "ok"
     assert receipt["run_id"] == activities["run_id"] == structure["run_id"]
     assert receipt["source"] == activities["source"] == structure["source"]
@@ -294,6 +294,9 @@ def test_unreadable_input_reports_unusable_delivery(tmp_path, monkeypatch, capsy
     )
     delivery = run_end["delivery"]
     assert delivery["usable"] is False
+    receipt = json.loads(Path(run_end["outputs"]["run_identity"]).read_text(encoding="utf-8"))
+    assert receipt["schema"] == "coursecraft.run/1"  # unreadable-source domain remains legacy
+    assert receipt["source"]["lineage_state"] == "unresolved"
     assert delivery["empty"] is True
     assert "Probe manifest" in delivery["core_failures"]
     assert "Reconstruct course structure" in delivery["core_failures"]

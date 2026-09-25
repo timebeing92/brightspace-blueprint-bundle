@@ -8,7 +8,10 @@ emits:
 - `coursecraft.structure/1` — additive manifest-tree, HTML-topic, unknown-node,
   and diagnostic evidence;
 - `coursecraft.run/1` — source, producer, contract, step, artifact, and checksum
-  receipt;
+  historical receipt, also retained for unreadable-input failure evidence;
+- `coursecraft.run/2` — numeric-org-unit/manifest lineage, classified observed
+  aliases, receipted linked-syllabus fetch policy and source-backed title evidence
+  for readable packages. Existing run/1 schema bytes are preserved;
 - `coursecraft.blueprint/4`, `coursecraft.rubrics/1`, and
   `coursecraft.progress/1` — established blueprint, rubric, and progress
   contracts.

@@ -1112,6 +1112,43 @@ def extract_syllabus_front_matter(
     return fields
 
 
+def extract_syllabus_title_candidates(segments: list[dict]) -> list[dict]:
+    """Retain explicit course-coded headings, never a guessed document title.
+
+    Session suffixes are retained as evidence but excluded from the course title;
+    they do not establish a term or export date for a template.
+    """
+    candidates = []
+    for segment in segments:
+        heading = clean(segment.get("heading", ""))
+        # Title evidence belongs to the syllabus header. A later heading such
+        # as "ABC 123 Course Project" is an activity label, not another title.
+        if any(_syllabus_heading_score(field, heading, ()) >= 0 for field in (
+            "course_description", "course_learning_outcomes", "required_materials"
+        )):
+            break
+        match = re.fullmatch(r"([A-Z]{2,8})[ -]+(\d{3,4}[A-Z]?)\s*[:–—-]?\s+(.+)", heading)
+        if not match:
+            continue
+        title = match.group(3).strip()
+        session = re.search(
+            r"(?:\s*[,–—-]\s*|\s+)(?:Spring|Summer|Fall|Autumn|Winter)(?:\s+[AB12])?\s*,?\s+(?:19|20)\d{2}$",
+            title, flags=re.IGNORECASE,
+        )
+        suffix = title[session.start():] if session else ""
+        if session:
+            title = title[:session.start()].strip()
+        if title:
+            candidates.append({
+                "course_code": f"{match.group(1)} {match.group(2)}",
+                "title": title,
+                "source_heading": heading,
+                "excluded_session_suffix": suffix,
+                "extraction": "course_coded_syllabus_header",
+            })
+    return candidates
+
+
 def collect_syllabus_supplements(
     nodes: list[dict],
     *,
@@ -1140,6 +1177,7 @@ def collect_syllabus_supplements(
             "fetched_at": None,
             "artifact_path": "",
             "front_matter": {},
+            "course_title_candidates": [],
             "diagnostics": [],
             "extensions": {},
         }
@@ -1197,6 +1235,7 @@ def collect_syllabus_supplements(
                         raw = data.decode(_response_charset(content_type), errors="replace")
                         parse_diagnostics: list[str] = []
                         segments = html_to_segments(raw, diagnostics=parse_diagnostics)
+                        record["course_title_candidates"] = extract_syllabus_title_candidates(segments)
                         record["front_matter"] = extract_syllabus_front_matter(
                             segments,
                             source_url=url,

@@ -19,7 +19,7 @@ def main(argv: list[str] | None = None) -> int:
         "--bundle-dir",
         type=Path,
         default=None,
-        help="For coursecraft.run/1, also verify emitted-file checksums under this directory.",
+        help="For coursecraft.run/1 or /2, also verify emitted-file checksums under this directory.",
     )
     args = parser.parse_args(argv)
 
@@ -32,7 +32,7 @@ def main(argv: list[str] | None = None) -> int:
             error_count += 1
             continue
         issues = validate_contract(payload, mode=args.mode)
-        if payload.get("schema") == "coursecraft.run/1" and args.bundle_dir is not None:
+        if payload.get("schema") in {"coursecraft.run/1", "coursecraft.run/2"} and args.bundle_dir is not None:
             issues.extend(
                 ContractIssue("error", "artifact_integrity", value)
                 for value in verify_run_identity(payload, args.bundle_dir.resolve())

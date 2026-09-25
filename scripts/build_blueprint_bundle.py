@@ -1419,6 +1419,57 @@ def before_week_topic_tokens_by_title(
     return by_title
 
 
+def select_course_title(structure: dict, *, explicit: str, label: str, course_number: str) -> dict:
+    """Choose a display title without losing package or linked-source evidence."""
+    observed = (structure.get("source") or {}).get("observed_identity") or {}
+    package = [
+        {"value": clean_text(observed.get(field) or ""), "basis": field}
+        for field in ("orgunit_name", "manifest_title", "organization_title")
+        if clean_text(observed.get(field) or "")
+    ]
+
+    def placeholder(value: str) -> bool:
+        normalized = re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+        return not normalized or "template" in normalized.split() or bool(
+            re.fullmatch(r"[a-z]{2,8} \d{3,4}[a-z]?(?: (?:master|template|\d+))*", normalized)
+        )
+
+    codes = set()
+    for value in (course_number, observed.get("course_code"), observed.get("orgunit_code"), observed.get("manifest_course_code")):
+        match = re.match(r"([A-Za-z]{2,8})[ _-]+(\d{3,4}[A-Za-z]?)(?!\d)", str(value or ""))
+        if match:
+            codes.add(f"{match.group(1).upper()} {match.group(2).upper()}")
+    syllabus = []
+    for reference in (structure.get("extensions") or {}).get("syllabus_references", []):
+        if reference.get("fetch_status") != "fetched" or reference.get("is_hidden"):
+            continue
+        for candidate in reference.get("course_title_candidates", []):
+            if candidate.get("course_code") in codes and not placeholder(candidate.get("title", "")):
+                syllabus.append({
+                    "value": candidate["title"], "basis": "supplemental_linked_syllabus",
+                    **{key: candidate.get(key, "") for key in ("course_code", "source_heading", "excluded_session_suffix", "extraction")},
+                    "source_url": reference.get("url", ""),
+                    "source_sha256": reference.get("sha256", ""),
+                    "source_artifact": reference.get("artifact_path", ""),
+                })
+    warnings = []
+    if len({row["value"] for row in syllabus}) > 1:
+        warnings.append("conflicting_syllabus_titles")
+    if clean_text(explicit):
+        selected = {"value": clean_text(explicit), "basis": "explicit_course_title"}
+    else:
+        meaningful = next((row for row in package if not placeholder(row["value"])), None)
+        if meaningful:
+            selected = meaningful
+            if any(row["value"] != selected["value"] for row in syllabus):
+                warnings.append("package_syllabus_title_difference")
+        elif syllabus and "conflicting_syllabus_titles" not in warnings:
+            selected = syllabus[0]
+        else:
+            selected = package[0] if package else {"value": clean_text(label.replace("_", " ")), "basis": "label_fallback"}
+    return {"selected": selected, "package_candidates": package, "syllabus_candidates": syllabus, "diagnostics": warnings}
+
+
 def build_blueprint_model(
     structure: dict,
     activities: dict,
@@ -1513,11 +1564,13 @@ def build_blueprint_model(
     diagnostics += front_matter_diagnostics(structure, front_matter)
     diagnostics += [f"Activities: {clean_text(item)}" for item in activities.get("diagnostics", [])]
     diagnostics += routing_diagnostics
+    title_selection = select_course_title(structure, explicit=course_title, label=label, course_number=course_number)
+    diagnostics += [f"Course title evidence: {issue}; see run receipt title candidates." for issue in title_selection["diagnostics"]]
     return {
         "schema": "coursecraft.blueprint/4",
         "template_reference": template_reference,
         "course_number": clean_text(course_number),
-        "course_title": clean_text(course_title) or clean_text(label.replace("_", " ")),
+        "course_title": title_selection["selected"]["value"],
         "term": clean_text(term),
         "front_matter": front_matter,
         "before_week_1": before_week_sections,
@@ -2282,7 +2335,11 @@ def main(argv: list[str] | None = None) -> int:
     else:
         record_contract_step("Run QA report", "skipped", notes=["Skipped by --skip-qa."])
 
+    title_evidence = {}
+
     def assemble():
+        nonlocal title_evidence
+        title_evidence = select_course_title(read_json(structure_path), explicit=args.course_title, label=label, course_number=args.course_number)
         model = build_blueprint_model(
             read_json(structure_path),
             read_json(activities_path),
@@ -2300,6 +2357,7 @@ def main(argv: list[str] | None = None) -> int:
         return model, rendered
 
     def recover_blueprint(message: str):
+        nonlocal title_evidence
         fallback_structure = fallback_structure_payload(
             export_arg,
             label,
@@ -2314,6 +2372,7 @@ def main(argv: list[str] | None = None) -> int:
             run_id=run_id,
             source=source_identity,
         )
+        title_evidence = select_course_title(fallback_structure, explicit=args.course_title, label=label, course_number=args.course_number)
         model = build_blueprint_model(
             fallback_structure,
             fallback_activities,
@@ -2615,6 +2674,7 @@ def main(argv: list[str] | None = None) -> int:
             }
         )
     receipt = build_run_identity(
+        schema_id="coursecraft.run/1" if source_identity.get("extensions", {}).get("source_open_error") else "coursecraft.run/2",
         run_id=run_id,
         source=source_identity,
         bundle_dir=bundle_dir,
@@ -2627,6 +2687,7 @@ def main(argv: list[str] | None = None) -> int:
             "linked_syllabus_fetch_requested": not args.no_syllabus_fetch,
             "linked_syllabus_timeout_seconds": args.syllabus_timeout,
             "linked_syllabus_additional_hosts": list(args.syllabus_host),
+            "course_title_evidence": title_evidence,
             "docx_requested": not args.no_docx,
             "docx_structure_check_requested": not args.skip_docx_structure_check,
             "docx_render_check_requested": bool(args.render_docx_check),
