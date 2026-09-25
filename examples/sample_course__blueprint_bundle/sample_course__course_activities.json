@@ -1,11 +1,21 @@
 {
   "schema": "coursecraft.activities/1",
-  "run_id": "cc:run:d352d103-8344-4e6a-91dd-130c3f327b55",
+  "run_id": "cc:run:f71ce495-4d13-429d-834c-3f92b993493c",
   "source": {
     "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
     "source_instance_key": "cc:source:d08688cdb116c668b097ac3ef673567150a0001f8bf2b0128cb5f49298a20e36",
     "lineage_state": "unresolved",
     "lineage_basis": "logical_fingerprint",
+    "lineage_candidates": [
+      {
+        "basis": "manifest_identifier",
+        "value": "SAMPLE-ROBUST",
+        "stability_class": "package_lineage_identifier"
+      }
+    ],
+    "lineage_diagnostics": [
+      "primary_identifiers_incomplete"
+    ],
     "source_name": "sample_export.zip",
     "logical_fingerprint": {
       "algorithm": "sha256",
@@ -31,7 +41,12 @@
       "export_timestamp": null,
       "orgunit_identifier": null,
       "orgunit_code": null,
-      "orgunit_name": null
+      "orgunit_name": null,
+      "manifest_identifier": "SAMPLE-ROBUST",
+      "manifest_title": null,
+      "manifest_course_code": null,
+      "organization_title": null,
+      "org_unit_id_basis": null
     },
     "extensions": {}
   },
