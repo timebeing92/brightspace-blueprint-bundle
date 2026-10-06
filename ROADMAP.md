@@ -175,6 +175,35 @@ was deployed and verified against the live asset.
 
 ## Extraction quality
 
+- **Structure fidelity for the round trip, recorded 2026-10-06.** Reading a
+  blueprint back into a Brightspace package (MBA 620 course build) showed
+  sixteen places where structure is lost between export and blueprint. Owner
+  determinations, same day:
+  - **Retain text formatting.** Bold, italic, and underline inside text are
+    dropped: a run carries only `text` and `href`. On that export 486
+    emphasized spans went in and none came out. Needs a model revision; agreed
+    to do, implementation still to be discussed. Same revision: numbered lists
+    and tables (rows come out as one run-together paragraph).
+  - **Heading levels in the Word output** are flattened to bold lines with an
+    added colon; merits looking into.
+  - **Dropdown and callout extents** are not marked in the Word output. A
+    bracket form such as `[dropdown: Title]` … `[/dropdown]` is accepted by the
+    packager for hand-written blueprints and could be written here too, for one
+    visual language in both directions.
+  - **Modules before Week 1**: names and placement are not recorded; add a
+    formal before-Week-1 module area in output and intake. Also name each
+    discussion's forum and an assignment's submission type; keep dates out and
+    carry only day-of-week conventions.
+  - A candidate patch against Workbench `9d3a620` fixes the items that need no
+    model change (list items wrapping a paragraph, numbered lists, line breaks,
+    h5/h6, the HTML title printed as content, real Word headings), with tests.
+    It is kept in the MBA 620 course build until it lands:
+    `MBA_620_Marketing_Major_Edit_Fall2026/candidate/blueprint_wizard_structure/`;
+    the evidence is under that repository's
+    `workspace/review/mba_620/blueprint_normalization_2026-10-06/wizard_structure_losses/`.
+    Semantics are Workbench-owned, so the change lands there first and this
+    bundle is refreshed after.
+
 - **Linked syllabus supplement implemented 2026-07-17.** Visible direct
   manifest syllabus items and nested syllabus anchors inside package-local
   welcome/resources HTML are now inventoried routinely. Recognized allowed-host
