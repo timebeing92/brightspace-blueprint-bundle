@@ -66,7 +66,7 @@ Think of the pipeline as three passes:
 1. **Read the package.** Count and classify what Brightspace exported.
 2. **Build evidence tables.** Turn manifest items, HTML pages, and D2L object XML
    into inspectable JSON/Markdown/workbook artifacts.
-3. **Render one model.** Assemble a `coursecraft.blueprint/4` JSON model and
+3. **Render one model.** Assemble a `coursecraft.blueprint/5` JSON model and
    render both Markdown and DOCX from it.
 
 The blueprint is only one view of the extracted evidence. The companion files
@@ -101,7 +101,7 @@ truth.
 The stable contract is the JSON model:
 
 - file: `schemas/blueprint_schema.json`
-- current schema id: `coursecraft.blueprint/4`
+- current schema id: `coursecraft.blueprint/5` (`/4` kept as `blueprint_schema_4.json`)
 - producer: `scripts/build_blueprint_bundle.py`
 - consumers: Markdown renderer inside `build_blueprint_bundle.py` and
   `scripts/blueprint_to_docx.py`
@@ -147,7 +147,7 @@ evidence and parse the small set of fields needed for a review surface.
 Useful distinction:
 
 - **Blueprint schema:** the versioned JSON contract this bundle owns
-  (`coursecraft.blueprint/4`).
+  (`coursecraft.blueprint/5`).
 - **Brightspace package XML:** source files the bundle inspects. These are not
   treated as a stable public API.
 

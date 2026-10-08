@@ -192,16 +192,37 @@ matches; Description and Introduction match by topic title. Empty → `Needs rev
   in a dedicated Creator+ review pass, not the blueprint.
 - **Visual styling is translated into cues, not recreated.** The extractor
   preserves semantic visual structure that helps a reviewer read long pages:
-  callouts/notes/card-like sections, dropdown summaries, video/media embeds,
-  and horizontal rules. Callout/card/highlight containers can wrap nested child
-  blocks, so the generated review artifact can show the full highlighted
-  section rather than only a leading label. It does not attempt to reproduce
+  callouts/notes/card-like sections, dropdowns, video/media embeds, and
+  horizontal rules. A panel keeps its extent: a `<details>` element is one
+  dropdown block whose summary is the title and whose contents are nested
+  blocks, and a callout or other styled container keeps its children. Both
+  writers put a panel between bracket lines in the form the downstream packager
+  reads, `[dropdown: Title]` … `[/dropdown]`, `[callout]` … `[/callout]`,
+  `[timeline]` … `[/timeline]`, and `[box]` … `[/box]`; an empty panel is the
+  same pair on two adjacent lines; a callout's tone or colour on the page rides
+  on the opener as `[callout tone=gold]` or `[callout color=#336699]`. A page
+  template's chrome around the content, a skip link or the course label above
+  the title, is left out and counted in the diagnostics. It does not attempt to reproduce
   exact Brightspace CSS, fonts, layout, or every decorative wrapper. Repeated
   low-value wrappers, such as timeline item/card containers, are suppressed
   when they would only add label noise.
-- **Formatting is preserved, not reflowed.** Paragraphs, bullet lists, and links
-  are carried through as authored (links render live in both Markdown and DOCX).
-  Fine inline styling (bold/italic, fonts, colors) and images are not embedded.
+- **Formatting is preserved, not reflowed.** Paragraphs, bullet and numbered
+  lists, line breaks, tables, and links are carried through as authored (links
+  render live in both Markdown and DOCX). Since model revision 5 (2026-10-08),
+  bold, italic, and underline inside text are kept too, and a source table is
+  written as a real Word table with its header row. Fonts, colors, and images
+  are not embedded.
+  Word heading levels are one to one with the page: the frame (Course
+  Introduction, Before Week 1, each week, Unplaced Activities, the Rubric
+  Appendix, Extraction Notes) is Heading 1, a page's own headings keep their
+  source level (h2 is Heading 2, down to Heading 6), the page heading line is
+  the page's h1 so a source h1 inside page content is written as Heading 2 and
+  the diagnostics say how many, and rubric names are Heading 2. Headings inside
+  an assignment or discussion description are kept; one that repeats the
+  activity's own title is written once, as the activity line. Links to the
+  course's own objects (quicklinks and relative page links the export can
+  resolve) are written as `[link to kind: Title | words]`. The area before
+  Week 1 is one `Module:` row per module.
   Images become an `[image: alt]` marker when they have alt text and a
   no-alt/source-path marker when they do not. Missing-alt locations also appear
   in the QA report when available. Very unusual page markup can still

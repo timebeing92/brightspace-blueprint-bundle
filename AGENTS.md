@@ -47,7 +47,7 @@ This is extraction and review, not instructional-content generation.
 4. `extract_course_activities.py`
 5. `extract_rubrics_to_workbook.py --json` when `rubrics_d2l.xml` is present
 6. `course_qa_report.py` unless `--skip-qa` is used
-7. model assembly into `coursecraft.blueprint/4`
+7. model assembly into `coursecraft.blueprint/5`
 8. Markdown rendering
 9. DOCX rendering unless `--no-docx` is used; rubric JSON, when present, is
    appended as a Rubric Appendix in the blueprint DOCX

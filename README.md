@@ -102,7 +102,7 @@ steps below in order:
 | 4 | `extract_course_activities.py` | Extract assignments, discussions, quiz-level settings/instructions, checklists, grade/rubric joins, and activity metadata. |
 | 5 | `extract_rubrics_to_workbook.py` | Optional: extract rubric grids to `<label>__rubrics.xlsx` and `<label>__rubrics.json` when `rubrics_d2l.xml` is present. |
 | 6 | `course_qa_report.py` | Produce QA warnings and notes; external URL fetching is opt-in. |
-| 7 | `build_blueprint_bundle.py` | Assemble the `coursecraft.blueprint/4` JSON model. |
+| 7 | `build_blueprint_bundle.py` | Assemble the `coursecraft.blueprint/5` JSON model. |
 | 8 | `blueprint_to_docx.py` | Render DOCX from the same model used for Markdown; appends a Rubric Appendix when rubric JSON exists. |
 | 9 | `rubrics_to_docx.py` | Optional: render `<label>__rubrics.docx` from the same `coursecraft.rubrics/1` JSON. |
 | 10 | `docx_structure_qa.py` | Structural check of the rendered DOCX against the model and optional rubric appendix (relationships, hyperlinks, tables, titles). Pure Python, on by default; `--skip-docx-structure-check` opts out. |
@@ -355,5 +355,5 @@ upon request. This repository packages the relevant extractors with the
 blueprint-specific builder, DOCX renderer, schema, knowledge notes, and setup
 wrappers needed for a standalone share bundle.
 
-Current blueprint model schema: `coursecraft.blueprint/4`.
+Current blueprint model schema: `coursecraft.blueprint/5`.
 Current rubric grid schema: `coursecraft.rubrics/1`.

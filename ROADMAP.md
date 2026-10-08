@@ -175,6 +175,14 @@ was deployed and verified against the live asset.
 
 ## Extraction quality
 
+- **Delivered 2026-10-08.** Every item below landed in the Workbench as pull
+  request #5 (`f0f0aa4`) and is in this bundle from that commit: run emphasis,
+  numbered lists, line breaks, h5/h6, tables, module names and `Module:` rows
+  before Week 1, one-to-one Word heading levels, bracket panels with their
+  extents and tones, headings kept inside descriptions, internal links as
+  `[link to …]` lines, page chrome left out. Still open from the list: each
+  discussion's forum name and an assignment's submission type as blueprint
+  lines, which wait on the owner's choice of form.
 - **Structure fidelity for the round trip, recorded 2026-10-06.** Reading a
   blueprint back into a Brightspace package (MBA 620 course build) showed
   sixteen places where structure is lost between export and blueprint. Owner

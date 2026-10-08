@@ -1,5 +1,49 @@
 # Changelog
 
+## 2026-10-08 — v1.4.0 structure fidelity, model /5, one-to-one headings (unreleased)
+
+Refreshed from the CourseCraft Workbench at `f0f0aa4`, the merge of pull
+request #5 (nine commits on `9d3a620`), by three-way merge onto the bundle's
+copies with the bundle-native layers kept: step banners, `--progress-events`
+(`coursecraft.progress/1`), release-local schema paths, the resilient
+partial-delivery and status-report layer, and the run/2 identity promotion.
+
+- Reading an export keeps more of its structure: list items that wrap a
+  paragraph stay list items, ordered lists stay numbered, line breaks stay,
+  h5 and h6 are headings, the page's HTML title is no longer printed as content,
+  and page headings are real Word heading styles.
+- Word heading levels are one to one with the page: the frame is Heading 1,
+  content starts at Heading 2 (a source h1 inside page content is Heading 2,
+  counted in the diagnostics), rubric names are Heading 2.
+- Model revision `coursecraft.blueprint/5`: `bold`, `italic`, `underline` on
+  runs; a `table` block with rows of cells and `header_rows`; `module` on the
+  sections before Week 1, written as one `Module:` row per module; dropdown
+  contents nested in their block; `link_kind` and `link_title` on a run that
+  is a resolved internal link. `/4` is kept as `schemas/blueprint_schema_4.json`
+  and still validates.
+- Panels are written between bracket lines in the form the Blueprint Packager
+  reads: `[dropdown: Title]` … `[/dropdown]`, `[callout]`, `[timeline]`,
+  `[box]`; an empty panel is the pair on adjacent lines; a tone or colour the
+  page gave a callout rides on the opener (`[callout tone=gold]`,
+  `[callout color=#336699]`).
+- Headings inside assignment and discussion descriptions are kept; one that
+  repeats the activity's title is written once. Links to the course's own
+  objects (quicklinks by resource code, relative page links) are written as
+  `[link to kind: Title | words]`; unresolved ones stay hyperlinks and are
+  reported. A page template's chrome (skip link, course label) is left out.
+- `scripts/creatorplus_package.py` is mirrored from the Workbench because the
+  reader's Creator+ support needs it; the reader itself is now identical to
+  the Workbench's.
+- Tests: the Workbench's structure-fidelity tests are ported (41); 136 in all.
+  The golden sample bundle is regenerated. One expectation changed on purpose:
+  the course QA report now counts one break on the sample export, a Creator+
+  `data-file` reference resolved page-relatively although the payload sits at
+  the canonical package-root `practice/` path. The Workbench reports the same
+  on this export, so the mirror is exact; the fix belongs upstream.
+- Verified on a real export (the MBA 620 Fall B 2026 sandbox re-export of
+  2026-10-08): the bundle's blueprint is identical to the Workbench's,
+  paragraph for paragraph and style for style (3,518 paragraphs).
+
 ## 2026-09-25 — local run/2 promotion (unreleased)
 
 - Adopted the reviewed Workbench run/2 identity and title changes from
