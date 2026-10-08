@@ -304,6 +304,8 @@ def render_rubrics_section(
     *,
     title: str = "Rubric Appendix",
     page_break: bool = False,
+    title_style: str = "Heading 1",
+    name_style: str = "Heading 2",
 ) -> int:
     rubrics = (rubrics_model or {}).get("rubrics", []) or []
     if not rubrics:
@@ -311,7 +313,7 @@ def render_rubrics_section(
 
     if page_break:
         doc.add_page_break()
-    apply_heading(doc, doc.add_paragraph(title), "Heading 2")
+    apply_heading(doc, doc.add_paragraph(title), title_style)
     note = doc.add_paragraph()
     write_small_note(
         note,
@@ -325,7 +327,7 @@ def render_rubrics_section(
         if index:
             doc.add_paragraph()
         name = clean(rubric.get("name")) or "Untitled Rubric"
-        apply_heading(doc, doc.add_paragraph(name), "Heading 3")
+        apply_heading(doc, doc.add_paragraph(name), name_style)
 
         metadata_bits = []
         if clean(rubric.get("id")):

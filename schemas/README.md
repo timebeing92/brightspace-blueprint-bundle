@@ -12,9 +12,19 @@ emits:
 - `coursecraft.run/2` — numeric-org-unit/manifest lineage, classified observed
   aliases, receipted linked-syllabus fetch policy and source-backed title evidence
   for readable packages. Existing run/1 schema bytes are preserved;
-- `coursecraft.blueprint/4`, `coursecraft.rubrics/1`, and
-  `coursecraft.progress/1` — established blueprint, rubric, and progress
-  contracts.
+- `coursecraft.blueprint/5` — the blueprint model (`blueprint_schema.json`).
+  Revision 5 (Workbench, 2026-10-07) adds `bold`, `italic`, and `underline`
+  flags on runs (present only when true); a `table` block kind with `rows` of
+  cells, each cell a list of runs, and `header_rows`; a `module` field on
+  before-week sections, which the renderers group as one `Module:` row per
+  module; and, on a run, `link_kind` and `link_title` for a resolved internal
+  link written in the packager's bracket form `[link to kind: Title | words]`
+  with an empty `href`. The `level` on a `label` block is the source heading
+  level (1-6), written one to one as Word Heading 2 to Heading 6; Heading 1 is
+  the blueprint frame. The previous revision is kept as
+  `blueprint_schema_4.json` so `/4` models still validate;
+- `coursecraft.rubrics/1` and `coursecraft.progress/1` — established rubric
+  and progress contracts.
 
 Activity and structure contracts intentionally permit additive fields and
 unknown vendor kinds. Consumers should warn on unfamiliar fields or versions

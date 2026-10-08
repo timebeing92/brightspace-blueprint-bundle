@@ -1,72 +1,210 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "coursecraft.blueprint/4",
+  "$id": "coursecraft.blueprint/5",
   "title": "Coursecraft Flat-File Course Blueprint",
-  "description": "Structured model emitted by build_blueprint_bundle.py from a Brightspace/D2L export. Both the Markdown and DOCX blueprints render from an instance of this schema. The blueprint frame is a stable review structure, but each week's inner structure mirrors the course's own page headings, and content is carried as formatting-preserving blocks (paragraphs / bullets with link-aware runs) rather than flattened text. Labeled sections carry provenance (source page title + heading level) so every extracted component can be traced to where it lives in the course; before-week material preserves top-level orientation/resource pages before Week 1 as page-level sections with internal heading labels; visual block kinds preserve lightweight cues for source callouts, dropdowns, embeds, images, attached files, hidden manifest items, and dividers. Visual blocks may contain nested child blocks when the source HTML styling wraps a full section. The keys of this schema are closed, but section labels and content are open — they come from the course's own structure.",
+  "description": "Structured model emitted by build_blueprint_bundle.py from a Brightspace/D2L export. Both the Markdown and DOCX blueprints render from an instance of this schema. The blueprint frame is a stable review structure, but each week's inner structure mirrors the course's own page headings, and content is carried as formatting-preserving blocks (paragraphs / bullets with link-aware runs) rather than flattened text. Labeled sections carry provenance (source page title + heading level) so every extracted component can be traced to where it lives in the course; before-week material preserves top-level orientation/resource pages before Week 1 as page-level sections with internal heading labels; visual block kinds preserve lightweight cues for source callouts, dropdowns, embeds, images, attached files, hidden manifest items, and dividers. Visual blocks may contain nested child blocks when the source HTML styling wraps a full section. The keys of this schema are closed, but section labels and content are open — they come from the course's own structure. Revision 5 adds emphasis flags on runs (bold, italic, underline), a 'table' block kind carrying rows of cells, and a 'module' field on before-week sections naming the module the page sits in.",
   "type": "object",
-  "required": ["schema", "course_title", "front_matter", "before_week_1", "weeks"],
+  "required": [
+    "schema",
+    "course_title",
+    "front_matter",
+    "before_week_1",
+    "weeks"
+  ],
   "additionalProperties": false,
   "definitions": {
     "run": {
       "type": "object",
-      "description": "An inline run of text with an optional link.",
-      "required": ["text", "href"],
+      "description": "An inline run of text with an optional link and emphasis. The emphasis flags are present only when true.",
+      "required": [
+        "text",
+        "href"
+      ],
       "additionalProperties": false,
       "properties": {
-        "text": {"type": "string"},
-        "href": {"type": "string", "description": "Link target, or empty. http(s)/mailto render as live links; other hrefs are shown as text plus the reference."}
+        "text": {
+          "type": "string"
+        },
+        "href": {
+          "type": "string",
+          "description": "Link target, or empty. http(s)/mailto render as live links; other hrefs are shown as text plus the reference."
+        },
+        "bold": {
+          "type": "boolean",
+          "description": "Bold in the source (strong, b, or font-weight bold)."
+        },
+        "italic": {
+          "type": "boolean",
+          "description": "Italic in the source (em, i, or font-style italic)."
+        },
+        "underline": {
+          "type": "boolean",
+          "description": "Underlined in the source (u, or text-decoration underline)."
+        },
+        "link_kind": {
+          "type": "string",
+          "enum": ["page", "assignment", "discussion", "quiz", "checklist"],
+          "description": "Present when the run is a resolved internal link written in bracket form, '[link to kind: Title | words]': the kind of course object it points at."
+        },
+        "link_title": {
+          "type": "string",
+          "description": "Present with link_kind: the exact title of the object the link resolved to in this export."
+        }
       }
     },
     "block": {
       "type": "object",
-      "description": "A paragraph ('p'), list item ('li'), internal subsection label ('label'), compact Creator+ practice card ('practice'), or lightweight visual/media/file/hidden cue made of runs, preserving source formatting and page structure without parsing binary assets or hidden bodies. Visual blocks may carry nested blocks when the source callout/card styling wraps a full section.",
-      "required": ["kind", "level", "runs"],
+      "description": "A paragraph ('p'), list item ('li'), internal subsection label ('label'), compact Creator+ practice card ('practice'), source table ('table'), or lightweight visual/media/file/hidden cue made of runs, preserving source formatting and page structure without parsing binary assets or hidden bodies. Visual blocks may carry nested blocks when the source callout/card styling wraps a full section. A table block has empty runs and carries its content in rows.",
+      "required": [
+        "kind",
+        "level",
+        "runs"
+      ],
       "additionalProperties": false,
       "properties": {
-        "kind": {"type": "string", "enum": ["p", "li", "label", "practice", "visual", "dropdown", "embed", "image", "file", "hidden", "divider"]},
-        "level": {"type": "integer", "description": "List nesting depth for 'li' (1-based); 0 for paragraphs, subsection labels, and visual/media/file/hidden cue blocks."},
-        "runs": {"type": "array", "items": {"$ref": "#/definitions/run"}},
-        "blocks": {"$ref": "#/definitions/blocks", "description": "Nested child blocks, used mainly when a visual/callout container wraps a full source section."},
+        "kind": {
+          "type": "string",
+          "enum": [
+            "p",
+            "li",
+            "label",
+            "practice",
+            "table",
+            "visual",
+            "dropdown",
+            "embed",
+            "image",
+            "file",
+            "hidden",
+            "divider"
+          ]
+        },
+        "level": {
+          "type": "integer",
+          "description": "List nesting depth for 'li' (1-based); 0 for paragraphs, subsection labels, and visual/media/file/hidden cue blocks."
+        },
+        "runs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/run"
+          }
+        },
+        "blocks": {
+          "$ref": "#/definitions/blocks",
+          "description": "Nested child blocks, used mainly when a visual/callout container wraps a full source section."
+        },
         "meta": {
           "type": "object",
           "description": "Optional lightweight rendering/provenance hints for practice/visual/media/file/hidden cue blocks, such as summary, practice_type, source_file, embed_type, classes, tag, source_style, src, alt, missing_alt, file_name, object_name, item_type, manifest_kind, or extraction.",
-          "additionalProperties": {"type": "string"}
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "rows": {
+          "type": "array",
+          "description": "Table blocks only: rows of cells, every row the same width.",
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/cell"
+            }
+          }
+        },
+        "header_rows": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Table blocks only: how many leading rows are header rows (th cells, or rows inside thead)."
         }
       }
     },
     "blocks": {
       "type": "array",
-      "items": {"$ref": "#/definitions/block"}
+      "items": {
+        "$ref": "#/definitions/block"
+      }
     },
     "labeled_section": {
       "type": "object",
       "description": "A course section kept under its own heading label, with formatting-preserving blocks. Sections extracted from course pages also carry provenance (source_page, level); activity-derived sections (assignments/discussions) omit it.",
-      "required": ["label", "blocks"],
+      "required": [
+        "label",
+        "blocks"
+      ],
       "additionalProperties": false,
       "properties": {
-        "label": {"type": "string", "description": "The course's own heading (e.g. 'Required Resources', 'Multimedia'). Unmapped sections use a 'Page › Heading' path label so distinct pages stay distinct."},
-        "blocks": {"$ref": "#/definitions/blocks"},
-        "source_page": {"type": "string", "description": "Provenance: title of the course page/topic this section was extracted from."},
-        "level": {"type": "integer", "description": "Provenance: heading level of the source section (1-4), or 0 when the section is a whole page."}
+        "label": {
+          "type": "string",
+          "description": "The course's own heading (e.g. 'Required Resources', 'Multimedia'). Unmapped sections use a 'Page › Heading' path label so distinct pages stay distinct."
+        },
+        "blocks": {
+          "$ref": "#/definitions/blocks"
+        },
+        "source_page": {
+          "type": "string",
+          "description": "Provenance: title of the course page/topic this section was extracted from."
+        },
+        "level": {
+          "type": "integer",
+          "description": "Provenance: heading level of the source section (1-4), or 0 when the section is a whole page."
+        },
+        "module": {
+          "type": "string",
+          "description": "Before-week sections only: the title of the manifest module the page sits in, so a renderer can group pages by module."
+        }
+      }
+    },
+    "cell": {
+      "type": "array",
+      "description": "One table cell: runs, with a '\\n' run between the lines of content the cell held ('• ' marks a list item).",
+      "items": {
+        "$ref": "#/definitions/run"
       }
     }
   },
   "properties": {
-    "schema": {"type": "string", "const": "coursecraft.blueprint/4"},
-    "template_reference": {"type": "string", "description": "Optional compatibility metadata describing the blueprint review format. It is stored but not rendered in the visible title or evidence note."},
-    "course_number": {"type": "string", "description": "Optional course number metadata. Pass via --course-number when useful for reviewers."},
-    "course_title": {"type": "string", "description": "Visible blueprint title; falls back to the de-slugged label."},
-    "term": {"type": "string", "description": "Optional term metadata. Stored for traceability, but not rendered in the visible blueprint title."},
+    "schema": {
+      "type": "string",
+      "const": "coursecraft.blueprint/5"
+    },
+    "template_reference": {
+      "type": "string",
+      "description": "Optional compatibility metadata describing the blueprint review format. It is stored but not rendered in the visible title or evidence note."
+    },
+    "course_number": {
+      "type": "string",
+      "description": "Optional course number metadata. Pass via --course-number when useful for reviewers."
+    },
+    "course_title": {
+      "type": "string",
+      "description": "Visible blueprint title; falls back to the de-slugged label."
+    },
+    "term": {
+      "type": "string",
+      "description": "Optional term metadata. Stored for traceability, but not rendered in the visible blueprint title."
+    },
     "front_matter": {
       "type": "object",
       "description": "Course-level sections rendered above the weekly tables, each as blocks.",
-      "required": ["course_description", "required_materials", "course_learning_outcomes", "course_introduction"],
+      "required": [
+        "course_description",
+        "required_materials",
+        "course_learning_outcomes",
+        "course_introduction"
+      ],
       "additionalProperties": false,
       "properties": {
-        "course_description": {"$ref": "#/definitions/blocks"},
-        "required_materials": {"$ref": "#/definitions/blocks"},
-        "course_learning_outcomes": {"$ref": "#/definitions/blocks"},
-        "course_introduction": {"$ref": "#/definitions/blocks"}
+        "course_description": {
+          "$ref": "#/definitions/blocks"
+        },
+        "required_materials": {
+          "$ref": "#/definitions/blocks"
+        },
+        "course_learning_outcomes": {
+          "$ref": "#/definitions/blocks"
+        },
+        "course_introduction": {
+          "$ref": "#/definitions/blocks"
+        }
       }
     },
     "weeks": {
@@ -74,34 +212,93 @@
       "description": "One entry per detected week/module section, in week order where detectable.",
       "items": {
         "type": "object",
-        "required": ["title"],
+        "required": [
+          "title"
+        ],
         "additionalProperties": false,
         "properties": {
-          "title": {"type": "string", "description": "Section title (e.g. 'Week 1'), verbatim from the manifest."},
-          "overview": {"$ref": "#/definitions/blocks", "description": "Intro plus any overview-headed segments. When a week has no objectives heading, its objectives text stays here (fallback)."},
-          "learning_objectives": {"$ref": "#/definitions/blocks", "description": "Segments under an objectives/outcomes heading. Empty when the course used no such heading."},
-          "resources": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}, "description": "Readings/media/required/optional learning-material segments, each under its own course label. Renderers place this immediately after Learning Objectives as a default blueprint architecture choice."},
-          "assignments": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}, "description": "Dropbox folders and quiz/assessment quicklinks placed in this module: label = activity name; points, gradebook item, rubric metadata, quiz attempts/time settings, and quiz section/question summaries render as leading label blocks before instruction content. Due day-of-week rides along in the instructions; coded numeric dates are term-relative and deliberately not extracted."},
-          "discussions": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}, "description": "Discussion topics placed in this module: label = topic title; points, gradebook item, and rubric metadata render as leading label blocks before description content."},
-          "checklist": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}, "description": "Weekly checklist evidence, kept as its own blueprint row. This normally comes from D2L checklist tool payloads joined by manifest quicklink resource code; HTML page headings matching 'checklist' are also preserved here when present."},
-          "other_sections": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}, "description": "Any remaining course pages/headings that don't map to a blueprint bucket (Next Steps, Case Study, a standalone content page, etc.). Each distinct page or heading is its own entry, labeled with its 'Page › Heading' path; labels are open (the course's own structure)."}
+          "title": {
+            "type": "string",
+            "description": "Section title (e.g. 'Week 1'), verbatim from the manifest."
+          },
+          "overview": {
+            "$ref": "#/definitions/blocks",
+            "description": "Intro plus any overview-headed segments. When a week has no objectives heading, its objectives text stays here (fallback)."
+          },
+          "learning_objectives": {
+            "$ref": "#/definitions/blocks",
+            "description": "Segments under an objectives/outcomes heading. Empty when the course used no such heading."
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/labeled_section"
+            },
+            "description": "Readings/media/required/optional learning-material segments, each under its own course label. Renderers place this immediately after Learning Objectives as a default blueprint architecture choice."
+          },
+          "assignments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/labeled_section"
+            },
+            "description": "Dropbox folders and quiz/assessment quicklinks placed in this module: label = activity name; points, gradebook item, rubric metadata, quiz attempts/time settings, and quiz section/question summaries render as leading label blocks before instruction content. Due day-of-week rides along in the instructions; coded numeric dates are term-relative and deliberately not extracted."
+          },
+          "discussions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/labeled_section"
+            },
+            "description": "Discussion topics placed in this module: label = topic title; points, gradebook item, and rubric metadata render as leading label blocks before description content."
+          },
+          "checklist": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/labeled_section"
+            },
+            "description": "Weekly checklist evidence, kept as its own blueprint row. This normally comes from D2L checklist tool payloads joined by manifest quicklink resource code; HTML page headings matching 'checklist' are also preserved here when present."
+          },
+          "other_sections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/labeled_section"
+            },
+            "description": "Any remaining course pages/headings that don't map to a blueprint bucket (Next Steps, Case Study, a standalone content page, etc.). Each distinct page or heading is its own entry, labeled with its 'Page › Heading' path; labels are open (the course's own structure)."
+          }
         }
       }
     },
     "before_week_1": {
       "type": "array",
-      "items": {"$ref": "#/definitions/labeled_section"},
-      "description": "Top-level non-week pages that appear before the first detected week/module. Rendered under 'Before Week 1: Additional Resources and Information'. Each item is one page-level section; internal page headings render as label blocks inside that section. Empty when the export has no before-week material."
+      "items": {
+        "$ref": "#/definitions/labeled_section"
+      },
+      "description": "Top-level non-week pages that appear before the first detected week/module. Rendered under 'Before Week 1: Additional Resources and Information'. Each item is one page-level section; internal page headings render as label blocks inside that section. Empty when the export has no before-week material. Each section names its module, and renderers group consecutive sections by module as one 'Module:' row each."
     },
     "unplaced_activities": {
       "type": "object",
       "description": "Activities found in D2L object XML but not joined to any module quicklink by resource code.",
       "additionalProperties": false,
       "properties": {
-        "assignments": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}},
-        "discussions": {"type": "array", "items": {"$ref": "#/definitions/labeled_section"}}
+        "assignments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/labeled_section"
+          }
+        },
+        "discussions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/labeled_section"
+          }
+        }
       }
     },
-    "diagnostics": {"type": "array", "items": {"type": "string"}, "description": "Extraction notes carried from the structure pass, activity pass, and blueprint routing decisions."}
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Extraction notes carried from the structure pass, activity pass, and blueprint routing decisions."
+    }
   }
 }

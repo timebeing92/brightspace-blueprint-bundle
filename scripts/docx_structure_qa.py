@@ -69,14 +69,20 @@ def _walk_blocks(blocks):
         kind = block.get("kind")
         if kind in {"divider", "label", "practice"}:
             continue
-        for run in block.get("runs", []):
+        runs = list(block.get("runs", []))
+        for row in block.get("rows") or []:  # table cells
+            for cell in row:
+                runs.extend(cell)
+        if kind in {"visual", "dropdown"}:
+            runs = []  # written as bracket lines, which carry no live link
+        for run in runs:
             text = xml_safe_text(run.get("text", ""))
             if not text:
                 continue
             href = xml_safe_text(run.get("href") or "").strip()
             if href.startswith(LIVE_SCHEMES):
                 yield href
-        if kind == "visual":
+        if kind in {"visual", "dropdown"}:
             yield from _walk_blocks(block.get("blocks"))
 
 
