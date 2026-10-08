@@ -8,6 +8,8 @@ uses a stable course-blueprint review structure:
 - course header line + course title
 - single-column front-matter tables (Description / Materials / Course Learning Outcomes)
 - "Course Introduction" heading + intro text + "Course Content:"
+- the area before Week 1 as one table row per module: a "Module:" line, then
+  each page under a "Page:" line
 - one full-width table per week, using either section labels above content
   rows (default) or section labels in a left column:
     Overview
@@ -22,7 +24,23 @@ In the default layout, scaffold labels sit in shaded rows immediately above
 their extracted content. In the optional left-column layout, the same labels sit
 in shaded left cells and the content remains in full-page-width tables.
 Bullets use the document's native List Bullet styles (real hanging indents,
-nesting by level) when the style base defines them.
+nesting by level) when the style base defines them. Items of an ordered list
+use the List Number styles the same way, and every separate list gets its own
+numbering instance so it counts from 1. A page's own headings (label blocks
+with a source heading level) use real heading styles, one to one with the
+source: h2 is Heading 2, h3 is Heading 3, and so on to Heading 6. Runs keep
+their bold, italic, and underline; a source table is a real Word table with
+its header rows bold. A dropdown, callout, timeline, or other styled container
+is written between bracket lines, [dropdown: Title] … [/dropdown], [callout] …
+[/callout], [timeline] … [/timeline], [box] … [/box], so its extent is explicit
+and a packager can read it back; an empty panel is the pair on adjacent lines.
+
+Word heading levels are one to one with the course page. The frame (Course
+Introduction, Before Week 1, each week, Unplaced Activities, the Rubric
+Appendix, Extraction Notes) is Heading 1 and the course title is a plain bold
+line. A page's heading line is the page's h1, so a page's own headings start at
+Heading 2; a source h1 inside page content is written as Heading 2 and the
+model's diagnostics say so.
 
 When a template DOCX is supplied with ``--template``, it is opened as a generic
 style base so the output can inherit local fonts, heading styles, and page setup.
@@ -243,7 +261,7 @@ def write_label(cell, text: str) -> None:
     set_cell_background(cell, "F2F2F2")
 
 
-def add_hyperlink(paragraph, url: str, text: str) -> None:
+def add_hyperlink(paragraph, url: str, text: str, *, bold: bool = False, italic: bool = False) -> None:
     """Append a real, clickable hyperlink run to a paragraph (cell or body)."""
     part = paragraph.part
     r_id = part.relate_to(url, RELATIONSHIP_TYPE.HYPERLINK, is_external=True)
@@ -251,6 +269,10 @@ def add_hyperlink(paragraph, url: str, text: str) -> None:
     hyperlink.set(qn("r:id"), r_id)
     run = OxmlElement("w:r")
     rpr = OxmlElement("w:rPr")
+    if bold:
+        rpr.append(OxmlElement("w:b"))
+    if italic:
+        rpr.append(OxmlElement("w:i"))
     color = OxmlElement("w:color")
     color.set(qn("w:val"), "0563C1")
     rpr.append(color)
@@ -258,12 +280,28 @@ def add_hyperlink(paragraph, url: str, text: str) -> None:
     underline.set(qn("w:val"), "single")
     rpr.append(underline)
     run.append(rpr)
-    text_el = OxmlElement("w:t")
-    text_el.set(qn("xml:space"), "preserve")
-    text_el.text = xml_safe_text(text)
-    run.append(text_el)
+    # A newline is a line break kept from the source page; python-docx already
+    # turns it into w:br for plain runs, so link text gets the same treatment.
+    for index, line in enumerate(xml_safe_text(text).split("\n")):
+        if index:
+            run.append(OxmlElement("w:br"))
+        if line or not index:
+            text_el = OxmlElement("w:t")
+            text_el.set(qn("xml:space"), "preserve")
+            text_el.text = line
+            run.append(text_el)
     hyperlink.append(run)
     paragraph._p.append(hyperlink)
+
+
+def _apply_emphasis(word_run, run: dict) -> None:
+    """Carry a run's emphasis flags (bold, italic, underline) onto a Word run."""
+    if run.get("bold"):
+        word_run.bold = True
+    if run.get("italic"):
+        word_run.italic = True
+    if run.get("underline"):
+        word_run.underline = True
 
 
 def _emit_runs(paragraph, runs: list[dict]) -> None:
@@ -273,14 +311,38 @@ def _emit_runs(paragraph, runs: list[dict]) -> None:
             continue
         href = xml_safe_text(run.get("href") or "").strip()
         if href.startswith(LIVE_SCHEMES):
-            add_hyperlink(paragraph, href, text)
+            add_hyperlink(paragraph, href, text, bold=bool(run.get("bold")), italic=bool(run.get("italic")))
         elif href:
-            paragraph.add_run(text)
+            _apply_emphasis(paragraph.add_run(text), run)
             note = paragraph.add_run(f" ({href})")
             note.font.size = Pt(8)
             note.font.color.rgb = RGBColor(0x80, 0x80, 0x80)
         else:
-            paragraph.add_run(text)
+            _apply_emphasis(paragraph.add_run(text), run)
+
+
+def _emit_table(container, block: dict) -> None:
+    """Write a table block as a real Word table; header rows are bold."""
+    rows = block.get("rows") or []
+    if not rows:
+        return
+    width = max(len(row) for row in rows)
+    table = container.add_table(rows=len(rows), cols=width)
+    add_table_borders(table)
+    header_rows = int(block.get("header_rows") or 0)
+    for row_index, row in enumerate(rows):
+        for col_index in range(width):
+            cell = table.cell(row_index, col_index)
+            runs = row[col_index] if col_index < len(row) else []
+            para = first_paragraph(cell)
+            _space(para, before=0, after=0)
+            if row_index < header_rows:
+                runs = [{**run, "bold": True} for run in runs]
+            _emit_runs(para, runs)
+    # A cell gets its trailing paragraph from python-docx; the body needs one so
+    # the next table does not merge into this one.
+    if hasattr(container, "sections"):
+        container.add_paragraph()
 
 
 def _write_missing(container, missing: str) -> None:
@@ -339,6 +401,186 @@ def _apply_native_bullet(paragraph, num_id: str, level: int) -> None:
     ppr.insert(0, numpr)
 
 
+NUMBER_STYLE_BY_LEVEL = {1: "List Number", 2: "List Number 2", 3: "List Number 3"}
+
+
+class _OpenLists:
+    """Ordered lists still open in a run of consecutive list items.
+
+    Consecutive ordered items at one level belong to one list. A non-list block
+    closes every open list, a shallower item closes the deeper ones, and a
+    bullet closes a numbered list at its own level (a bullet nested under a
+    numbered item leaves that list open, so its numbering carries on).
+    """
+
+    def __init__(self) -> None:
+        self._open: dict[int, dict] = {}
+
+    def close_all(self) -> None:
+        self._open.clear()
+
+    def enter(self, level: int, *, ordered: bool) -> dict | None:
+        """Note one list item; return its list's state when the item is ordered."""
+        for open_level in list(self._open):
+            if open_level > level or (open_level == level and not ordered):
+                del self._open[open_level]
+        if not ordered:
+            return None
+        state = self._open.setdefault(level, {"count": 0, "numbering": None})
+        state["count"] += 1
+        return state
+
+
+def _numbering_root(part):
+    """The document's numbering definitions, or None without a numbering part."""
+    try:
+        return part.part_related_by(RELATIONSHIP_TYPE.NUMBERING).element
+    except (KeyError, AttributeError):
+        return None
+
+
+def _style_numbering(paragraph) -> tuple[str, int] | None:
+    """(numId, ilvl) the paragraph's style, or a style it is based on, links to."""
+    style = paragraph.style
+    while style is not None:
+        ppr = style.element.find(qn("w:pPr"))
+        num_pr = ppr.find(qn("w:numPr")) if ppr is not None else None
+        num_id = num_pr.find(qn("w:numId")) if num_pr is not None else None
+        if num_id is not None and num_id.get(qn("w:val")) not in (None, "", "0"):
+            ilvl = num_pr.find(qn("w:ilvl"))
+            return num_id.get(qn("w:val")), int(ilvl.get(qn("w:val")) or 0) if ilvl is not None else 0
+        style = style.base_style
+    return None
+
+
+def _find_decimal_numbering(part) -> tuple[str, int] | None:
+    """(numId, number of levels) of a numbering definition whose first level
+    counts in decimal; None when the document has none."""
+    numbering = _numbering_root(part)
+    if numbering is None:
+        return None
+    level_counts: dict[str, int] = {}
+    for abstract in numbering.findall(qn("w:abstractNum")):
+        levels = abstract.findall(qn("w:lvl"))
+        lvl0 = next((lvl for lvl in levels if lvl.get(qn("w:ilvl")) == "0"), None)
+        fmt = lvl0.find(qn("w:numFmt")) if lvl0 is not None else None
+        if fmt is not None and fmt.get(qn("w:val")) == "decimal":
+            level_counts[abstract.get(qn("w:abstractNumId"))] = len(levels)
+    for num in numbering.findall(qn("w:num")):
+        ref = num.find(qn("w:abstractNumId"))
+        if ref is not None and ref.get(qn("w:val")) in level_counts:
+            return num.get(qn("w:numId")), level_counts[ref.get(qn("w:val"))]
+    return None
+
+
+def _add_restarted_num(part, base_num_id: str, ilvl: int) -> str | None:
+    """Add a numbering instance that reuses ``base_num_id``'s definition but
+    counts from 1 again at ``ilvl``; return its numId."""
+    numbering = _numbering_root(part)
+    if numbering is None:
+        return None
+    nums = numbering.findall(qn("w:num"))
+    base = next((num for num in nums if num.get(qn("w:numId")) == base_num_id), None)
+    ref = base.find(qn("w:abstractNumId")) if base is not None else None
+    if ref is None:
+        return None
+    used = [int(num.get(qn("w:numId"))) for num in nums if (num.get(qn("w:numId")) or "").isdigit()]
+    num_id = str(max(used) + 1)
+    num = OxmlElement("w:num")
+    num.set(qn("w:numId"), num_id)
+    abstract_ref = OxmlElement("w:abstractNumId")
+    abstract_ref.set(qn("w:val"), ref.get(qn("w:val")))
+    num.append(abstract_ref)
+    override = OxmlElement("w:lvlOverride")
+    override.set(qn("w:ilvl"), str(ilvl))
+    start = OxmlElement("w:startOverride")
+    start.set(qn("w:val"), "1")
+    override.append(start)
+    num.append(override)
+    # Instances stay together, after the abstract definitions they point to.
+    nums[-1].addnext(num)
+    return num_id
+
+
+def _start_numbering(paragraph, level: int) -> dict | None:
+    """Set up native numbering for a new ordered list starting at this paragraph.
+
+    Prefers the numbering the List Number style links to, else the template's
+    own decimal numbering. None when the document offers neither.
+    """
+    part = paragraph.part
+    style_name = NUMBER_STYLE_BY_LEVEL.get(min(level, 3), "List Number")
+    style = style_name if _apply_para_style(paragraph, style_name) else ""
+    if style:
+        linked = _style_numbering(paragraph)
+        num_id = _add_restarted_num(part, linked[0], linked[1]) if linked else None
+        if num_id:
+            return {"style": style, "num_id": num_id, "ilvl": linked[1], "indent": False}
+    base = _find_decimal_numbering(part)
+    if base:
+        ilvl = min(level, base[1], 9) - 1
+        num_id = _add_restarted_num(part, base[0], ilvl)
+        if num_id:
+            # A definition with too few levels cannot show the nesting itself.
+            return {"style": style, "num_id": num_id, "ilvl": ilvl, "indent": ilvl != level - 1}
+    paragraph.style = None
+    return None
+
+
+def _apply_ordered_number(paragraph, level: int, state: dict) -> None:
+    """Number one ordered list item as a native Word list paragraph.
+
+    The first item of a list sets up a numbering instance of its own with a
+    start override, so Word counts every separate list from 1. Only when the
+    document has no usable numbering definition is the number typed with a
+    hanging indent, the same last resort the bullets have.
+    """
+    if state["count"] == 1:
+        state["numbering"] = _start_numbering(paragraph, level)
+    numbering = state["numbering"]
+    fmt = paragraph.paragraph_format
+    if numbering is None:
+        fmt.left_indent = Pt(18 * level)
+        fmt.first_line_indent = Pt(-18)
+        paragraph.add_run(f"{state['count']}. ")
+        return
+    if numbering["style"]:
+        _apply_para_style(paragraph, numbering["style"])
+    num_pr = paragraph._p.get_or_add_pPr().get_or_add_numPr()
+    num_pr.get_or_add_ilvl().val = numbering["ilvl"]
+    num_pr.get_or_add_numId().val = int(numbering["num_id"])
+    if numbering["indent"]:
+        fmt.left_indent = Pt(18 * level)
+        fmt.first_line_indent = Pt(-18)
+
+
+# Word heading levels are one to one with the page. Heading 1 is the frame
+# (week titles and the other top-level sections), so a page's own headings use
+# Heading 2 to Heading 6 by their source level. A source h1 inside page content
+# becomes Heading 2: the page heading line is already the page's h1.
+FRAME_HEADING_STYLE = "Heading 1"
+PAGE_HEADING_STYLES = ("Heading 2", "Heading 3", "Heading 4", "Heading 5", "Heading 6")
+
+
+def page_heading_style(level: int) -> str:
+    """The Word heading style for a page heading at source level ``level``."""
+    return PAGE_HEADING_STYLES[min(max(int(level), 2), 6) - 2]
+
+
+def _apply_page_heading_style(paragraph, level: int) -> bool:
+    """Give a heading label the Word heading style for its source heading level.
+
+    Tries the one-to-one style first, then each shallower page-heading style,
+    so a style base that defines only some of them still yields a real heading.
+    Never Heading 1, which is the frame's. False when it defines none.
+    """
+    deepest = min(max(int(level), 2), 6) - 2
+    for name in reversed(PAGE_HEADING_STYLES[: deepest + 1]):
+        if _apply_para_style(paragraph, name):
+            return True
+    return False
+
+
 def _emit_divider(container, *, before: int = 6, after: int = 6) -> None:
     para = container.add_paragraph()
     _space(para, before=before, after=after)
@@ -353,17 +595,98 @@ def _emit_divider(container, *, before: int = 6, after: int = 6) -> None:
     p_pr.append(p_bdr)
 
 
-def _emit_block(container, block: dict, *, previous_kind: str = "", wrapper_fill: str = "") -> None:
+# Panels are written in the bracket form the downstream packager reads:
+# [dropdown: Title] … [/dropdown], [callout] … [/callout], [timeline] …
+# [/timeline], and [box] … [/box] for any other styled container. The bracket
+# lines carry the extent that a one-line cue lost; shading stays as a reading aid.
+# A panel without content is the same pair on two adjacent lines, so the file
+# says "an empty panel was here" in the grammar every other panel uses.
+PANEL_FILLS = {"dropdown": "F4F2FA", "callout": "F2F6FA", "timeline": "F2F6FA", "box": "F2F6FA"}
+
+
+def panel_keyword(kind: str, label: str) -> str:
+    """The bracket keyword for a visual or dropdown block with children."""
+    if kind == "dropdown":
+        return "dropdown"
+    lowered = clean_text(label).lower()
+    if lowered == "callout" or lowered.endswith("callout") or lowered in {"note", "discussion note"}:
+        return "callout"
+    if lowered == "timeline":
+        return "timeline"
+    return "box"
+
+
+def panel_attrs(meta: dict | None) -> str:
+    """Bracket attributes a panel carries: tone=<name> from a tone class, else color=#hex from its border."""
+    meta = meta or {}
+    if meta.get("tone"):
+        return f" tone={meta['tone']}"
+    if meta.get("color"):
+        return f" color={meta['color']}"
+    return ""
+
+
+def panel_lines(kind: str, runs: list[dict], meta: dict | None = None) -> tuple[str, str, str]:
+    """(keyword, opening line, closing line) for a panel block."""
+    label = clean_text(" ".join(str(run.get("text", "")) for run in runs))
+    keyword = panel_keyword(kind, label)
+    attrs = panel_attrs(meta) if keyword != "dropdown" else ""
+    opening = f"[{keyword}: {label}]" if keyword == "dropdown" and label else f"[{keyword}{attrs}]"
+    return keyword, opening, f"[/{keyword}]"
+
+
+def _emit_bracket_line(container, text: str, fill: str, *, before: int, after: int) -> None:
+    para = container.add_paragraph()
+    _space(para, before=before, after=after)
+    set_paragraph_background(para, fill)
+    run = para.add_run(text)
+    run.bold = True
+    run.font.size = Pt(9)
+    run.font.color.rgb = RGBColor(0x4D, 0x4D, 0x4D)
+
+
+def _emit_panel(container, block: dict, kind: str, runs: list[dict], *, wrapper_fill: str = "") -> None:
+    keyword, opening, closing = panel_lines(kind, runs, block.get("meta"))
+    fill = wrapper_fill or PANEL_FILLS[keyword]
+    _emit_bracket_line(container, opening, fill, before=6, after=2)
+    previous_child_kind = kind
+    child_lists = _OpenLists()
+    for child in block.get("blocks") or []:
+        _emit_block(container, child, previous_kind=previous_child_kind, wrapper_fill=fill, open_lists=child_lists)
+        previous_child_kind = child.get("kind", "")
+    _emit_bracket_line(container, closing, fill, before=2, after=6)
+
+
+def _emit_block(
+    container,
+    block: dict,
+    *,
+    previous_kind: str = "",
+    wrapper_fill: str = "",
+    open_lists: _OpenLists | None = None,
+) -> None:
     """Add one block as a paragraph; only list items get a bullet, paragraphs
     stay prose. Bullets become native Word lists: List Bullet styles when the
     style base defines them, else a numPr reference to the template's own
-    bullet numbering, else a manual hanging-indent bullet."""
+    bullet numbering, else a manual hanging-indent bullet. Ordered items become
+    native numbered lists the same way; ``open_lists`` carries the lists open
+    across the caller's consecutive blocks so each list restarts at 1."""
     kind = block.get("kind")
+    if open_lists is None:
+        open_lists = _OpenLists()
+    if kind != "li":
+        open_lists.close_all()
     if kind == "divider":
         _emit_divider(container)
         return
+    if kind == "table":
+        _emit_table(container, block)
+        return
 
     runs = [r for r in block.get("runs", []) if r.get("text")]
+    if kind in {"visual", "dropdown"}:
+        _emit_panel(container, block, kind, runs, wrapper_fill=wrapper_fill)
+        return
     if not runs:
         return
     para = container.add_paragraph()
@@ -372,6 +695,15 @@ def _emit_block(container, block: dict, *, previous_kind: str = "", wrapper_fill
         _space(para, before=before, after=2)
         if wrapper_fill:
             set_paragraph_background(para, wrapper_fill)
+        # A label with a source heading level is one of the page's own headings:
+        # it gets a real heading style and no trailing colon. Level-0 labels
+        # (activity metadata, checklist categories) stay bold lines.
+        heading = clean_label(" ".join(str(run.get("text", "")) for run in runs))
+        if int(block.get("level") or 0) > 0 and heading and _apply_page_heading_style(
+            para, int(block["level"])
+        ):
+            para.add_run(heading)
+            return
         for run in runs:
             text = clean_text(run.get("text", ""))
             if text:
@@ -396,10 +728,8 @@ def _emit_block(container, block: dict, *, previous_kind: str = "", wrapper_fill
             summary_run.font.size = Pt(8)
             summary_run.font.color.rgb = RGBColor(0x4D, 0x4D, 0x4D)
         return
-    if kind in {"visual", "dropdown", "embed", "image", "file", "hidden"}:
+    if kind in {"embed", "image", "file", "hidden"}:
         label = {
-            "visual": "Visual cue: ",
-            "dropdown": "Dropdown / expandable section: ",
             "embed": f"{clean_text(block.get('meta', {}).get('embed_type', '')) or 'Embedded media'}: ",
             "image": "Embedded image: ",
             "file": "Attached course file: ",
@@ -407,8 +737,6 @@ def _emit_block(container, block: dict, *, previous_kind: str = "", wrapper_fill
         }[kind]
         _space(para, before=6, after=4)
         fill = {
-            "visual": "F2F6FA",
-            "dropdown": "F4F2FA",
             "embed": "F7F9FB",
             "image": "F7F9FB",
             "file": "F7F9FB",
@@ -420,15 +748,14 @@ def _emit_block(container, block: dict, *, previous_kind: str = "", wrapper_fill
         prefix.font.size = Pt(9)
         prefix.font.color.rgb = RGBColor(0x4D, 0x4D, 0x4D)
         _emit_runs(para, runs)
-        if kind == "visual" and block.get("blocks"):
-            previous_child_kind = "visual"
-            for child in block["blocks"]:
-                _emit_block(container, child, previous_kind=previous_child_kind, wrapper_fill=fill)
-                previous_child_kind = child.get("kind", "")
         return
     if kind == "li":
         level = max(1, int(block.get("level") or 1))
-        if not _apply_para_style(para, BULLET_STYLE_BY_LEVEL.get(min(level, 3), "List Bullet")):
+        ordered = (block.get("meta") or {}).get("list") == "ordered"
+        numbered = open_lists.enter(level, ordered=ordered)
+        if numbered is not None:
+            _apply_ordered_number(para, level, numbered)
+        elif not _apply_para_style(para, BULLET_STYLE_BY_LEVEL.get(min(level, 3), "List Bullet")):
             num_id = _bullet_num_id(para)
             if num_id is not None:
                 _apply_native_bullet(para, num_id, level)
@@ -451,8 +778,9 @@ def write_blocks(container, blocks: list[dict], *, missing: str) -> None:
         _write_missing(container, missing)
         return
     previous_kind = ""
+    open_lists = _OpenLists()
     for block in blocks:
-        _emit_block(container, block, previous_kind=previous_kind)
+        _emit_block(container, block, previous_kind=previous_kind, open_lists=open_lists)
         previous_kind = block.get("kind", "")
 
 
@@ -477,8 +805,9 @@ def write_value_labeled(container, sections: list[dict], *, missing: str, divide
             _space(para, before=2 if has_divider else (8 if index else 0), after=2)
             para.add_run(f"{label}:").bold = True
         previous_kind = "section_label" if label else ""
+        open_lists = _OpenLists()
         for block in section.get("blocks", []):
-            _emit_block(container, block, previous_kind=previous_kind)
+            _emit_block(container, block, previous_kind=previous_kind, open_lists=open_lists)
             previous_kind = block.get("kind", "")
         previous_section = section
 
@@ -577,29 +906,71 @@ def add_week_table_left(doc: "Document", week: dict) -> None:
 
 
 def add_week_table(doc: "Document", week: dict, *, section_layout: str = "top") -> None:
-    apply_heading(doc, doc.add_paragraph(week.get("title", "Course Module")), "Heading 2")
+    apply_heading(doc, doc.add_paragraph(week.get("title", "Course Module")), FRAME_HEADING_STYLE)
     if section_layout == "left":
         add_week_table_left(doc, week)
     else:
         add_week_table_top(doc, week)
 
 
+def group_before_week_by_module(sections: list[dict]) -> list[tuple[str, list[dict]]]:
+    """Consecutive before-week sections with the same module, in order.
+
+    Sections without a module (a revision-4 model) each form their own group
+    with an empty module name and render as before: one row per page.
+    """
+    groups: list[tuple[str, list[dict]]] = []
+    for section in sections:
+        module = clean_label(section.get("module", ""))
+        if groups and module and groups[-1][0] == module:
+            groups[-1][1].append(section)
+        else:
+            groups.append((module, [section]))
+    return groups
+
+
+def _write_directive_line(container, keyword: str, value: str, *, first: bool) -> None:
+    para = container.add_paragraph()
+    _space(para, before=0 if first else 8, after=2)
+    para.add_run(f"{keyword}: {value}").bold = True
+
+
 def add_before_week_table(doc: "Document", sections: list[dict]) -> None:
-    apply_heading(doc, doc.add_paragraph(BEFORE_WEEK_LABEL), "Heading 2")
-    table = doc.add_table(rows=len(sections) * 2, cols=1)
+    """The area before Week 1: one row per module.
+
+    The shaded label row names the module; the value row opens with a
+    ``Module:`` line and holds each of the module's pages under a ``Page:``
+    line, in manifest order. A section without a module keeps the older
+    one-row-per-page shape.
+    """
+    apply_heading(doc, doc.add_paragraph(BEFORE_WEEK_LABEL), FRAME_HEADING_STYLE)
+    groups = group_before_week_by_module(sections)
+    table = doc.add_table(rows=len(groups) * 2, cols=1)
     add_table_borders(table)
     set_column_widths(table, (usable_width_inches(doc),))
     set_cell_margins(table)
-    for index, section in enumerate(sections):
-        write_label(table.cell(index * 2, 0), clean_label(section.get("label", "")) or BEFORE_WEEK_LABEL)
+    for index, (module, group) in enumerate(groups):
         value = table.cell(index * 2 + 1, 0)
-        write_blocks(value, section.get("blocks", []), missing=NOT_FOUND_LIST)
+        if not module:
+            section = group[0]
+            write_label(table.cell(index * 2, 0), clean_label(section.get("label", "")) or BEFORE_WEEK_LABEL)
+            write_blocks(value, section.get("blocks", []), missing=NOT_FOUND_LIST)
+        else:
+            write_label(table.cell(index * 2, 0), module)
+            _write_directive_line(value, "Module", module, first=True)
+            for section in group:
+                _write_directive_line(value, "Page", clean_label(section.get("label", "")) or LABEL_FALLBACK, first=False)
+                previous_kind = "section_label"
+                open_lists = _OpenLists()
+                for block in section.get("blocks", []):
+                    _emit_block(value, block, previous_kind=previous_kind, open_lists=open_lists)
+                    previous_kind = block.get("kind", "")
         _trim_leading_empty(value)
     doc.add_paragraph()
 
 
 def add_simple_section(doc: "Document", heading: str, items: list[str]) -> None:
-    apply_heading(doc, doc.add_paragraph(heading), "Heading 2")
+    apply_heading(doc, doc.add_paragraph(heading), FRAME_HEADING_STYLE)
     if not items:
         doc.add_paragraph("None.")
         return
@@ -636,7 +1007,7 @@ def render(
     add_front_matter_table(doc, MATERIALS_LABEL, fm.get("required_materials", []))
     add_front_matter_table(doc, OUTCOMES_LABEL, fm.get("course_learning_outcomes", []))
 
-    apply_heading(doc, doc.add_paragraph("Course Introduction"), "Heading 2")
+    apply_heading(doc, doc.add_paragraph("Course Introduction"), FRAME_HEADING_STYLE)
     write_blocks(doc, fm.get("course_introduction", []), missing=NOT_FOUND_FIELD)
 
     before_week = model.get("before_week_1", [])
@@ -652,16 +1023,16 @@ def render(
 
     unplaced = model.get("unplaced_activities", {})
     if unplaced.get("assignments") or unplaced.get("discussions"):
-        apply_heading(doc, doc.add_paragraph("Unplaced Activities"), "Heading 2")
+        apply_heading(doc, doc.add_paragraph("Unplaced Activities"), FRAME_HEADING_STYLE)
         doc.add_paragraph(
             "These activities were extracted from D2L object XML but were not connected to a "
             "module quicklink by resource code."
         )
         if unplaced.get("assignments"):
-            apply_heading(doc, doc.add_paragraph("Assignments"), "Heading 4")
+            apply_heading(doc, doc.add_paragraph("Assignments"), "Heading 2")
             write_value_labeled(doc, unplaced["assignments"], missing=NOT_FOUND_LIST, divider="object")
         if unplaced.get("discussions"):
-            apply_heading(doc, doc.add_paragraph("Discussions"), "Heading 4")
+            apply_heading(doc, doc.add_paragraph("Discussions"), "Heading 2")
             write_value_labeled(doc, unplaced["discussions"], missing=NOT_FOUND_LIST, divider="object")
 
     render_rubrics_section(

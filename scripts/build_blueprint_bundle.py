@@ -727,7 +727,7 @@ def route_topic(topic: dict, *, lock_overview_resources: bool = False):
     headings when present, else the topic title. Every entry carries its source
     page title so distinct pages stay distinct in the output. Headings that
     match no alias go to 'other' under a "Page › Heading" path label built from
-    the h1–h4 hierarchy; nothing is forced or dropped. Blocks preserve
+    the h1–h6 hierarchy; nothing is forced or dropped. Blocks preserve
     paragraph/list/link formatting from the source page.
     """
     page = topic_label(topic)
@@ -829,11 +829,18 @@ def _label_block(text: str) -> dict:
     return {"kind": "label", "level": 0, "runs": [{"text": clean_label(text), "href": ""}]}
 
 
-def _heading_label_block(text: str) -> dict | None:
+def _heading_label_block(text: str, level: int = 0) -> dict | None:
+    """Label block for one of a page's own headings.
+
+    ``level`` is the source heading level (1-6). It is what tells a heading
+    label apart from the level-0 labels used for activity metadata lines, so a
+    renderer can give page headings real heading styles. Level 0 means the
+    label did not come from a heading tag (a page title, for example).
+    """
     label = clean_label(text)
     if not label:
         return None
-    return {"kind": "label", "level": 0, "runs": [{"text": f"{label}:", "href": ""}]}
+    return {"kind": "label", "level": max(0, int(level or 0)), "runs": [{"text": f"{label}:", "href": ""}]}
 
 
 def _activity_meta_blocks(details: list[tuple[str, str]]) -> list[dict]:
@@ -843,6 +850,239 @@ def _activity_meta_blocks(details: list[tuple[str, str]]) -> list[dict]:
         if value:
             blocks.append(_label_block(f"{name}: {value}"))
     return blocks
+
+
+def iter_model_blocks(model: dict):
+    """Every block in the model, depth first, including nested blocks."""
+
+    def walk(blocks):
+        for block in blocks or []:
+            yield block
+            yield from walk(block.get("blocks"))
+
+    for blocks in (model.get("front_matter") or {}).values():
+        yield from walk(blocks)
+    for section in model.get("before_week_1") or []:
+        yield from walk(section.get("blocks"))
+    for week in model.get("weeks") or []:
+        yield from walk(week.get("overview"))
+        yield from walk(week.get("learning_objectives"))
+        for key in ("resources", "assignments", "discussions", "checklist", "other_sections"):
+            for section in week.get(key) or []:
+                yield from walk(section.get("blocks"))
+    for key in ("assignments", "discussions"):
+        for section in (model.get("unplaced_activities") or {}).get(key) or []:
+            yield from walk(section.get("blocks"))
+
+
+def heading_level_diagnostics(model: dict) -> list[str]:
+    """Explain the one Word heading level that is not one to one with the source.
+
+    Word heading levels match the page's: Heading 2 for h2, Heading 3 for h3,
+    and so on. The page heading line is the page's h1, so a source h1 inside
+    page content has nowhere to go but Heading 2. Say so once, with the count.
+    """
+    count = sum(
+        1 for block in iter_model_blocks(model) if block.get("kind") == "label" and int(block.get("level") or 0) == 1
+    )
+    if not count:
+        return []
+    phrase = "1 h1 heading inside page content is" if count == 1 else f"{count} h1 headings inside page content are"
+    return [
+        f"Heading levels: {phrase} written as Heading 2 in the Word blueprint, because the page heading "
+        "line is the page's h1. Every other heading level is one to one."
+    ]
+
+
+def _activity_sections(model: dict):
+    """Every assignment and discussion section in the model, in document order."""
+    for week in model.get("weeks") or []:
+        for key in ("assignments", "discussions"):
+            yield from (section for section in week.get(key) or [] if isinstance(section, dict))
+    for key in ("assignments", "discussions"):
+        yield from (section for section in (model.get("unplaced_activities") or {}).get(key) or [] if isinstance(section, dict))
+
+
+def drop_repeated_title_headings(model: dict) -> list[str]:
+    """Drop a description's opening heading when it repeats the activity's own title.
+
+    An activity's title is its label line in the blueprint. A description that
+    opens with the same words as a heading (a package that writes the title into
+    the body, say) would print the title twice. Only the first heading after the
+    metadata lines is considered, and only an exact match after trimming; the
+    count is reported once.
+    """
+    dropped = 0
+    for section in _activity_sections(model):
+        title = clean_label(section.get("label", "")).casefold()
+        blocks = section.get("blocks") or []
+        index = 0
+        while index < len(blocks) and blocks[index].get("kind") == "label" and int(blocks[index].get("level") or 0) == 0:
+            index += 1  # Points / Gradebook item / Rubric lines
+        if index < len(blocks) and blocks[index].get("kind") == "label" and int(blocks[index].get("level") or 0) > 0:
+            heading = clean_label(" ".join(str(run.get("text", "")) for run in blocks[index].get("runs", []))).casefold()
+            if title and heading == title:
+                del blocks[index]
+                dropped += 1
+    if not dropped:
+        return []
+    noun = "description opened" if dropped == 1 else "descriptions opened"
+    return [
+        f"Activity headings: {dropped} {noun} with a heading repeating the activity's title; "
+        "the title is the activity's label line, so that heading is written once."
+    ]
+
+
+# --------------------------------------------------------------------------- #
+# Internal links as bracket lines
+# --------------------------------------------------------------------------- #
+_QUICKLINK_KINDS = {"dropbox": "assignment", "discuss": "discussion", "quiz": "quiz", "checklist": "checklist", "content": "page"}
+_QUICKLINK_TYPE = re.compile(r"[?&]type=([A-Za-z]+)")
+_QUICKLINK_RCODE = re.compile(r"[?&]r[Cc]ode=([A-Za-z0-9._-]+)")
+_LIVE_LINK_PREFIXES = ("http://", "https://", "mailto:", "tel:", "#", "//")
+_REFERENCE_BLOCK_KINDS = {"file", "embed", "image", "practice", "hidden"}
+
+
+def _link_index(structure: dict, activities: dict) -> tuple[dict[str, tuple[str, str]], dict[str, list[tuple[str, str]]]]:
+    """(resource_code -> (kind, title), page file name -> [(kind, title), ...]) for this export."""
+    by_code: dict[str, tuple[str, str]] = {}
+    by_file: dict[str, list[tuple[str, str]]] = {}
+
+    def walk(nodes: list[dict]) -> None:
+        for node in nodes or []:
+            title = clean_label(node.get("title", ""))
+            if node.get("kind") == "html_topic" and title:
+                if node.get("resource_code"):
+                    by_code.setdefault(node["resource_code"], ("page", title))
+                href = str(node.get("href", "")).replace("\\", "/")
+                name = href.rsplit("/", 1)[-1].split("#", 1)[0].split("?", 1)[0].lower()
+                if name:
+                    by_file.setdefault(name, []).append(("page", title))
+            walk(node.get("children") or [])
+
+    walk(structure.get("tree", []))
+    for row in activities.get("dropbox_folders", []) or []:
+        if row.get("resource_code") and row.get("name"):
+            by_code.setdefault(row["resource_code"], ("assignment", clean_label(row["name"])))
+    for row in activities.get("discussions", []) or []:
+        if row.get("kind") == "topic" and row.get("resource_code") and row.get("title"):
+            by_code.setdefault(row["resource_code"], ("discussion", clean_label(row["title"])))
+    for row in activities.get("quizzes", []) or []:
+        if row.get("resource_code") and row.get("title"):
+            by_code.setdefault(row["resource_code"], ("quiz", clean_label(row["title"])))
+    for row in activities.get("checklists", []) or []:
+        if row.get("resource_code") and row.get("name"):
+            by_code.setdefault(row["resource_code"], ("checklist", clean_label(row["name"])))
+    return by_code, by_file
+
+
+def _internal_target(href: str, by_code: dict, by_file: dict) -> tuple[str, str] | None | str:
+    """The (kind, title) an internal href points at; None for an external or empty href;
+    the string "unresolved" for an internal-looking href this export cannot match."""
+    href = (href or "").strip()
+    if not href or href.lower().startswith(_LIVE_LINK_PREFIXES):
+        return None
+    if "quicklink.d2l" in href.lower():
+        kind = _QUICKLINK_KINDS.get((_QUICKLINK_TYPE.search(href) or [None, ""])[1].lower() if _QUICKLINK_TYPE.search(href) else "", "")
+        code = _QUICKLINK_RCODE.search(href)
+        if kind and code and code.group(1) in by_code and by_code[code.group(1)][0] == kind:
+            return by_code[code.group(1)]
+        if code and code.group(1) in by_code:
+            return by_code[code.group(1)]  # the type word was odd; the code is what counts
+        return "unresolved"
+    path = href.replace("\\", "/").split("#", 1)[0].split("?", 1)[0]
+    if path.lower().endswith((".html", ".htm")):
+        matches = by_file.get(path.rsplit("/", 1)[-1].lower(), [])
+        if len({m[1] for m in matches}) == 1:
+            return matches[0]
+        return "unresolved"
+    return None
+
+
+def _bracket_run(kind: str, title: str, words: str) -> dict:
+    words = clean_text(words)
+    same = re.sub(r"\s+", " ", words).casefold() == re.sub(r"\s+", " ", title).casefold()
+    text = f"[link to {kind}: {title}]" if same or not words else f"[link to {kind}: {title} | {words}]"
+    return {"text": text, "href": "", "link_kind": kind, "link_title": title}
+
+
+def _bracket_links_in_runs(runs: list[dict], by_code: dict, by_file: dict, unresolved: list[str]) -> tuple[list[dict], int]:
+    out: list[dict] = []
+    resolved = 0
+    index = 0
+    while index < len(runs):
+        run = runs[index]
+        target = _internal_target(run.get("href", ""), by_code, by_file)
+        if target is None:
+            out.append(run)
+            index += 1
+            continue
+        group = [run]
+        while index + len(group) < len(runs) and runs[index + len(group)].get("href") == run.get("href"):
+            group.append(runs[index + len(group)])
+        words = "".join(str(r.get("text", "")) for r in group)
+        if target == "unresolved":
+            unresolved.append(str(run.get("href", "")))
+            out.extend(group)
+        else:
+            out.append(_bracket_run(target[0], target[1], words))
+            resolved += 1
+        index += len(group)
+    return out, resolved
+
+
+def bracket_internal_links(model: dict, structure: dict, activities: dict) -> list[str]:
+    """Write links to other objects of this course in the packager's bracket form.
+
+    A Brightspace quicklink (type and rCode) or a relative link to a packaged
+    page is matched against the export's own objects by resource code or file
+    name and becomes one run "[link to kind: Title | words]" with no href, so a
+    hand-written blueprint and a wizard-written one say the same thing. A link
+    this export cannot match stays an ordinary hyperlink and is reported.
+    """
+    by_code, by_file = _link_index(structure, activities)
+    unresolved: list[str] = []
+    resolved = 0
+    for block in iter_model_blocks(model):
+        if block.get("kind") in _REFERENCE_BLOCK_KINDS:
+            continue  # the href of a file, embed, image, practice, or hidden-item cue is a reference, not a link in prose
+        if block.get("runs"):
+            block["runs"], count = _bracket_links_in_runs(block["runs"], by_code, by_file, unresolved)
+            resolved += count
+        for row in block.get("rows") or []:
+            for cell_index, cell in enumerate(row):
+                row[cell_index], count = _bracket_links_in_runs(cell, by_code, by_file, unresolved)
+                resolved += count
+    notes: list[str] = []
+    if unresolved:
+        shown = ", ".join(sorted(set(unresolved))[:3])
+        more = "" if len(set(unresolved)) <= 3 else f" and {len(set(unresolved)) - 3} more"
+        notes.append(
+            f"Internal links: {len(unresolved)} link(s) to course objects match nothing in this export and stay as "
+            f"hyperlinks ({shown}{more})."
+        )
+    return notes
+
+
+def _block_runs(block: dict):
+    """The runs of one block, including the cells of a table block."""
+    yield from block.get("runs", []) or []
+    for row in block.get("rows") or []:
+        for cell in row:
+            yield from cell
+
+
+def _blocks_text(blocks: list[dict]) -> str:
+    parts: list[str] = []
+    for block in blocks or []:
+        for run in _block_runs(block):
+            value = clean_text(run.get("text", ""))
+            if value:
+                parts.append(value)
+        nested = _blocks_text(block.get("blocks") or [])
+        if nested:
+            parts.append(nested)
+    return "\n".join(parts).strip()
 
 
 def manifest_node_type_label(node: dict) -> str:
@@ -1230,9 +1470,9 @@ def build_week_model(
         label = clean_label(entry.get("label", ""))
         bare_label = label.lower()
         if label and bare_label not in {"overview", "introduction", "welcome", "start here"}:
-            overview_blocks.append(
-                {"kind": "label", "level": 0, "runs": [{"text": f"{label}:", "href": ""}]}
-            )
+            label_block = _heading_label_block(label, entry.get("level", 0))
+            if label_block:
+                overview_blocks.append(label_block)
         overview_blocks.extend(entry["blocks"])
 
     for topic in topics:
@@ -1371,7 +1611,7 @@ def build_before_week_sections(
                     continue
                 local_label = _before_week_local_label(entry.get("label", ""), source_page)
                 if local_label and local_label.lower() != previous_label.lower():
-                    label_block = _heading_label_block(local_label)
+                    label_block = _heading_label_block(local_label, entry.get("level", 0))
                     if label_block:
                         page_blocks.append(label_block)
                     previous_label = local_label
@@ -1383,9 +1623,26 @@ def build_before_week_sections(
                         "blocks": page_blocks,
                         "source_page": source_page,
                         "level": 0,
+                        "module": clean_label(module.get("title", "")),
                     }
                 )
     return [section for section in sections if section.get("blocks")]
+
+
+def group_before_week_by_module(sections: list[dict]) -> list[tuple[str, list[dict]]]:
+    """Consecutive before-week sections with the same module, in order.
+
+    Sections without a module (a revision-4 model) each form their own group
+    with an empty module name, which renderers show as before.
+    """
+    groups: list[tuple[str, list[dict]]] = []
+    for section in sections:
+        module = clean_label(section.get("module", ""))
+        if groups and module and groups[-1][0] == module:
+            groups[-1][1].append(section)
+        else:
+            groups.append((module, [section]))
+    return groups
 
 
 def before_week_topic_keys(
@@ -1566,8 +1823,8 @@ def build_blueprint_model(
     diagnostics += routing_diagnostics
     title_selection = select_course_title(structure, explicit=course_title, label=label, course_number=course_number)
     diagnostics += [f"Course title evidence: {issue}; see run receipt title candidates." for issue in title_selection["diagnostics"]]
-    return {
-        "schema": "coursecraft.blueprint/4",
+    model = {
+        "schema": "coursecraft.blueprint/5",
         "template_reference": template_reference,
         "course_number": clean_text(course_number),
         "course_title": title_selection["selected"]["value"],
@@ -1581,6 +1838,10 @@ def build_blueprint_model(
         },
         "diagnostics": diagnostics,
     }
+    model["diagnostics"] += drop_repeated_title_headings(model)
+    model["diagnostics"] += bracket_internal_links(model, structure, activities)
+    model["diagnostics"] += heading_level_diagnostics(model)
+    return model
 
 
 # --------------------------------------------------------------------------- #
@@ -1593,21 +1854,104 @@ def md_escape(value: str) -> str:
     return clean_text(value).replace("|", r"\|")
 
 
+def md_emphasis(text: str, run: dict) -> str:
+    """Wrap rendered run text in the Markdown marks for its emphasis flags.
+
+    The marks hug the text, so surrounding spaces stay outside them; an
+    underline has no Markdown mark and renders as ``<u>``.
+    """
+    if not text.strip():
+        return text
+    lead = text[: len(text) - len(text.lstrip())]
+    trail = text[len(text.rstrip()):]
+    core = text.strip()
+    if run.get("bold"):
+        core = f"**{core}**"
+    if run.get("italic"):
+        core = f"*{core}*"
+    if run.get("underline"):
+        core = f"<u>{core}</u>"
+    return f"{lead}{core}{trail}"
+
+
+def panel_keyword(kind: str, label: str) -> str:
+    """The bracket keyword for a visual or dropdown block with children.
+
+    Mirrors blueprint_to_docx.panel_keyword: dropdowns are [dropdown], callouts
+    and notes are [callout], a timeline is [timeline], anything else is [box].
+    """
+    if kind == "dropdown":
+        return "dropdown"
+    lowered = clean_text(label).lower()
+    if lowered == "callout" or lowered.endswith("callout") or lowered in {"note", "discussion note"}:
+        return "callout"
+    if lowered == "timeline":
+        return "timeline"
+    return "box"
+
+
+def panel_attrs(meta: dict | None) -> str:
+    """Mirrors blueprint_to_docx.panel_attrs: tone=<name> from a tone class, else color=#hex."""
+    meta = meta or {}
+    if meta.get("tone"):
+        return f" tone={meta['tone']}"
+    if meta.get("color"):
+        return f" color={meta['color']}"
+    return ""
+
+
+def md_panel_lines(kind: str, runs: list[dict], meta: dict | None = None) -> tuple[str, str]:
+    label = clean_text(" ".join(str(run.get("text", "")) for run in runs))
+    keyword = panel_keyword(kind, label)
+    attrs = panel_attrs(meta) if keyword != "dropdown" else ""
+    opening = f"[{keyword}: {md_escape(label)}]" if keyword == "dropdown" and label else f"[{keyword}{attrs}]"
+    return opening, f"[/{keyword}]"
+
+
+def md_table(block: dict) -> str:
+    """Render a table block as an HTML table.
+
+    Every blueprint cell is itself inside a Markdown table row, where a pipe
+    table cannot nest, so the source table is written as inline HTML with its
+    header rows as ``<th>`` cells.
+    """
+    rows = block.get("rows") or []
+    header_rows = int(block.get("header_rows") or 0)
+    out = ["<table>"]
+    for index, row in enumerate(rows):
+        tag = "th" if index < header_rows else "td"
+        cells = "".join(f"<{tag}>{md_inline(cell)}</{tag}>" for cell in row)
+        out.append(f"<tr>{cells}</tr>")
+    out.append("</table>")
+    return "".join(out)
+
+
 def md_inline(runs: list[dict]) -> str:
-    """Render link-aware runs to inline Markdown; live URLs become clickable links."""
-    parts = []
+    """Render link-aware runs to inline Markdown; live URLs become clickable links.
+
+    A newline in run text is a line break kept from the source page. It renders
+    as ``<br>`` so the content stays inside one table row.
+    """
+    lines: list[list[str]] = [[]]
     for run in runs:
-        text = md_escape(run.get("text", ""))
         href = (run.get("href") or "").strip()
-        if not text:
-            continue
-        if href.startswith(LIVE_SCHEMES):
-            parts.append(f"[{text}]({href})")
-        elif href:
-            parts.append(f"{text} ({md_escape(href)})")
-        else:
-            parts.append(text)
-    return " ".join(parts).strip()
+        for index, line in enumerate(str(run.get("text") or "").split("\n")):
+            if index:
+                lines.append([])
+            text = md_escape(line)
+            if not text:
+                continue
+            if href.startswith(LIVE_SCHEMES):
+                text = f"[{text}]({href})"
+            elif href:
+                text = f"{text} ({md_escape(href)})"
+            lines[-1].append(md_emphasis(text, run))
+    rendered = [" ".join(parts) for parts in lines]
+    while rendered and not rendered[0]:
+        rendered.pop(0)
+    while rendered and not rendered[-1]:
+        rendered.pop()
+    return "<br>".join(rendered).strip()
 
 
 def md_blocks(blocks: list[dict], fallback: str) -> str:
@@ -1615,34 +1959,53 @@ def md_blocks(blocks: list[dict], fallback: str) -> str:
 
     List items get bullets indented by nesting level; consecutive bullets stay
     tight while paragraph boundaries get a blank line so prose keeps its shape.
+    Items of an ordered list (meta ``list: ordered``) get their number instead
+    of a bullet. The number is written out because a table cell is inline
+    content, where Markdown does not number list items itself. Each list counts
+    from 1: any non-list block ends the open lists, a shallower item ends the
+    deeper ones, and a bullet ends a numbered list at its own level.
     """
     parts: list[tuple[str, str]] = []
+    numbers: dict[int, int] = {}  # last number used per open ordered list, by level
     for block in blocks:
         kind = block.get("kind")
+        if kind != "li":
+            numbers.clear()
         if kind == "divider":
             parts.append(("divider", "<hr>"))
             continue
+        if kind == "table":
+            if block.get("rows"):
+                parts.append(("table", md_table(block)))
+            continue
         inline = md_inline(block.get("runs", []))
-        if not inline:
+        if not inline and kind not in {"visual", "dropdown"}:
             continue
         if kind == "li":
-            indent = "&nbsp;&nbsp;&nbsp;" * max(0, int(block.get("level") or 1) - 1)
-            parts.append(("li", f"{indent}• {inline}"))
+            level = max(1, int(block.get("level") or 1))
+            indent = "&nbsp;&nbsp;&nbsp;" * (level - 1)
+            ordered = (block.get("meta") or {}).get("list") == "ordered"
+            for open_level in list(numbers):
+                if open_level > level or (open_level == level and not ordered):
+                    del numbers[open_level]
+            marker = "•"
+            if ordered:
+                numbers[level] = numbers.get(level, 0) + 1
+                marker = f"{numbers[level]}."
+            parts.append(("li", f"{indent}{marker} {inline}"))
         elif kind == "label":
             parts.append(("label", f"**{inline}**"))
-        elif kind == "visual":
+        elif kind in {"visual", "dropdown"}:
+            # A panel is always a bracket pair; an empty one is the pair on adjacent lines.
             child_body = md_blocks(block.get("blocks", []), "")
-            if child_body:
+            opening, closing = md_panel_lines(kind, block.get("runs", []), block.get("meta"))
+            body = f"**{opening}**<br><br>{child_body}<br><br>**{closing}**" if child_body else f"**{opening}**<br>**{closing}**"
+            if kind == "visual":
                 body = (
                     '<div style="background-color:#f2f6fa; border-left:4px solid #9bb3c9; '
-                    'padding:0.6rem 0.75rem;">'
-                    f"**Visual cue: {inline}**<br><br>{child_body}</div>"
+                    f'padding:0.6rem 0.75rem;">{body}</div>'
                 )
-                parts.append(("visual", body))
-            else:
-                parts.append(("visual", f"**Visual cue: {inline}**"))
-        elif kind == "dropdown":
-            parts.append(("dropdown", f"**Dropdown / expandable section: {inline}**"))
+            parts.append((kind, body))
         elif kind == "embed":
             embed_type = clean_text(block.get("meta", {}).get("embed_type", "")) or "Embedded media"
             parts.append(("embed", f"**{embed_type}:** {inline}"))
@@ -1703,6 +2066,18 @@ def md_labeled(sections: list[dict], fallback: str = NOT_FOUND_LIST, *, divider:
     return "".join(parts) if parts else fallback
 
 
+def md_before_week_group(module: str, sections: list[dict]) -> str:
+    """One before-week row: the module line, then each page under a Page line."""
+    if not module:
+        return md_labeled(sections)
+    parts = [f"**Module: {md_escape(module)}**"]
+    for section in sections:
+        label = md_escape(clean_label(section.get("label", "")))
+        body = md_blocks(section.get("blocks", []), "")
+        parts.append(f"**Page: {label}**" + (f"<br>{body}" if body else ""))
+    return "<br><br>".join(parts)
+
+
 def render_markdown(model: dict) -> str:
     fm = model["front_matter"]
     course_title = model["course_title"] or "Course Blueprint"
@@ -1740,7 +2115,7 @@ def render_markdown(model: dict) -> str:
                 "",
                 "| Section |",
                 "| --- |",
-                *[f"| {md_labeled([section])} |" for section in before_week],
+                *[f"| {md_before_week_group(module, sections)} |" for module, sections in group_before_week_by_module(before_week)],
                 "",
             ]
         )
@@ -2656,7 +3031,7 @@ def main(argv: list[str] | None = None) -> int:
     contract_by_name = {
         activities_path.name: "coursecraft.activities/1",
         structure_path.name: "coursecraft.structure/1",
-        blueprint_json.name: "coursecraft.blueprint/4",
+        blueprint_json.name: "coursecraft.blueprint/5",
     }
     if rubrics_json and rubrics_json.exists():
         contract_by_name[rubrics_json.name] = "coursecraft.rubrics/1"

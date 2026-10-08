@@ -24,7 +24,8 @@ SCHEMA_REGISTRY = {
     "coursecraft.structure/1": SCHEMA_ROOT / "structure_schema.json",
     "coursecraft.run/1": SCHEMA_ROOT / "run_identity_schema.json",
     "coursecraft.run/2": SCHEMA_ROOT / "run_identity_2_schema.json",
-    "coursecraft.blueprint/4": SCHEMA_ROOT / "blueprint_schema.json",
+    "coursecraft.blueprint/4": SCHEMA_ROOT / "blueprint_schema_4.json",
+    "coursecraft.blueprint/5": SCHEMA_ROOT / "blueprint_schema.json",
     "coursecraft.rubrics/1": SCHEMA_ROOT / "rubrics_schema.json",
 }
 EXPORT_NAME_PATTERN = re.compile(

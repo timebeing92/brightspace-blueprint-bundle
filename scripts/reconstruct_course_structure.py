@@ -56,10 +56,18 @@ from course_artifact_contracts import (
     new_run_id,
     validate_contract,
 )
+from creatorplus_package import (
+    FILENAME_POLICIES,
+    PACKAGE_PROFILES,
+    CreatorPlusPackageReport,
+    format_diagnostic as format_creatorplus_diagnostic,
+    inspect_creatorplus_package,
+)
 
 URL_SCHEMES = ("http://", "https://", "data:", "mailto:", "javascript:", "tel:", "#", "//")
 QUICKLINK_TYPE = re.compile(r"[?&]type=([A-Za-z]+)")
-REF_ATTR = re.compile(r"""(?:src|href)\s*=\s*["']([^"']+)["']""", re.IGNORECASE)
+HTML_REFERENCE_ATTRIBUTES = {"href", "src", "data-file"}
+CREATORPLUS_PROVIDER_HREF_ATTRIBUTE = "data-d2l-activity-href"
 TITLE_TAG = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 HTML_TOPIC_SUFFIXES = {".html", ".htm", ".xhtml"}
 TEXT_TOPIC_SUFFIXES = {".txt", ".md", ".markdown"}
@@ -116,6 +124,73 @@ def _looks_like_binary_payload(data: bytes) -> bool:
     return control_count / len(sample) > 0.20
 
 
+class _HTMLReferenceCollector(HTMLParser):
+    """Collect exact HTML reference attributes without substring matching.
+
+    Creator+ uses ``data-d2l-activity-href`` for provider lifecycle wiring and
+    ``data-file`` for its package-local JSON payload. Treating the former as an
+    ordinary ``href`` creates a false broken-link diagnostic; ignoring the
+    latter hides a real package dependency.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.references: list[dict[str, str]] = []
+        self.provider_hrefs: list[dict[str, str]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        for raw_name, raw_value in attrs:
+            name = (raw_name or "").casefold()
+            value = (raw_value or "").strip()
+            if name in HTML_REFERENCE_ATTRIBUTES and value:
+                self.references.append({"tag": tag.casefold(), "attribute": name, "value": value})
+            elif name == CREATORPLUS_PROVIDER_HREF_ATTRIBUTE:
+                state = "missing"
+                if value.startswith("REPLACE_WITH_"):
+                    state = "placeholder"
+                elif value.lower().startswith(("http://", "https://")):
+                    state = "provider_backed"
+                elif value:
+                    state = "unknown"
+                self.provider_hrefs.append({"value": value, "state": state})
+
+
+def collect_html_references(raw: str) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    collector = _HTMLReferenceCollector()
+    collector.feed(raw)
+    collector.close()
+    return collector.references, collector.provider_hrefs
+
+
+def resolve_html_reference(
+    ref: str,
+    *,
+    page_path: Path,
+    package_root: Path,
+) -> tuple[str, str]:
+    """Return ``(state, value)`` for one non-external HTML reference.
+
+    ``value`` is package-relative for existing paths and the authored reference
+    otherwise. Resolving before the containment check also prevents a symlink or
+    ``..`` path from being counted as valid package support.
+    """
+
+    target = html.unescape(unquote(ref)).replace("\\", "/").split("?")[0].split("#")[0]
+    if not target:
+        return "empty", ref
+    if target.startswith("/"):
+        return "server", ref
+    package_root_resolved = package_root.resolve()
+    candidate = (page_path.parent / target).resolve()
+    try:
+        relative = candidate.relative_to(package_root_resolved).as_posix()
+    except ValueError:
+        return "unsafe", ref
+    if candidate.exists() and candidate.is_file():
+        return "existing", relative
+    return "missing", ref
+
+
 def attr(elem: ET.Element, name: str) -> str:
     """Attribute lookup tolerant of namespace prefixes."""
     for key, value in elem.attrib.items():
@@ -124,7 +199,7 @@ def attr(elem: ET.Element, name: str) -> str:
     return ""
 
 
-HEADING_TAG = re.compile(r"<h([1-4])\b[^>]*>(.*?)</h\1>", re.IGNORECASE | re.DOTALL)
+HEADING_TAG = re.compile(r"<h([1-6])\b[^>]*>(.*?)</h\1>", re.IGNORECASE | re.DOTALL)
 
 
 PRACTICE_TYPE_LABELS = {
@@ -198,17 +273,36 @@ def _practice_type_label(payload: dict) -> str:
     return PRACTICE_TYPE_LABELS.get(practice_type, f"Creator+ type {practice_type}")
 
 
-def _resolve_package_path(ref: str, package_root: Path | None, html_dir: Path | None) -> Path | None:
+def _resolve_creatorplus_package_path(
+    ref: str,
+    package_root: Path | None,
+    html_dir: Path | None,
+    creatorplus_report: CreatorPlusPackageReport | None = None,
+) -> Path | None:
     ref = html.unescape(unquote(ref or "")).strip()
     if not ref:
         return None
     target = ref.replace("\\", "/").split("?")[0].split("#")[0].lstrip("/")
     if not target:
         return None
-    for base in (html_dir, package_root):
+    if creatorplus_report is not None and package_root is not None and html_dir is not None:
+        relationship = creatorplus_report.relationship_for(
+            package_root=package_root,
+            html_dir=html_dir,
+            data_file=ref,
+        )
+        if relationship and relationship.selected_path:
+            return package_root / relationship.selected_path
+    root_resolved = package_root.resolve() if package_root is not None else None
+    for base in (package_root, html_dir):
         if base is None:
             continue
         candidate = (base / target).resolve()
+        if root_resolved is not None:
+            try:
+                candidate.relative_to(root_resolved)
+            except ValueError:
+                continue
         if candidate.exists():
             return candidate
     return None
@@ -238,8 +332,14 @@ def _creator_practice_blocks(
     package_root: Path | None,
     html_dir: Path | None,
     diagnostics: list[str] | None,
+    creatorplus_report: CreatorPlusPackageReport | None = None,
 ) -> list[dict]:
-    path = _resolve_package_path(data_file, package_root, html_dir)
+    path = _resolve_creatorplus_package_path(
+        data_file,
+        package_root,
+        html_dir,
+        creatorplus_report,
+    )
     if path is None:
         if diagnostics is not None and data_file:
             diagnostics.append(f"Creator+ practice iframe: metadata file not found: {data_file}")
@@ -320,9 +420,32 @@ def _creator_practice_blocks(
 # blueprint. Each block is {"kind": str, "level": int, "runs": [...]}, with
 # optional lightweight "meta" for visual/embedded blocks. Visual blocks may also
 # carry nested "blocks" so callout/card styling can wrap the full source section.
-_SKIP_TAGS = {"script", "style", "noscript"}
-_BLOCK_BREAK_TAGS = {"p", "div", "br", "h5", "h6", "blockquote", "figure",
-                     "figcaption", "tr", "table", "section", "article"}
+# List items from an <ol> carry meta {"list": "ordered"}; a <br> stays inside
+# its block as a "\n" run so the line break survives without splitting the block.
+# <title> is skipped here because it is document metadata, recorded separately
+# as html_title; left in, its text would read as the page's first paragraph.
+# Runs carry "bold", "italic", and "underline" (only when true) from <strong>,
+# <b>, <em>, <i>, <u>, and inline font-weight / font-style / text-decoration
+# styles. A <table> becomes one "table" block: rows of cells, each cell a list of
+# runs with block content inside the cell flattened to "\n"-separated lines
+# ("• " marks a list item); leading rows of <th> cells, or rows inside <thead>,
+# are counted in header_rows. A <details> element is one "dropdown" block: its
+# <summary> text is the block's runs (the title) and everything else inside it
+# is the block's nested blocks, so the panel's extent survives.
+_SKIP_TAGS = {"script", "style", "noscript", "title"}
+_BLOCK_BREAK_TAGS = {"p", "div", "blockquote", "figure", "figcaption", "section", "article"}
+# A heading inside a fragment is a "label" block carrying its source level, the
+# same shape a page's own headings take after segmenting. Before this, h1-h4 were
+# inline in the fragment reader, so a description that opened with headings ran
+# their words into the first paragraph.
+_HEADING_TAGS = {"h1": 1, "h2": 2, "h3": 3, "h4": 4, "h5": 5, "h6": 6}
+_TABLE_TAGS = {"table", "thead", "tbody", "tfoot", "tr", "td", "th", "caption", "colgroup", "col"}
+_EMPHASIS_TAGS = {"strong": "bold", "b": "bold", "em": "italic", "i": "italic", "u": "underline"}
+_BOLD_WEIGHT_RE = re.compile(r"font-weight\s*:\s*(bold|bolder|[6-9]00)\b", re.IGNORECASE)
+_ITALIC_STYLE_RE = re.compile(r"font-style\s*:\s*(italic|oblique)\b", re.IGNORECASE)
+_UNDERLINE_STYLE_RE = re.compile(r"text-decoration(?:-line)?\s*:[^;]*\bunderline\b", re.IGNORECASE)
+_LINE_BREAK = "\n"
+_CELL_LINE_BREAK = {"text": _LINE_BREAK, "href": ""}
 _VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link",
               "meta", "param", "source", "track", "wbr"}
 _ARTIFACT_TEXTS = {"basic page - no banner", "basic page", "no banner", "banner", "blank page"}
@@ -374,6 +497,74 @@ _VISUAL_EXCLUDED_CLASSES = {
     "back-top",
 }
 _VISUAL_CONTAINER_TAGS = {"aside", "article", "blockquote", "details", "div", "figure", "section", "table"}
+# Classes a page template uses for chrome around the content: skipped as not authored (2026-10-08).
+_PAGE_CHROME_CLASSES = {"skip", "skip-link", "kicker", "eyebrow", "course-label"}
+_TONE_CLASS_RE = re.compile(r"^(?:callout|box|panel)--([a-z][a-z0-9_-]*)$")
+_BORDER_COLOR_RE = re.compile(r"border-left(?:-color)?\s*:[^;]*?(#[0-9a-fA-F]{6})")
+
+
+def _emphasis_from_style(style: str) -> set[str]:
+    """Emphasis a tag's inline style adds: bold, italic, underline."""
+    style = style or ""
+    found: set[str] = set()
+    if _BOLD_WEIGHT_RE.search(style):
+        found.add("bold")
+    if _ITALIC_STYLE_RE.search(style):
+        found.add("italic")
+    if _UNDERLINE_STYLE_RE.search(style):
+        found.add("underline")
+    return found
+
+
+def _emphasis_for(tag: str, attr_map: dict) -> set[str]:
+    found = _emphasis_from_style(attr_map.get("style", ""))
+    if tag in _EMPHASIS_TAGS:
+        found.add(_EMPHASIS_TAGS[tag])
+    return found
+
+
+def _run(text: str, href: str = "", emphasis: set[str] | None = None) -> dict:
+    run = {"text": text, "href": href}
+    for flag in ("bold", "italic", "underline"):
+        if emphasis and flag in emphasis:
+            run[flag] = True
+    return run
+
+
+def _run_flags(run: dict) -> tuple:
+    return (run.get("href", ""), bool(run.get("bold")), bool(run.get("italic")), bool(run.get("underline")))
+
+
+def _block_lines(block: dict) -> list[list[dict]]:
+    """A block's text as lines of runs, for flattening content into a table cell.
+
+    List items get a bullet marker, headings their text, and nested blocks (a
+    callout inside a cell, a nested table) their own lines in order.
+    """
+    kind = block.get("kind")
+    if kind == "table":
+        lines: list[list[dict]] = []
+        for row in block.get("rows") or []:
+            parts: list[dict] = []
+            for index, cell in enumerate(row):
+                if index:
+                    parts.append(_run(" | "))
+                parts.extend(run for run in cell if run["text"] != _LINE_BREAK or parts)
+            if parts:
+                lines.append(parts)
+        return lines
+    runs = [run for run in block.get("runs") or [] if run.get("text")]
+    lines = []
+    if runs:
+        if kind == "li":
+            runs = [_run("• "), *runs]
+        if kind == "divider":
+            runs = []
+    if runs:
+        lines.append(runs)
+    for child in block.get("blocks") or []:
+        lines.extend(_block_lines(child))
+    return lines
 
 
 def _block(kind: str, text: str = "", href: str = "", *, meta: dict | None = None) -> dict:
@@ -431,11 +622,17 @@ def _visual_block_for(tag: str, attr_map: dict) -> dict | None:
         ):
             if label in _NOISY_VISUAL_LABELS:
                 return None
-            return _block(
-                "visual",
-                label,
-                meta={"tag": tag, "classes": " ".join(tokens), "source_style": attr_map.get("style", "")},
-            )
+            meta = {"tag": tag, "classes": " ".join(tokens), "source_style": attr_map.get("style", "")}
+            # a tone or colour the page gave the panel, carried so the blueprint can say [callout tone=gold]
+            for token in lowered:
+                tone = _TONE_CLASS_RE.match(token)
+                if tone:
+                    meta["tone"] = tone.group(1)
+                    break
+            color = _BORDER_COLOR_RE.search(attr_map.get("style", "") or "")
+            if color and "tone" not in meta:
+                meta["color"] = color.group(1).lower()
+            return _block("visual", label, meta=meta)
     style_note = _visual_style_note(attr_map.get("style", ""))
     if style_note:
         return _block("visual", f"Styled section ({style_note})", meta={"tag": tag, "classes": " ".join(tokens)})
@@ -478,26 +675,133 @@ class _BlockExtractor(HTMLParser):
         package_root: Path | None = None,
         html_dir: Path | None = None,
         diagnostics: list[str] | None = None,
+        creatorplus_report: CreatorPlusPackageReport | None = None,
     ) -> None:
         super().__init__(convert_charrefs=True)
+        self.chrome_skipped = 0
         self.blocks: list[dict] = []
         self._runs: list[dict] = []
         self._kind = "p"
-        self._level = 0
-        self._list_depth = 0
+        self._heading_level = 0  # the open heading tag's level while one is open
+        self._lists: list[str] = []  # open <ul>/<ol> tags, innermost last
+        self._items: list[dict] = []  # open <li> elements, innermost last
         self._href: list[str] = []
         self._skip = 0
         self._skip_until: list[str] = []
         self._visual_stack: list[dict] = []
+        self._emphasis: list[tuple[str, set[str]]] = []  # open tags and the emphasis each added
+        self._tables: list[dict] = []  # open <table> elements, innermost last
         self.package_root = package_root
         self.html_dir = html_dir
         self.diagnostics = diagnostics
+        self.creatorplus_report = creatorplus_report
 
     def _append_block(self, block: dict) -> None:
-        if self._visual_stack:
+        cell = self._open_cell()
+        if cell is not None and not self._visual_stack_inside_cell():
+            self._absorb_into_cell(cell, block)
+        elif self._visual_stack:
             self._visual_stack[-1]["blocks"].append(block)
         else:
             self.blocks.append(block)
+
+    # -- emphasis -------------------------------------------------------------
+    def _current_emphasis(self) -> set[str]:
+        found: set[str] = set()
+        for _tag, added in self._emphasis:
+            found |= added
+        return found
+
+    def _open_emphasis(self, tag: str, attr_map: dict) -> None:
+        if tag in _VOID_TAGS:
+            return
+        self._emphasis.append((tag, _emphasis_for(tag, attr_map)))
+
+    def _close_emphasis(self, tag: str) -> None:
+        for index in range(len(self._emphasis) - 1, -1, -1):
+            if self._emphasis[index][0] == tag:
+                del self._emphasis[index:]  # tags left open above it close with it
+                return
+
+    # -- tables ---------------------------------------------------------------
+    def _open_cell(self) -> dict | None:
+        if not self._tables:
+            return None
+        row = self._tables[-1]["row"]
+        if row is None or row["cell"] is None:
+            return None
+        return row["cell"]
+
+    def _visual_stack_inside_cell(self) -> bool:
+        """True when the innermost visual group opened inside the current cell."""
+        if not self._visual_stack or not self._tables:
+            return False
+        return self._visual_stack[-1].get("table_depth", 0) == len(self._tables)
+
+    def _absorb_into_cell(self, cell: dict, block: dict) -> None:
+        for line in _block_lines(block):
+            if cell["runs"]:
+                cell["runs"].append(dict(_CELL_LINE_BREAK))
+            cell["runs"].extend(line)
+
+    def _start_table(self, tag: str) -> None:
+        self._flush()
+        self._note_starttag(tag)
+        self._tables.append({"rows": [], "row": None, "in_thead": False, "body_seen": False, "header_rows": 0})
+
+    def _start_row(self) -> None:
+        table = self._tables[-1]
+        self._end_row()
+        table["row"] = {"cells": [], "cell": None, "all_th": True}
+
+    def _start_cell(self, tag: str) -> None:
+        table = self._tables[-1]
+        if table["row"] is None:
+            self._start_row()
+        self._end_cell()
+        table["row"]["cell"] = {"runs": [], "th": tag == "th"}
+
+    def _end_cell(self) -> None:
+        table = self._tables[-1]
+        row = table["row"]
+        if row is None or row["cell"] is None:
+            return
+        self._flush()
+        cell = row["cell"]
+        runs = cell["runs"]
+        while runs and runs[-1]["text"] == _LINE_BREAK:
+            runs.pop()
+        row["cells"].append(runs)
+        if not cell["th"]:
+            row["all_th"] = False
+        row["cell"] = None
+
+    def _end_row(self) -> None:
+        table = self._tables[-1]
+        row = table["row"]
+        if row is None:
+            return
+        self._end_cell()
+        if row["cells"]:
+            is_header = table["in_thead"] or row["all_th"]
+            if is_header and not table["body_seen"]:
+                table["header_rows"] += 1
+            else:
+                table["body_seen"] = True
+            table["rows"].append(row["cells"])
+        table["row"] = None
+
+    def _end_table(self) -> None:
+        self._flush()
+        self._end_row()
+        table = self._tables.pop()
+        rows = [row for row in table["rows"] if any(any(run["text"].strip() for run in cell) for cell in row)]
+        if rows:
+            width = max(len(row) for row in rows)
+            for row in rows:
+                row.extend([] for _ in range(width - len(row)))
+            self._append_block({"kind": "table", "level": 0, "runs": [], "rows": rows,
+                                "header_rows": min(table["header_rows"], len(rows))})
 
     def _extend_blocks(self, blocks: list[dict]) -> None:
         for block in blocks:
@@ -509,13 +813,28 @@ class _BlockExtractor(HTMLParser):
         for group in self._visual_stack:
             group["depth"] += 1
 
+    @staticmethod
+    def _settle_group(group: dict) -> dict:
+        """Shape a finished container group into its block.
+
+        For a <details> group the first summary block becomes the dropdown's
+        title runs; the rest of the children are the panel's content.
+        """
+        block = group["block"]
+        children = group["blocks"]
+        if block.get("kind") == "dropdown":
+            summaries = [child for child in children if child.get("kind") == "dropdown" and "blocks" not in child]
+            if summaries:
+                block["runs"] = summaries[0]["runs"]
+                children = [child for child in children if child is not summaries[0]]
+        if children:
+            block["blocks"] = children
+        return block
+
     def _finish_visual_groups(self) -> None:
         while self._visual_stack and self._visual_stack[-1]["depth"] <= 0:
             group = self._visual_stack.pop()
-            block = group["block"]
-            if group["blocks"]:
-                block["blocks"] = group["blocks"]
-            self._append_block(block)
+            self._append_block(self._settle_group(group))
 
     def _note_endtag(self, tag: str) -> None:
         if tag in _VOID_TAGS:
@@ -527,29 +846,68 @@ class _BlockExtractor(HTMLParser):
     def _close_visual_groups(self) -> None:
         while self._visual_stack:
             group = self._visual_stack.pop()
-            block = group["block"]
-            if group["blocks"]:
-                block["blocks"] = group["blocks"]
-            self._append_block(block)
+            self._append_block(self._settle_group(group))
+
+    def _close_items(self, depth: int) -> None:
+        """Forget open list items at ``depth`` or deeper."""
+        while self._items and self._items[-1]["depth"] >= depth:
+            self._items.pop()
+
+    def _pending_block(self, runs: list[dict]) -> dict:
+        """Shape the block about to be emitted from the collected runs.
+
+        The first text block inside a list item is the item itself, even when
+        the page wraps it in <p> or <div>; any later block in the same item
+        stays a paragraph. Items of an <ol> are marked as ordered.
+        """
+        kind, level, meta = self._kind, 0, None
+        if kind == "label":
+            level = self._heading_level
+        item = self._items[-1] if self._items else None
+        if kind == "p" and item is not None and not item["used"]:
+            item["used"] = True
+            kind, level = "li", item["level"]
+            if item["ordered"]:
+                meta = {"list": "ordered"}
+        block = {"kind": kind, "level": level, "runs": runs}
+        if meta:
+            block["meta"] = meta
+        return block
 
     def _flush(self) -> None:
-        runs = []
+        runs: list[dict] = []
         for run in self._runs:
+            if run.get("line_break"):
+                # No trailing space before a line break; leading breaks are dropped.
+                while runs and runs[-1]["text"] != _LINE_BREAK:
+                    kept = runs[-1]["text"].rstrip()
+                    if kept:
+                        runs[-1]["text"] = kept
+                        break
+                    runs.pop()
+                if runs:
+                    runs.append({"text": _LINE_BREAK, "href": ""})
+                continue
             text = re.sub(r"\s+", " ", run["text"])
-            if not text.strip() and not runs:
-                continue  # drop leading whitespace-only runs
-            runs.append({"text": text, "href": run["href"]})
+            if not runs or runs[-1]["text"] == _LINE_BREAK:
+                text = text.lstrip()  # no leading space at the start of a line
+                if not text:
+                    continue
+            shaped = _run(text, run["href"], run.get("emphasis"))
+            if runs and runs[-1]["text"] != _LINE_BREAK and _run_flags(runs[-1]) == _run_flags(shaped):
+                runs[-1]["text"] += text  # one run per stretch of identical formatting
+            else:
+                runs.append(shaped)
         while runs and not runs[-1]["text"].strip():
-            runs.pop()
+            runs.pop()  # trailing whitespace-only runs and trailing line breaks
         if runs:
-            runs[0]["text"] = runs[0]["text"].lstrip()
             runs[-1]["text"] = runs[-1]["text"].rstrip()
             combined = "".join(r["text"] for r in runs).strip().lower()
             if combined and combined not in _ARTIFACT_TEXTS:
-                self._append_block({"kind": self._kind, "level": self._level, "runs": runs})
+                self._append_block(self._pending_block(runs))
         self._runs = []
         self._kind = "p"
-        self._level = 0
+        self._heading_level = 0
 
     def handle_starttag(self, tag, attrs):
         attr_map = dict(attrs)
@@ -564,15 +922,52 @@ class _BlockExtractor(HTMLParser):
             self._skip += 1
             self._skip_until.append(tag)
             return
+        if any(token.lower() in _PAGE_CHROME_CLASSES for token in tokens):
+            # page chrome a template writes around the content (a skip link, the course label
+            # above the title): not authored text, so it is left out of the blueprint
+            self._flush()
+            self._skip += 1
+            self._skip_until.append(tag)
+            self.chrome_skipped += 1
+            return
+        self._open_emphasis(tag, attr_map)
+        if tag in _TABLE_TAGS and (tag == "table" or self._tables):
+            if tag == "table":
+                self._start_table(tag)
+                return
+            self._note_starttag(tag)
+            if tag == "thead":
+                self._flush()
+                self._tables[-1]["in_thead"] = True
+            elif tag == "tr":
+                self._flush()
+                self._start_row()
+            elif tag in ("td", "th"):
+                self._flush()
+                self._start_cell(tag)
+            elif tag in ("tbody", "tfoot", "caption"):
+                self._flush()
+            return
+        if tag == "details":
+            # The whole element is the dropdown; its summary becomes the title.
+            self._flush()
+            self._note_starttag(tag)
+            self._visual_stack.append({"tag": tag, "depth": 1, "block": _block("dropdown"), "blocks": [],
+                                       "table_depth": len(self._tables)})
+            return
         visual = _visual_block_for(tag, attr_map)
         if visual:
             self._flush()
             self._note_starttag(tag)
-            self._visual_stack.append({"tag": tag, "depth": 1, "block": visual, "blocks": []})
+            self._visual_stack.append({"tag": tag, "depth": 1, "block": visual, "blocks": [],
+                                       "table_depth": len(self._tables)})
             return
         if tag == "hr":
             self._flush()
             self._append_block(_block("divider"))
+            return
+        if tag == "br":
+            self._runs.append({"text": _LINE_BREAK, "href": "", "line_break": True})
             return
         if tag == "iframe":
             src = attr_map.get("src", "")
@@ -587,6 +982,7 @@ class _BlockExtractor(HTMLParser):
                             package_root=self.package_root,
                             html_dir=self.html_dir,
                             diagnostics=self.diagnostics,
+                            creatorplus_report=self.creatorplus_report,
                         )
                     )
                     return
@@ -608,13 +1004,27 @@ class _BlockExtractor(HTMLParser):
                 self._append_block(image_block)
             return
         self._note_starttag(tag)
+        if tag in _HEADING_TAGS:
+            self._flush()
+            self._kind = "label"
+            self._heading_level = _HEADING_TAGS[tag]
+            return
         if tag in ("ul", "ol"):
-            self._list_depth += 1
+            self._lists.append(tag)
             return
         if tag == "li":
             self._flush()
-            self._kind = "li"
-            self._level = max(1, self._list_depth)
+            depth = len(self._lists)
+            # An <li> left unclosed ends where the next item of its list starts.
+            self._close_items(depth)
+            self._items.append(
+                {
+                    "depth": depth,
+                    "level": max(1, depth),
+                    "ordered": bool(self._lists) and self._lists[-1] == "ol",
+                    "used": False,
+                }
+            )
             return
         if tag in _BLOCK_BREAK_TAGS:
             self._flush()
@@ -634,18 +1044,38 @@ class _BlockExtractor(HTMLParser):
             return
         if self._skip:
             return
+        self._close_emphasis(tag)
+        if tag in _TABLE_TAGS and self._tables:
+            if tag == "table":
+                self._end_table()
+            elif tag == "tr":
+                self._end_row()
+            elif tag in ("td", "th"):
+                self._end_cell()
+            elif tag == "thead":
+                self._flush()
+                self._end_row()
+                self._tables[-1]["in_thead"] = False
+            else:
+                self._flush()
+            self._note_endtag(tag)
+            return
         if tag == "summary":
             self._flush()
             self._note_endtag(tag)
             return
         if tag in ("ul", "ol"):
-            if self._list_depth:
-                self._list_depth -= 1
+            self._flush()
+            self._close_items(len(self._lists))
+            if self._lists:
+                self._lists.pop()
             self._note_endtag(tag)
             return
-        if tag in ("p", "div", "li", "h5", "h6", "blockquote", "figure",
-                   "figcaption", "table", "tr", "section", "article"):
+        if tag in _HEADING_TAGS or tag in ("p", "div", "li", "blockquote", "figure",
+                                           "figcaption", "section", "article"):
             self._flush()
+            if tag == "li":
+                self._close_items(len(self._lists))
             self._note_endtag(tag)
             return
         if tag == "a" and self._href:
@@ -655,11 +1085,14 @@ class _BlockExtractor(HTMLParser):
     def handle_data(self, data):
         if self._skip or not data:
             return
-        self._runs.append({"text": data, "href": self._href[-1] if self._href else ""})
+        self._runs.append({"text": data, "href": self._href[-1] if self._href else "",
+                           "emphasis": self._current_emphasis()})
 
     def close(self):
         super().close()
         self._flush()
+        while self._tables:
+            self._end_table()
         self._close_visual_groups()
 
 
@@ -669,22 +1102,39 @@ def html_fragment_to_blocks(
     package_root: Path | None = None,
     html_dir: Path | None = None,
     diagnostics: list[str] | None = None,
+    creatorplus_report: CreatorPlusPackageReport | None = None,
 ) -> list[dict]:
     raw = re.sub(r"<(script|style)\b.*?</\1>", " ", raw, flags=re.IGNORECASE | re.DOTALL)
-    parser = _BlockExtractor(package_root=package_root, html_dir=html_dir, diagnostics=diagnostics)
+    parser = _BlockExtractor(
+        package_root=package_root,
+        html_dir=html_dir,
+        diagnostics=diagnostics,
+        creatorplus_report=creatorplus_report,
+    )
     try:
         parser.feed(raw)
         parser.close()
     except Exception:  # pragma: no cover - malformed HTML fallback
         text = _flatten_text(raw)
         return [{"kind": "p", "level": 0, "runs": [{"text": text, "href": ""}]}] if text else []
+    if parser.chrome_skipped and diagnostics is not None:
+        diagnostics.append(f"Page chrome: {parser.chrome_skipped} element(s) with a skip-link or course-label class left out of the blueprint")
     return parser.blocks
+
+
+def iter_block_runs(block: dict):
+    """The runs of one block, including the cells of a table block."""
+    yield from block.get("runs", []) or []
+    for row in block.get("rows") or []:
+        for cell in row:
+            yield from cell
 
 
 def blocks_to_text(blocks: list[dict]) -> str:
     parts: list[str] = []
     for block in blocks:
-        parts.extend(run["text"] for run in block.get("runs", []))
+        # Line-break runs separate words here just as the joining space does.
+        parts.extend(run["text"] for run in iter_block_runs(block) if run["text"] != _LINE_BREAK)
         if block.get("blocks"):
             parts.append(blocks_to_text(block["blocks"]))
     return clean(" ".join(parts))
@@ -806,6 +1256,7 @@ def html_to_segments(
     package_root: Path | None = None,
     html_dir: Path | None = None,
     diagnostics: list[str] | None = None,
+    creatorplus_report: CreatorPlusPackageReport | None = None,
 ) -> list[dict]:
     """Split an HTML body into ``{heading, level, blocks, text}`` chunks by its own headings.
 
@@ -814,7 +1265,8 @@ def html_to_segments(
     list of blocks (paragraphs / bullets with link-aware runs); ``text`` is a
     flattened convenience copy. This mirrors the page's authored structure
     rather than forcing a fixed taxonomy; downstream code decides which headings
-    map to blueprint rows.
+    map to blueprint rows. Headings h1-h6 all start a segment and carry their
+    own level.
     """
     raw = re.sub(r"<(script|style)\b.*?</\1>", " ", raw, flags=re.IGNORECASE | re.DOTALL)
     matches = list(HEADING_TAG.finditer(raw))
@@ -825,6 +1277,7 @@ def html_to_segments(
             package_root=package_root,
             html_dir=html_dir,
             diagnostics=diagnostics,
+            creatorplus_report=creatorplus_report,
         )
         if not blocks and not heading:
             return None
@@ -855,7 +1308,7 @@ def html_to_segments(
 
 def _iter_block_runs(blocks: list[dict]):
     for block in blocks:
-        yield from block.get("runs", []) or []
+        yield from iter_block_runs(block)
         yield from _iter_block_runs(block.get("blocks", []) or [])
 
 
@@ -1381,7 +1834,12 @@ def descendant_count(node: dict) -> int:
     return sum(1 + descendant_count(child) for child in node.get("children", []))
 
 
-def extract_html_topics(nodes: list[dict], package_root: Path, diagnostics: list[str]) -> list[dict]:
+def extract_html_topics(
+    nodes: list[dict],
+    package_root: Path,
+    diagnostics: list[str],
+    creatorplus_report: CreatorPlusPackageReport | None = None,
+) -> list[dict]:
     topics = []
 
     def html_topic_from_node(node: dict, *, hidden: bool = False) -> dict | None:
@@ -1414,20 +1872,44 @@ def extract_html_topics(nodes: list[dict], package_root: Path, diagnostics: list
         raw = payload.decode("utf-8", errors="replace")
         missing_refs = []
         server_refs = []
-        for ref in REF_ATTR.findall(raw):
-            ref = ref.strip()
+        unsafe_refs = []
+        html_referenced_paths = []
+        html_references, provider_activity_hrefs = collect_html_references(raw)
+        for reference in html_references:
+            ref = reference["value"].strip()
             if not ref or ref.lower().startswith(URL_SCHEMES):
                 continue
-            target = html.unescape(unquote(ref)).replace("\\", "/").split("?")[0].split("#")[0]
-            if not target:
-                continue
-            if target.startswith("/"):
-                # Root-absolute paths (/shared/..., /d2l/..., /content/...)
-                # resolve against the Brightspace server at runtime, not
-                # the package — inventory, don't flag.
+            relationship = None
+            if (
+                creatorplus_report is not None
+                and reference["attribute"] == "data-file"
+                and ref.casefold().endswith(".practice.json")
+            ):
+                relationship = creatorplus_report.relationship_for(
+                    package_root=package_root,
+                    html_dir=page_path.parent,
+                    data_file=ref,
+                )
+            if relationship is not None:
+                if relationship.unsafe_reference:
+                    state, value = "unsafe", ref
+                elif relationship.selected_path:
+                    state, value = "existing", relationship.selected_path
+                else:
+                    state, value = "missing", ref
+            else:
+                state, value = resolve_html_reference(
+                    ref,
+                    page_path=page_path,
+                    package_root=package_root,
+                )
+            if state == "server":
                 server_refs.append(ref)
-                continue
-            if not (page_path.parent / target).exists():
+            elif state == "existing":
+                html_referenced_paths.append(value)
+            elif state == "unsafe":
+                unsafe_refs.append(ref)
+            elif state == "missing":
                 missing_refs.append(ref)
         missing_alt_refs = missing_alt_image_refs(raw)
         missing_alt = len(missing_alt_refs)
@@ -1438,6 +1920,7 @@ def extract_html_topics(nodes: list[dict], package_root: Path, diagnostics: list
             package_root=package_root,
             html_dir=page_path.parent,
             diagnostics=diagnostics,
+            creatorplus_report=creatorplus_report,
         )
         topic = {
             "manifest_title": node["title"],
@@ -1448,6 +1931,12 @@ def extract_html_topics(nodes: list[dict], package_root: Path, diagnostics: list
             "empty_page": len(body_text) == 0,
             "missing_refs": sorted(set(missing_refs)),
             "server_refs": sorted(set(server_refs)),
+            "unsafe_refs": sorted(set(unsafe_refs)),
+            "html_referenced_paths": sorted(set(html_referenced_paths)),
+            "provider_activity_hrefs": sorted(
+                provider_activity_hrefs,
+                key=lambda item: (item["state"], item["value"]),
+            ),
             "images_missing_alt": missing_alt,
             "images_missing_alt_refs": sorted(set(missing_alt_refs)),
         }
@@ -1469,6 +1958,8 @@ def extract_html_topics(nodes: list[dict], package_root: Path, diagnostics: list
             )
         for ref in sorted(set(missing_refs)):
             diagnostics.append(f"html topic {node['title']!r}: broken relative reference: {ref}")
+        for ref in sorted(set(unsafe_refs)):
+            diagnostics.append(f"html topic {node['title']!r}: unsafe package-relative reference: {ref}")
         if not body_text:
             diagnostics.append(f"html topic {node['title']!r}: page body is empty")
         return topic
@@ -1629,29 +2120,43 @@ def file_scope_summary(label: str, paths: set[str], size_by_path: dict[str, int]
     )
 
 
-def package_scope_diagnostics(nodes: list[dict], package_root: Path) -> list[str]:
+def package_scope_diagnostics(
+    nodes: list[dict],
+    package_root: Path,
+    html_topics: list[dict] | None = None,
+) -> list[str]:
     size_by_path = package_files(package_root)
     visible_paths, hidden_paths = manifest_linked_paths(nodes)
+    html_referenced_paths = {
+        path
+        for topic in html_topics or []
+        for path in topic.get("html_referenced_paths", [])
+    }
     core_paths = {
         path
         for path in size_by_path
         if package_file_category(path) == "d2l_xml" or Path(path).name.lower() in CORE_PACKAGE_FILES
     }
-    unlinked_paths = set(size_by_path) - visible_paths - hidden_paths - core_paths
+    support_paths = html_referenced_paths - visible_paths - hidden_paths - core_paths
+    unlinked_paths = set(size_by_path) - visible_paths - hidden_paths - core_paths - support_paths
     diagnostics: list[str] = []
     hidden_summary = file_scope_summary("hidden manifest-linked non-HTML files preserved as references", hidden_paths, size_by_path)
     if hidden_summary:
         diagnostics.append(hidden_summary)
+    support_summary = file_scope_summary(
+        "HTML-referenced support files",
+        support_paths,
+        size_by_path,
+    )
+    if support_summary:
+        diagnostics.append(support_summary)
     unlinked_summary = file_scope_summary(
         "files not directly linked from the visible manifest",
         unlinked_paths,
         size_by_path,
     )
     if unlinked_summary:
-        diagnostics.append(
-            unlinked_summary
-            + " (may include support assets referenced inside HTML pages)"
-        )
+        diagnostics.append(unlinked_summary)
     return diagnostics
 
 
@@ -1764,6 +2269,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--label", default="", help="Label for output filenames (default: folder name)")
     parser.add_argument("--extract-html", action="store_true", help="Also extract HTML topic text and check page references")
     parser.add_argument(
+        "--package-profile",
+        choices=sorted(PACKAGE_PROFILES),
+        default="external",
+        help="Creator+ diagnostic profile (default: external evidence inspection)",
+    )
+    parser.add_argument(
+        "--creatorplus-filename-policy",
+        choices=sorted(FILENAME_POLICIES),
+        default="preserve_observed",
+        help="Preserve observed Creator+ filenames or enforce config-<id> naming",
+    )
+    parser.add_argument(
         "--no-syllabus-fetch",
         action="store_true",
         help=(
@@ -1825,9 +2342,24 @@ def main(argv: list[str] | None = None) -> int:
     if not tree:
         diagnostics.append("manifest has no organization items")
 
-    topics = extract_html_topics(tree, root, diagnostics) if args.extract_html else []
+    creatorplus_report = None
     if args.extract_html:
-        diagnostics.extend(package_scope_diagnostics(tree, root))
+        creatorplus_report = inspect_creatorplus_package(
+            root,
+            profile=args.package_profile,
+            filename_policy=args.creatorplus_filename_policy,
+        )
+        diagnostics.extend(
+            f"Creator+ {row.severity}: {format_creatorplus_diagnostic(row)}"
+            for row in creatorplus_report.diagnostics
+        )
+    topics = (
+        extract_html_topics(tree, root, diagnostics, creatorplus_report)
+        if args.extract_html
+        else []
+    )
+    if args.extract_html:
+        diagnostics.extend(package_scope_diagnostics(tree, root, topics))
         diagnostics.extend(front_matter_source_diagnostics(root))
 
     output_dir = args.output_dir or (Path(__file__).resolve().parents[1] / "workspace" / "review")
@@ -1859,6 +2391,18 @@ def main(argv: list[str] | None = None) -> int:
         logical_root=root,
     )
     run_id = args.run_id or new_run_id()
+    extensions = {
+        "syllabus_references": syllabus_references,
+        "linked_syllabus_policy": {
+            "evidence_role": "supplemental_linked_syllabus",
+            "fetch_requested": bool(args.extract_html and not args.no_syllabus_fetch),
+            "allowed_hosts": sorted(allowed_syllabus_hosts),
+            "package_local_content_precedence": True,
+            "extensions": {},
+        },
+    }
+    if creatorplus_report is not None:
+        extensions["coursecraft.creatorplus_relationships"] = creatorplus_report.to_dict()
     payload = annotate_structure_payload(
         {
             "schema": "coursecraft.structure/1",
@@ -1870,16 +2414,7 @@ def main(argv: list[str] | None = None) -> int:
             "tree": tree,
             "html_topics": topics,
             "diagnostics": diagnostics,
-            "extensions": {
-                "syllabus_references": syllabus_references,
-                "linked_syllabus_policy": {
-                    "evidence_role": "supplemental_linked_syllabus",
-                    "fetch_requested": bool(args.extract_html and not args.no_syllabus_fetch),
-                    "allowed_hosts": sorted(allowed_syllabus_hosts),
-                    "package_local_content_precedence": True,
-                    "extensions": {},
-                },
-            },
+            "extensions": extensions,
         }
     )
     contract_errors = [issue.render() for issue in validate_contract(payload) if issue.severity == "error"]
