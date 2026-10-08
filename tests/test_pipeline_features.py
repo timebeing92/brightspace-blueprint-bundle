@@ -96,7 +96,11 @@ def test_progress_events_stream(tmp_path):
     assert run_end["delivery"] == {"usable": True, "empty": False, "core_failures": []}
     assert run_end["summary"]["weeks"] == 2
     assert run_end["summary"]["rubrics"] == 1
-    assert run_end["summary"]["qa"] == {"breaks": 0, "warnings": 2, "notes": 7}
+    # One break since the Workbench refresh of 2026-10-08: the course QA report resolves the sample's
+    # Creator+ data-file reference page-relatively and reports it missing, although the payload sits at
+    # the canonical package-root practice/ path. The Workbench itself reports the same on this export;
+    # the mirror is exact. Recorded as an upstream finding in CHANGELOG.md.
+    assert run_end["summary"]["qa"] == {"breaks": 1, "warnings": 2, "notes": 7}
 
     bundle = Path(run_end["bundle_dir"])
     receipt = json.loads(Path(run_end["outputs"]["run_identity"]).read_text(encoding="utf-8"))
@@ -113,7 +117,7 @@ def test_progress_events_stream(tmp_path):
     assert {row["contract"] for row in receipt["emitted_files"]} >= {
         "coursecraft.activities/1",
         "coursecraft.structure/1",
-        "coursecraft.blueprint/4",
+        "coursecraft.blueprint/5",
         "coursecraft.rubrics/1",
     }
 

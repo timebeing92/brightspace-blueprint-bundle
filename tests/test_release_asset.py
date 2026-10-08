@@ -44,7 +44,7 @@ class BundleReleaseAssetTests(unittest.TestCase):
             [row["schema"] for row in rows],
             [
                 "coursecraft.activities/1",
-                "coursecraft.blueprint/4",
+                "coursecraft.blueprint/5",
                 "coursecraft.run/1",
                 "coursecraft.rubrics/1",
                 "coursecraft.structure/1",
