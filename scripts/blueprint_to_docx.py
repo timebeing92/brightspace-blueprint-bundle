@@ -32,8 +32,9 @@ source: h2 is Heading 2, h3 is Heading 3, and so on to Heading 6. Runs keep
 their bold, italic, and underline; a source table is a real Word table with
 its header rows bold. A dropdown, callout, timeline, or other styled container
 is written between bracket lines, [dropdown: Title] … [/dropdown], [callout] …
-[/callout], [timeline] … [/timeline], [box] … [/box], so its extent is explicit
-and a packager can read it back; an empty panel is the pair on adjacent lines.
+[/callout], [timeline] … [/timeline], [box: Label] … [/box], so its extent is
+explicit and a packager can read it back; an empty panel is the pair on adjacent
+lines. A heading a panel owns is written once, inside the panel.
 
 Word heading levels are one to one with the course page. The frame (Course
 Introduction, Before Week 1, each week, Unplaced Activities, the Rubric
@@ -72,6 +73,7 @@ except ImportError:  # pragma: no cover - exercised only without the dependency
     )
     raise SystemExit(3)
 
+from reconstruct_course_structure import panel_owns_label
 from rubrics_to_docx import render_rubrics_section
 
 LIVE_SCHEMES = ("http://", "https://", "mailto:")
@@ -597,7 +599,7 @@ def _emit_divider(container, *, before: int = 6, after: int = 6) -> None:
 
 # Panels are written in the bracket form the downstream packager reads:
 # [dropdown: Title] … [/dropdown], [callout] … [/callout], [timeline] …
-# [/timeline], and [box] … [/box] for any other styled container. The bracket
+# [/timeline], and [box: Label] … [/box] for any other styled container. The bracket
 # lines carry the extent that a one-line cue lost; shading stays as a reading aid.
 # A panel without content is the same pair on two adjacent lines, so the file
 # says "an empty panel was here" in the grammar every other panel uses.
@@ -627,11 +629,21 @@ def panel_attrs(meta: dict | None) -> str:
 
 
 def panel_lines(kind: str, runs: list[dict], meta: dict | None = None) -> tuple[str, str, str]:
-    """(keyword, opening line, closing line) for a panel block."""
+    """(keyword, opening line, closing line) for a panel block.
+
+    A dropdown carries its title, a box carries the source component's label
+    (``[box: Accordion]``, ``[box: Framed section]``); a callout or timeline
+    carries only its attributes.
+    """
     label = clean_text(" ".join(str(run.get("text", "")) for run in runs))
     keyword = panel_keyword(kind, label)
     attrs = panel_attrs(meta) if keyword != "dropdown" else ""
-    opening = f"[{keyword}: {label}]" if keyword == "dropdown" and label else f"[{keyword}{attrs}]"
+    if keyword == "dropdown":
+        opening = f"[dropdown: {label}]" if label else "[dropdown]"
+    elif keyword == "box" and label:
+        opening = f"[box{attrs}: {label}]"
+    else:
+        opening = f"[{keyword}{attrs}]"
     return keyword, opening, f"[/{keyword}]"
 
 
@@ -800,6 +812,8 @@ def write_value_labeled(container, sections: list[dict], *, missing: str, divide
         if has_divider:
             _add_section_divider(container)
         label = clean_label(section.get("label", ""))
+        if label and panel_owns_label(section.get("blocks", []), label):
+            label = ""  # the heading is inside the section's panel and is written there, once
         if label:
             para = container.add_paragraph()
             _space(para, before=2 if has_divider else (8 if index else 0), after=2)
@@ -978,6 +992,28 @@ def add_simple_section(doc: "Document", heading: str, items: list[str]) -> None:
         _emit_block(doc, {"kind": "li", "level": 1, "runs": [{"text": item, "href": ""}]})
 
 
+def relax_cell_opening_headings(doc: "Document") -> int:
+    """Let a heading that opens a table cell break from the row's next paragraph.
+
+    Word's heading styles keep with the next paragraph. Inside a table that is
+    read as "keep this row with the next", and a week's value row is far
+    longer than a page, so Word and LibreOffice start the row on a fresh page
+    and leave the rest of the previous one empty (MBA 620, 2026-10-12: seven
+    under-filled pages, 81 pages instead of 76). Only the heading that opens a
+    cell is relaxed; a heading further down a cell keeps its attachment to the
+    text under it. Returns the number of paragraphs changed.
+    """
+    changed = 0
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                first = next((p for p in cell.paragraphs if p.text.strip()), None)
+                if first is not None and first.style is not None and first.style.name.startswith("Heading"):
+                    first.paragraph_format.keep_with_next = False
+                    changed += 1
+    return changed
+
+
 def render(
     model: dict,
     doc: "Document",
@@ -1044,6 +1080,7 @@ def render(
     )
 
     add_simple_section(doc, "Extraction Notes", model.get("diagnostics", []) or ["None."])
+    relax_cell_opening_headings(doc)
 
 
 def main(argv: list[str] | None = None) -> int:

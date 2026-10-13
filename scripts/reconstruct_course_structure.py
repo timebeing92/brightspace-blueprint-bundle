@@ -431,7 +431,9 @@ def _creator_practice_blocks(
 # ("• " marks a list item); leading rows of <th> cells, or rows inside <thead>,
 # are counted in header_rows. A <details> element is one "dropdown" block: its
 # <summary> text is the block's runs (the title) and everything else inside it
-# is the block's nested blocks, so the panel's extent survives.
+# is the block's nested blocks, so the panel's extent survives. A page body is
+# parsed once, whole, and only then grouped into segments (``segment_blocks``),
+# so a heading inside a panel stays inside it.
 _SKIP_TAGS = {"script", "style", "noscript", "title"}
 _BLOCK_BREAK_TAGS = {"p", "div", "blockquote", "figure", "figcaption", "section", "article"}
 # A heading inside a fragment is a "label" block carrying its source level, the
@@ -471,6 +473,8 @@ _VISUAL_CLASS_LABELS = (
     ("prototype-card", "Prototype card"),
     ("resources-section", "Resources section"),
     ("details-grid", "Details grid"),
+    ("styled-box", "Styled section"),
+    ("box", "Box"),
     ("callout", "Callout"),
     ("note", "Note"),
     ("panel", "Panel"),
@@ -500,7 +504,6 @@ _VISUAL_CONTAINER_TAGS = {"aside", "article", "blockquote", "details", "div", "f
 # Classes a page template uses for chrome around the content: skipped as not authored (2026-10-08).
 _PAGE_CHROME_CLASSES = {"skip", "skip-link", "kicker", "eyebrow", "course-label"}
 _TONE_CLASS_RE = re.compile(r"^(?:callout|box|panel)--([a-z][a-z0-9_-]*)$")
-_BORDER_COLOR_RE = re.compile(r"border-left(?:-color)?\s*:[^;]*?(#[0-9a-fA-F]{6})")
 
 
 def _emphasis_from_style(style: str) -> set[str]:
@@ -579,23 +582,250 @@ def _class_tokens(attr_map: dict) -> list[str]:
     return [token for token in re.split(r"\s+", classes.strip()) if token]
 
 
-def _visual_style_note(style: str) -> str:
-    style = (style or "").strip()
-    if not style:
+# -- inline style, read conservatively ------------------------------------------
+# Brightspace editor fields (assignment and discussion descriptions) strip class
+# attributes, so a callout an author writes there arrives as inline style only.
+# A container with no recognised class is therefore classified by its style, but
+# conservatively: decoration (a numbered badge, an inline chip, a float) is not a
+# panel, a tint or a left edge is a callout, a plain border is a framed section,
+# and white or absent styling is nothing. This is a markup heuristic and the
+# block says so (``meta.inferred``); it is not a fact about the surface.
+_CSS_SIDES = ("top", "right", "bottom", "left")
+_CSS_NO_COLOR = {"transparent", "none", "initial", "inherit", "unset", "revert"}
+_CSS_WHITE = {"white", "#fff", "#ffffff", "#ffffffff", "rgb(255,255,255)", "rgba(255,255,255,1)", "hsl(0,0%,100%)"}
+_CSS_BORDER_STYLES = {"none", "hidden", "dotted", "dashed", "solid", "double", "groove", "ridge", "inset", "outset"}
+_CSS_BORDER_WIDTH_WORDS = {"thin": 1.0, "medium": 3.0, "thick": 5.0}
+_CSS_BACKGROUND_WORDS = {
+    "none", "no-repeat", "repeat", "repeat-x", "repeat-y", "space", "round", "center", "top", "bottom", "left",
+    "right", "cover", "contain", "auto", "fixed", "scroll", "local", "padding-box", "border-box", "content-box",
+    "text", "initial", "inherit", "unset", "revert",
+}
+_CSS_LENGTH_RE = re.compile(r"^(-?\d*\.?\d+)(px|pt|rem|em|%|vw|vh|ch)?$")
+_CSS_HEX_RE = re.compile(r"^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$")
+_CSS_SMALL_FIXED = {"px": 48.0, "pt": 36.0, "rem": 3.0, "em": 3.0, "": 48.0}
+
+
+def _css_declarations(style: str) -> list[tuple[str, str]]:
+    """An inline style as (name, value) pairs in source order, lowercased, ``!important`` dropped."""
+    out: list[tuple[str, str]] = []
+    for part in re.split(r";(?![^(]*\))", style or ""):
+        if ":" not in part:
+            continue
+        name, value = part.split(":", 1)
+        name = name.strip().lower()
+        value = " ".join(value.replace("!important", "").split()).lower()
+        if name and value:
+            out.append((name, value))
+    return out
+
+
+def _css_tokens(value: str) -> list[str]:
+    """Space-separated tokens of a CSS value, keeping function calls such as rgb(…) whole."""
+    return [match.group(0) for match in re.finditer(r"[a-z-]+\([^)]*\)|\S+", value)]
+
+
+def _css_length_px(token: str) -> float | None:
+    """A length token in CSS pixels (pt, rem and em converted; unitless read as px), else None."""
+    match = _CSS_LENGTH_RE.match(token.strip())
+    if not match or match.group(2) in {"%", "vw", "vh", "ch"}:
+        return None
+    number, unit = float(match.group(1)), match.group(2) or ""
+    return number * {"": 1.0, "px": 1.0, "pt": 4 / 3, "rem": 16.0, "em": 16.0}[unit]
+
+
+def _css_small_fixed(value: str) -> bool:
+    """True for a fixed width or height of 3 rem / 48 px or less: a badge, an icon, a chip."""
+    match = _CSS_LENGTH_RE.match((value or "").strip())
+    if not match:
+        return False
+    unit = match.group(2) or ""
+    if unit not in _CSS_SMALL_FIXED:
+        return False
+    return float(match.group(1)) <= _CSS_SMALL_FIXED[unit]
+
+
+def _css_hex(token: str) -> str:
+    """A colour token as six-digit lowercase hex, or "" when it is not a hex colour."""
+    token = (token or "").strip().lower()
+    if not _CSS_HEX_RE.match(token):
         return ""
-    notes = []
-    for css_name, label in (
-        ("background-color", "background"),
-        ("background", "background"),
-        ("border-color", "border"),
-        ("border", "border"),
-    ):
-        match = re.search(rf"{css_name}\s*:\s*([^;]+)", style, flags=re.IGNORECASE)
-        if match:
-            value = clean(match.group(1))
-            if value and not value.lower().startswith("url("):
-                notes.append(f"{label}: {value}")
-    return "; ".join(notes[:2])
+    digits = token[1:]
+    if len(digits) == 3:
+        digits = "".join(ch * 2 for ch in digits)
+    return "#" + digits[:6]
+
+
+def _css_color_class(token: str) -> str:
+    """One colour token as "none" (absent or transparent), "white", or "tint"."""
+    token = (token or "").strip().lower().replace(" ", "")
+    if not token or token in _CSS_NO_COLOR:
+        return "none"
+    if token in _CSS_WHITE:
+        return "white"
+    if token.startswith(("rgba(", "hsla(")):
+        parts = token[5:-1].split(",")
+        if len(parts) == 4 and parts[3] in {"0", "0.0", "0%", ".0"}:
+            return "none"
+        if token.startswith("rgba(") and [p.strip() for p in parts[:3]] == ["255", "255", "255"]:
+            return "white"
+    if token.startswith("#") and len(token) == 9 and token.endswith("00"):
+        return "none"
+    if _css_hex(token) == "#ffffff":
+        return "white"
+    return "tint"
+
+
+def _background_class(declarations: list[tuple[str, str]]) -> str:
+    """The container's effective background colour: "none", "white" or "tint"."""
+    result = "none"
+    for name, value in declarations:
+        if name == "background-color":
+            result = _css_color_class(value)
+        elif name == "background":
+            result = "none"
+            for token in _css_tokens(value):
+                if "gradient(" in token:
+                    result = "tint"
+                    break
+                if token.startswith("url(") or token in _CSS_BACKGROUND_WORDS:
+                    continue
+                if token.startswith(("#", "rgb(", "rgba(", "hsl(", "hsla(")) or token.isalpha():
+                    result = _css_color_class(token)
+                    break
+    return result
+
+
+def _border_sides(declarations: list[tuple[str, str]]) -> dict[str, dict]:
+    """Each side's border after the cascade: width in px, style, colour token."""
+    sides = {side: {"width": 3.0, "style": "none", "color": "currentcolor"} for side in _CSS_SIDES}
+
+    def shorthand(value: str) -> dict:
+        parsed = {"width": 3.0, "style": "none", "color": "currentcolor"}
+        for token in _css_tokens(value):
+            if token in _CSS_BORDER_STYLES:
+                parsed["style"] = token
+            elif token in _CSS_BORDER_WIDTH_WORDS:
+                parsed["width"] = _CSS_BORDER_WIDTH_WORDS[token]
+            elif _css_length_px(token) is not None:
+                parsed["width"] = _css_length_px(token)
+            else:
+                parsed["color"] = token
+        return parsed
+
+    def per_side(tokens: list[str]) -> dict[str, str]:
+        if not tokens:
+            return {}
+        if len(tokens) == 1:
+            top = right = bottom = left = tokens[0]
+        elif len(tokens) == 2:
+            top, right, bottom, left = tokens[0], tokens[1], tokens[0], tokens[1]
+        elif len(tokens) == 3:
+            top, right, bottom, left = tokens[0], tokens[1], tokens[2], tokens[1]
+        else:
+            top, right, bottom, left = tokens[:4]
+        return dict(zip(_CSS_SIDES, (top, right, bottom, left)))
+
+    def convert(prop: str, token: str):
+        if prop == "width":
+            if token in _CSS_BORDER_WIDTH_WORDS:
+                return _CSS_BORDER_WIDTH_WORDS[token]
+            length = _css_length_px(token)
+            return 3.0 if length is None else length
+        return token
+
+    for name, value in declarations:
+        if name == "border":
+            parsed = shorthand(value)
+            for side in sides.values():
+                side.update(parsed)
+        elif name in {"border-top", "border-right", "border-bottom", "border-left"}:
+            sides[name[7:]].update(shorthand(value))
+        elif name in {"border-width", "border-style", "border-color"}:
+            prop = name[7:]
+            for side, token in per_side(_css_tokens(value)).items():
+                sides[side][prop] = convert(prop, token)
+        else:
+            match = re.fullmatch(r"border-(top|right|bottom|left)-(width|style|color)", name)
+            if match:
+                sides[match.group(1)][match.group(2)] = convert(match.group(2), value)
+    return sides
+
+
+def _side_visible(side: dict) -> bool:
+    return side["style"] not in {"none", "hidden"} and side["width"] > 0 and _css_color_class(side["color"]) != "none"
+
+
+def _declared_left_color(declarations: list[tuple[str, str]]) -> str:
+    """The hex colour an author gave the left edge (``border-left`` or ``border-left-color``), else ""."""
+    color = ""
+    for name, value in declarations:
+        if name == "border-left-color":
+            color = _css_hex(value) or color
+        elif name == "border-left":
+            for token in _css_tokens(value):
+                if _css_hex(token):
+                    color = _css_hex(token)
+    return color
+
+
+def _inline_panel_facts(style: str) -> dict | None:
+    """Classify a container with no recognised class by its inline style alone.
+
+    Returns ``{"label": "Callout" | "Framed section", "color": "#rrggbb" | ""}``, or
+    None when the styling is decoration (an absolutely positioned or inline
+    element, a float, a circle, a fixed size of 3 rem / 48 px or less) or carries
+    no panel (white or absent background and no visible border, or a rule on
+    one edge alone). A tint or a left edge is a callout; a border with a white
+    or absent background is a framed section.
+    """
+    declarations = _css_declarations(style)
+    if not declarations:
+        return None
+    props = dict(declarations)
+    if props.get("position") in {"absolute", "fixed"}:
+        return None
+    if props.get("display", "").startswith("inline"):
+        return None
+    if props.get("float") in {"left", "right"}:
+        return None
+    if "50%" in props.get("border-radius", ""):
+        return None
+    if any(_css_small_fixed(props.get(name, "")) for name in ("width", "height")):
+        return None
+    sides = _border_sides(declarations)
+    visible = {name: _side_visible(side) for name, side in sides.items()}
+    background = _background_class(declarations)
+    left, others = sides["left"], [sides[name] for name in ("top", "right", "bottom")]
+    left_edge = visible["left"] and (
+        not all(visible[name] for name in ("top", "right", "bottom"))
+        or left["width"] > max(other["width"] for other in others)
+        or any(other["color"] != left["color"] for other in others)
+    )
+    if left_edge or background == "tint":
+        return {"label": "Callout", "color": _declared_left_color(declarations) if left_edge else ""}
+    if any(visible.values()):
+        if sum(visible.values()) == 1 and (visible["top"] or visible["bottom"]):
+            return None  # a rule along one edge is a divider, not a frame
+        return {"label": "Framed section", "color": ""}
+    return None
+
+
+def _runs_text(block: dict) -> str:
+    """A block's own runs as one cleaned line (line breaks read as spaces)."""
+    return re.sub(r"\s+", " ", "".join(str(run.get("text", "")) for run in block.get("runs") or [])).strip()
+
+
+def _decoration_only(children: list[dict]) -> bool:
+    """True when a styled wrapper holds no block content beyond a short token (a badge's number)."""
+    if not children:
+        return True
+    if len(children) != 1:
+        return False
+    child = children[0]
+    if child.get("kind") != "p" or child.get("blocks"):
+        return False
+    text = _runs_text(child)
+    return len(text) <= 12 and re.fullmatch(r"[^\s.!?,;:]+", text) is not None
 
 
 def _matches_visual_class(key: str, token: str) -> bool:
@@ -607,14 +837,25 @@ def _matches_visual_class(key: str, token: str) -> bool:
         return token == "note" or token.endswith("-note")
     if key == "timeline":
         return token == "timeline"
+    if key == "box":
+        return token == "box"  # exact: "checkbox", "lightbox" and the like are not panels
     return key in token
 
 
 def _visual_block_for(tag: str, attr_map: dict) -> dict | None:
+    """The panel block a container tag opens, or None when it is not a panel.
+
+    A recognised class decides first (the callout family, timeline, and the
+    named components, which keep their name as the panel's label); only a
+    container with no recognised class is read by its inline style, and then
+    conservatively (``_inline_panel_facts``). Every panel keeps its tag, classes
+    and source style in ``meta`` so the inference can be checked.
+    """
     if tag not in _VISUAL_CONTAINER_TAGS:
         return None
     tokens = _class_tokens(attr_map)
     lowered = [token.lower() for token in tokens]
+    style = attr_map.get("style", "") or ""
     for key, label in _VISUAL_CLASS_LABELS:
         if (
             any(_matches_visual_class(key, token) for token in lowered)
@@ -622,21 +863,24 @@ def _visual_block_for(tag: str, attr_map: dict) -> dict | None:
         ):
             if label in _NOISY_VISUAL_LABELS:
                 return None
-            meta = {"tag": tag, "classes": " ".join(tokens), "source_style": attr_map.get("style", "")}
+            meta = {"tag": tag, "classes": " ".join(tokens), "source_style": style}
             # a tone or colour the page gave the panel, carried so the blueprint can say [callout tone=gold]
             for token in lowered:
                 tone = _TONE_CLASS_RE.match(token)
                 if tone:
                     meta["tone"] = tone.group(1)
                     break
-            color = _BORDER_COLOR_RE.search(attr_map.get("style", "") or "")
+            color = _declared_left_color(_css_declarations(style))
             if color and "tone" not in meta:
-                meta["color"] = color.group(1).lower()
+                meta["color"] = color
             return _block("visual", label, meta=meta)
-    style_note = _visual_style_note(attr_map.get("style", ""))
-    if style_note:
-        return _block("visual", f"Styled section ({style_note})", meta={"tag": tag, "classes": " ".join(tokens)})
-    return None
+    facts = _inline_panel_facts(style)
+    if facts is None:
+        return None
+    meta = {"tag": tag, "classes": " ".join(tokens), "source_style": style, "inferred": "inline-style"}
+    if facts["color"]:
+        meta["color"] = facts["color"]
+    return _block("visual", facts["label"], meta=meta)
 
 
 def _embed_kind(src: str) -> str:
@@ -814,11 +1058,14 @@ class _BlockExtractor(HTMLParser):
             group["depth"] += 1
 
     @staticmethod
-    def _settle_group(group: dict) -> dict:
-        """Shape a finished container group into its block.
+    def _settle_group(group: dict) -> list[dict]:
+        """Shape a finished container group into the block(s) it leaves behind.
 
         For a <details> group the first summary block becomes the dropdown's
-        title runs; the rest of the children are the panel's content.
+        title runs; the rest of the children are the panel's content. A panel
+        read from inline style alone that holds no block content beyond a short
+        token (a numbered badge, an icon wrapper) is decoration: its children
+        are returned in its place, so their text stays where it was.
         """
         block = group["block"]
         children = group["blocks"]
@@ -827,14 +1074,16 @@ class _BlockExtractor(HTMLParser):
             if summaries:
                 block["runs"] = summaries[0]["runs"]
                 children = [child for child in children if child is not summaries[0]]
+        if (block.get("meta") or {}).get("inferred") == "inline-style" and _decoration_only(children):
+            return children
         if children:
             block["blocks"] = children
-        return block
+        return [block]
 
     def _finish_visual_groups(self) -> None:
         while self._visual_stack and self._visual_stack[-1]["depth"] <= 0:
             group = self._visual_stack.pop()
-            self._append_block(self._settle_group(group))
+            self._extend_blocks(self._settle_group(group))
 
     def _note_endtag(self, tag: str) -> None:
         if tag in _VOID_TAGS:
@@ -846,7 +1095,7 @@ class _BlockExtractor(HTMLParser):
     def _close_visual_groups(self) -> None:
         while self._visual_stack:
             group = self._visual_stack.pop()
-            self._append_block(self._settle_group(group))
+            self._extend_blocks(self._settle_group(group))
 
     def _close_items(self, depth: int) -> None:
         """Forget open list items at ``depth`` or deeper."""
@@ -1250,6 +1499,85 @@ def _hidden_description_segments(node: dict) -> list[dict]:
     return [{"heading": "", "level": 0, "blocks": blocks, "text": blocks_to_text(blocks)}] if blocks else []
 
 
+def panel_owned_heading(block: dict) -> dict | None:
+    """The heading a panel owns: its first content child, when that child is a heading.
+
+    A ``visual`` or ``dropdown`` block owns a heading when the first block inside
+    it is a ``label`` with a source heading level (no prose, image or nested
+    panel before it). Headings owned by a nested panel do not count for the
+    outer one. Returns the label block, or None.
+    """
+    if block.get("kind") not in {"visual", "dropdown"}:
+        return None
+    children = block.get("blocks") or []
+    if not children:
+        return None
+    first = children[0]
+    if first.get("kind") == "label" and int(first.get("level") or 0) > 0 and _runs_text(first):
+        return first
+    return None
+
+
+def _label_key(text: str) -> str:
+    return clean(str(text or "")).rstrip(":").strip().casefold()
+
+
+def panel_owns_label(blocks: list[dict], label: str) -> bool:
+    """True when ``blocks`` opens with a panel whose owned heading reads as ``label``.
+
+    This is the display dedupe rule every writer shares: a consumer that prints
+    an outer label and then the blocks suppresses the label when the first block
+    is a panel that carries the same heading inside it. Labels stay in the data
+    for routing and provenance; only the second printing is suppressed.
+    """
+    if not blocks or not label:
+        return False
+    owned = panel_owned_heading(blocks[0])
+    return owned is not None and _label_key(_runs_text(owned)) == _label_key(label)
+
+
+def segment_blocks(blocks: list[dict]) -> list[dict]:
+    """Group a page's top-level blocks into ``{heading, level, blocks, text}`` segments.
+
+    The heading-ownership invariant: a top-level heading starts a segment, and
+    so does a top-level panel whose first content child is a heading it owns.
+    That panel stays whole, heading inside, as its segment's first block, and
+    the segment carries the additive marker ``heading_owner: "panel"``. A panel
+    with leading prose, or without an owned heading, joins the current segment,
+    as does prose after a panel. Later headings inside a panel never split it.
+    Content before the first heading is an untitled intro segment
+    (``heading == ""``, ``level == 0``).
+    """
+    segments: list[dict] = []
+    current: dict | None = None
+    for block in blocks:
+        if block.get("kind") == "label" and int(block.get("level") or 0) > 0 and _runs_text(block):
+            current = {"heading": _runs_text(block), "level": int(block["level"]), "blocks": []}
+            segments.append(current)
+            continue
+        owned = panel_owned_heading(block)
+        if owned is not None:
+            current = {
+                "heading": _runs_text(owned),
+                "level": int(owned["level"]),
+                "blocks": [block],
+                "heading_owner": "panel",
+            }
+            segments.append(current)
+            continue
+        if current is None:
+            current = {"heading": "", "level": 0, "blocks": []}
+            segments.append(current)
+        current["blocks"].append(block)
+    output: list[dict] = []
+    for segment in segments:
+        if not segment["blocks"] and not segment["heading"]:
+            continue
+        segment["text"] = blocks_to_text(segment["blocks"])
+        output.append(segment)
+    return output
+
+
 def html_to_segments(
     raw: str,
     *,
@@ -1258,47 +1586,25 @@ def html_to_segments(
     diagnostics: list[str] | None = None,
     creatorplus_report: CreatorPlusPackageReport | None = None,
 ) -> list[dict]:
-    """Split an HTML body into ``{heading, level, blocks, text}`` chunks by its own headings.
+    """Split an HTML body into ``{heading, level, blocks, text}`` chunks by heading ownership.
 
-    Content before the first heading becomes an untitled intro segment
-    (``heading == ""``, ``level == 0``). Each chunk keeps its formatting as a
-    list of blocks (paragraphs / bullets with link-aware runs); ``text`` is a
-    flattened convenience copy. This mirrors the page's authored structure
-    rather than forcing a fixed taxonomy; downstream code decides which headings
-    map to blueprint rows. Headings h1-h6 all start a segment and carry their
-    own level.
+    The body is parsed once by the block reader, so segmentation sees the same
+    container classification as every fragment, then grouped by
+    ``segment_blocks``: headings h1-h6 start segments and carry their level; a
+    panel that opens with a heading it owns starts a segment and stays whole
+    (``heading_owner: "panel"``). Each chunk keeps its formatting as a list of
+    blocks; ``text`` is a flattened convenience copy. This mirrors the page's
+    authored structure rather than forcing a fixed taxonomy; downstream code
+    decides which headings map to blueprint rows.
     """
-    raw = re.sub(r"<(script|style)\b.*?</\1>", " ", raw, flags=re.IGNORECASE | re.DOTALL)
-    matches = list(HEADING_TAG.finditer(raw))
-
-    def make(heading: str, level: int, slice_raw: str) -> dict | None:
-        blocks = html_fragment_to_blocks(
-            slice_raw,
-            package_root=package_root,
-            html_dir=html_dir,
-            diagnostics=diagnostics,
-            creatorplus_report=creatorplus_report,
-        )
-        if not blocks and not heading:
-            return None
-        return {"heading": heading, "level": level, "blocks": blocks, "text": blocks_to_text(blocks)}
-
-    segments: list[dict] = []
-    if not matches:
-        seg = make("", 0, raw)
-        return [seg] if seg else []
-
-    if matches[0].start() > 0:
-        seg = make("", 0, raw[: matches[0].start()])
-        if seg:
-            segments.append(seg)
-    for index, match in enumerate(matches):
-        end = matches[index + 1].start() if index + 1 < len(matches) else len(raw)
-        heading = _flatten_text(match.group(2))
-        seg = make(heading, int(match.group(1)), raw[match.end() : end])
-        if seg:
-            segments.append(seg)
-    return segments
+    blocks = html_fragment_to_blocks(
+        raw,
+        package_root=package_root,
+        html_dir=html_dir,
+        diagnostics=diagnostics,
+        creatorplus_report=creatorplus_report,
+    )
+    return segment_blocks(blocks)
 
 
 # --------------------------------------------------------------------------- #
@@ -1483,10 +1789,11 @@ def _segment_ancestors(segments: list[dict]) -> list[tuple[str, ...]]:
     return output
 
 
-def _section_blocks(segments: list[dict], index: int) -> list[dict]:
+def _section_blocks(segments: list[dict], index: int, own_blocks: list[dict] | None = None) -> list[dict]:
+    """The blocks a segment heading governs: its own, then following lower-level segments with their labels."""
     target = segments[index]
     target_level = int(target.get("level") or 0)
-    blocks = list(target.get("blocks") or [])
+    blocks = list(target.get("blocks") or []) if own_blocks is None else list(own_blocks)
     for following in segments[index + 1 :]:
         level = int(following.get("level") or 0)
         heading = clean(following.get("heading", ""))
@@ -1495,7 +1802,7 @@ def _section_blocks(segments: list[dict], index: int) -> list[dict]:
         child_blocks = list(following.get("blocks") or [])
         if not child_blocks:
             continue
-        if heading:
+        if heading and following.get("heading_owner") != "panel":
             blocks.append(
                 {
                     "kind": "label",
@@ -1505,6 +1812,71 @@ def _section_blocks(segments: list[dict], index: int) -> list[dict]:
             )
         blocks.extend(child_blocks)
     return blocks
+
+
+def _container_section(children: list[dict], index: int) -> list[dict]:
+    """The blocks after the heading at ``index`` in one container, up to the next heading of equal or higher rank there."""
+    level = int(children[index].get("level") or 0)
+    section: list[dict] = []
+    for child in children[index + 1 :]:
+        if child.get("kind") == "label" and 0 < int(child.get("level") or 0) <= level and _runs_text(child):
+            break
+        section.append(child)
+    return section
+
+
+def _index_nested_headings(blocks: list[dict], ancestors: tuple[str, ...], entries: list[dict], skip: dict | None) -> None:
+    """Add every heading inside the panels of ``blocks`` to ``entries``, with its ancestors and section."""
+    for block in blocks:
+        if block.get("kind") not in {"visual", "dropdown"}:
+            continue
+        children = block.get("blocks") or []
+        stack: list[tuple[int, str]] = []
+        for index, child in enumerate(children):
+            if child.get("kind") == "label" and int(child.get("level") or 0) > 0 and _runs_text(child):
+                level, heading = int(child["level"]), _runs_text(child)
+                while stack and stack[-1][0] >= level:
+                    stack.pop()
+                if not (skip is not None and child is skip):
+                    entries.append({
+                        "heading": heading,
+                        "level": level,
+                        "ancestors": ancestors + tuple(value for _depth, value in stack),
+                        "blocks": _container_section(children, index),
+                    })
+                stack.append((level, heading))
+            elif child.get("kind") in {"visual", "dropdown"}:
+                _index_nested_headings([child], ancestors + tuple(value for _depth, value in stack), entries, None)
+
+
+def _heading_index(segments: list[dict]) -> list[dict]:
+    """Every heading in document order, including headings inside panels.
+
+    Each entry is ``{heading, level, ancestors, blocks}``: a segment heading
+    governs its ``_section_blocks``; a heading inside a panel governs the
+    blocks that follow it in the same container up to the next heading of
+    equal or higher rank there. A panel-owned segment heading is listed once,
+    with the panel's own section plus what follows the panel. Three syllabus
+    headings in one callout therefore yield three entries.
+    """
+    ancestors_by_index = _segment_ancestors(segments)
+    entries: list[dict] = []
+    for index, segment in enumerate(segments):
+        heading = clean(segment.get("heading", ""))
+        level = int(segment.get("level") or 0)
+        blocks = list(segment.get("blocks") or [])
+        owned = panel_owned_heading(blocks[0]) if segment.get("heading_owner") == "panel" and blocks else None
+        if heading:
+            if owned is not None:
+                own = _container_section(blocks[0].get("blocks") or [], 0) + blocks[1:]
+                entries.append({"heading": heading, "level": level, "ancestors": ancestors_by_index[index],
+                                "blocks": _section_blocks(segments, index, own)})
+            else:
+                entries.append({"heading": heading, "level": level, "ancestors": ancestors_by_index[index],
+                                "blocks": _section_blocks(segments, index)})
+        inner_ancestors = ancestors_by_index[index] + ((heading,) if heading else ())
+        _index_nested_headings(blocks, inner_ancestors, entries, owned)
+    return entries
 
 
 def _annotate_syllabus_blocks(blocks: list[dict], source: dict[str, str]) -> list[dict]:
@@ -1528,23 +1900,25 @@ def extract_syllabus_front_matter(
     source_sha256: str,
     source_artifact: str,
 ) -> dict[str, dict]:
-    """Extract verbatim supplemental fields from recognizable syllabus headings."""
-    ancestors_by_index = _segment_ancestors(segments)
+    """Extract verbatim supplemental fields from recognizable syllabus headings.
+
+    Headings are found through ``_heading_index``, so a field whose heading sits
+    inside a callout or another panel is found as readily as a top-level one.
+    """
+    index = _heading_index(segments)
     fields: dict[str, dict] = {}
     for field in ("course_description", "course_learning_outcomes", "required_materials"):
-        candidates: list[tuple[int, int, list[dict]]] = []
-        for index, segment in enumerate(segments):
-            heading = clean(segment.get("heading", ""))
-            score = _syllabus_heading_score(field, heading, ancestors_by_index[index])
+        candidates: list[tuple[int, int, dict]] = []
+        for order, entry in enumerate(index):
+            score = _syllabus_heading_score(field, entry["heading"], entry["ancestors"])
             if score < 0:
                 continue
-            blocks = _section_blocks(segments, index)
-            if blocks_to_text(blocks):
-                candidates.append((score, index, blocks))
+            if blocks_to_text(entry["blocks"]):
+                candidates.append((score, order, entry))
         if not candidates:
             continue
-        score, index, blocks = max(candidates, key=lambda item: (item[0], -item[1]))
-        heading = clean(segments[index].get("heading", ""))
+        score, _order, entry = max(candidates, key=lambda item: (item[0], -item[1]))
+        heading = entry["heading"]
         source = {
             "source_role": "supplemental_linked_syllabus",
             "source_url": source_url,
@@ -1553,10 +1927,10 @@ def extract_syllabus_front_matter(
             "source_heading": heading,
             "extraction": "linked_syllabus_heading_section",
         }
-        annotated = _annotate_syllabus_blocks(blocks, source)
+        annotated = _annotate_syllabus_blocks(entry["blocks"], source)
         fields[field] = {
             "heading": heading,
-            "heading_level": int(segments[index].get("level") or 0),
+            "heading_level": int(entry["level"]),
             "match_score": score,
             "blocks": annotated,
             "text": blocks_to_text(annotated),
@@ -1572,8 +1946,8 @@ def extract_syllabus_title_candidates(segments: list[dict]) -> list[dict]:
     they do not establish a term or export date for a template.
     """
     candidates = []
-    for segment in segments:
-        heading = clean(segment.get("heading", ""))
+    for entry in _heading_index(segments):
+        heading = entry["heading"]
         # Title evidence belongs to the syllabus header. A later heading such
         # as "ABC 123 Course Project" is an activity label, not another title.
         if any(_syllabus_heading_score(field, heading, ()) >= 0 for field in (

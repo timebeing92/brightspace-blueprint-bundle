@@ -15,6 +15,6 @@
 ## Notes
 
 - 2 hyperlinks, all resolving to relationships
-- 8 tables, 208 paragraphs, 9768 visible characters
+- 8 tables, 208 paragraphs, 9779 visible characters
 - 2 week section(s), 'top' section layout
 - 2 rubric appendix table(s)

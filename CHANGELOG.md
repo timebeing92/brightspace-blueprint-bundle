@@ -44,6 +44,41 @@ partial-delivery and status-report layer, and the run/2 identity promotion.
   2026-10-08): the bundle's blueprint is identical to the Workbench's,
   paragraph for paragraph and style for style (3,518 paragraphs).
 
+Amended 2026-10-13, before release, from the Workbench's
+`fix/blueprint-heading-ownership` branch (still 1.4.0; the acceptance runs
+of 2026-10-12 found the defects below in the refreshed output):
+
+- Headings have one owner. A page is parsed once into blocks and only then
+  grouped into segments, so a panel that opens with a heading it owns stays
+  whole, heading inside, as its segment's first block; the segment carries
+  the additive marker `heading_owner: "panel"`. Until now the raw HTML was
+  split at every heading before the block reader ran, and such a panel was
+  written as an empty bracket pair with its contents outside (MBA 620: 4 of
+  77 panels; BUMG 660: 29 of 172). Later headings inside a panel never split
+  it; a routing diagnostic names the headings a whole panel keeps that would
+  route elsewhere on their own. Linked-syllabus discovery finds headings
+  inside panels too.
+- Panels are read conservatively. A container with no recognised class is
+  classified by its inline style: decoration (a badge, an inline chip, a
+  float, a circle, a fixed size of 3 rem or less) is not a panel; a tint or a
+  left edge is `[callout]` (with `color=#…` from the edge); a border on a
+  white or absent background is `[box: Framed section]`; white or none is
+  nothing. Every recognised component keeps its name, `[box: Accordion]`,
+  `[box: Case card]`, `[box: Styled section]` (the Packager's `styled-box`
+  page component); a bare `box` class is recognised. `meta.inferred` marks a
+  panel read from style alone.
+- A heading a panel owns is written once in both writers; the outer label is
+  suppressed when the section's first block is a panel carrying it, and the
+  label stays in the data.
+- DOCX page flow: a heading that opens a table cell no longer keeps with the
+  next paragraph, so Word and LibreOffice stop pushing a week's value row to
+  a fresh page (MBA 620 August export: 81 pages with seven under-filled
+  pages became 76 with none in LibreOffice; headings further down a cell keep
+  their attachment).
+- The course QA report files "Page chrome" findings as notes, not breaks.
+- Tests: 24 added (`tests/test_blueprint_heading_ownership.py`, ported from
+  the Workbench); the golden sample's `[box]` became `[box: Case card]`.
+
 ## 2026-09-25 — local run/2 promotion (unreleased)
 
 - Adopted the reviewed Workbench run/2 identity and title changes from

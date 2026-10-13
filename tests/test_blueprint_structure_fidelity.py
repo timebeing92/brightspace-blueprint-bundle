@@ -1235,7 +1235,8 @@ def test_bundle_carries_emphasis_and_the_table_into_the_week(synthetic_bundle: d
 # --------------------------------------------------------------------------- #
 # Panels: extents survive as nested blocks and are written as bracket lines
 # --------------------------------------------------------------------------- #
-PACKAGER_BRACKET_RE = __import__("re").compile(r"^\[\s*(/?)\s*([A-Za-z]+)\s*(?::\s*(.*?))?\s*\]$")
+# brightspace-blueprint-packager/blueprint_packager/vocabulary.py `_BRACKET_RE`: keyword, attributes, optional title
+PACKAGER_BRACKET_RE = __import__("re").compile(r"^\[\s*(/?)\s*([A-Za-z]+)((?:\s+[a-z_]+=[^\s\]:]+)*)\s*(?::\s*(.*?))?\s*\]$", __import__("re").S)
 
 
 def test_details_element_is_one_dropdown_with_its_summary_as_title() -> None:
@@ -1276,8 +1277,10 @@ def test_panel_keywords_follow_the_packager_bracket_forms() -> None:
         ("visual", "Project callout", "callout", "[callout]", "[/callout]"),
         ("visual", "Discussion note", "callout", "[callout]", "[/callout]"),
         ("visual", "Timeline", "timeline", "[timeline]", "[/timeline]"),
-        ("visual", "Styled section (background: #f5fafa)", "box", "[box]", "[/box]"),
-        ("visual", "Accordion", "box", "[box]", "[/box]"),
+        ("visual", "Styled section", "box", "[box: Styled section]", "[/box]"),
+        ("visual", "Framed section", "box", "[box: Framed section]", "[/box]"),
+        ("visual", "Accordion", "box", "[box: Accordion]", "[/box]"),
+        ("visual", "Information card", "box", "[box: Information card]", "[/box]"),
     ]
     for kind, label, keyword, opening, closing in cases:
         runs = [{"text": label, "href": ""}] if label else []
@@ -1298,7 +1301,7 @@ def test_docx_panels_are_written_between_bracket_lines(tmp_path: Path) -> None:
             ]},
         ]},
         {"kind": "visual", "level": 0, "runs": [{"text": "Timeline", "href": ""}], "blocks": [paragraph_block("Step one.")]},
-        {"kind": "visual", "level": 0, "runs": [{"text": "Styled section (background: none)", "href": ""}], "blocks": [paragraph_block("Boxed.")]},
+        {"kind": "visual", "level": 0, "runs": [{"text": "Styled section", "href": ""}], "blocks": [paragraph_block("Boxed.")]},
         # Without children a panel is the bracket pair on two adjacent lines.
         {"kind": "dropdown", "level": 0, "runs": [{"text": "Lone summary", "href": ""}]},
         {"kind": "visual", "level": 0, "runs": [{"text": "Callout", "href": ""}]},
@@ -1320,7 +1323,7 @@ def test_docx_panels_are_written_between_bracket_lines(tmp_path: Path) -> None:
         "[timeline]",
         "Step one.",
         "[/timeline]",
-        "[box]",
+        "[box: Styled section]",
         "Boxed.",
         "[/box]",
         "[dropdown: Lone summary]",

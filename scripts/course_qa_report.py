@@ -466,6 +466,7 @@ def main(argv: list[str] | None = None) -> int:
             or "hidden module" in diagnostic
             or "Package scope:" in diagnostic
             or "Front matter source:" in diagnostic
+            or "Page chrome:" in diagnostic
         ):
             severity = "notes"
         elif "page body is empty" in diagnostic:

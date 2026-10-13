@@ -129,7 +129,13 @@ Text content is stored as formatting-preserving blocks:
 - `visual`, `dropdown`, `embed`, `image`, `file`, `hidden`, `divider` =
   lightweight source-structure cues from the source HTML or manifest
 - `visual` blocks can also carry nested child `blocks` when the source
-  callout/card/highlight styling wraps a full section
+  callout/card/highlight styling wraps a full section; the writers put a
+  panel between bracket lines, `[dropdown: Title]`, `[callout tone=gold]`,
+  `[timeline]`, `[box: Label]` (the label is what the source called the
+  component), and a heading the panel owns is written once, inside it. A
+  container with no recognised class is read from its inline style
+  conservatively: a tint or a left edge is a callout, a plain border is
+  `[box: Framed section]`, decoration is nothing (`meta.inferred` marks it)
 - each block contains link-aware text runs: `{text, href}`
 
 Labeled sections preserve provenance where the evidence comes from course pages:
@@ -269,7 +275,8 @@ Works well when:
 Known limits:
 
 - course number, course title, and term are best supplied by CLI flags
-- styled-but-not-semantic headings may not segment cleanly
+- styled-but-not-semantic headings may not segment cleanly; a heading inside a
+  panel never splits the panel (the panel routes with its first heading)
 - coded due dates are not rendered because they are term-relative and can be
   misleading outside the course offering
 - quiz-level instructions/settings are surfaced when linked, but full

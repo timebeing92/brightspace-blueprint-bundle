@@ -24,9 +24,12 @@ structured model to Markdown and DOCX:
 2. `manifest_probe.py` — organizations/items/resources, identifierref usage,
    likely quiz/HTML resources, suspicious hrefs.
 3. `reconstruct_course_structure.py --extract-html` — the module/topic tree plus
-   HTML topic bodies as **`body_segments`**: each page is split by its own
-   `<h1>`–`<h4>` headings, and each segment is parsed into formatting-preserving
-   **blocks** — paragraphs and list items with link-aware runs
+   HTML topic bodies as **`body_segments`**: each page is parsed once into
+   formatting-preserving **blocks** and then grouped by its own `<h1>`–`<h6>`
+   headings (a heading starts a segment; a panel that opens with a heading it
+   owns starts a segment and stays whole, marked `heading_owner: "panel"`;
+   later headings inside a panel never split it) — paragraphs and list items
+   with link-aware runs
    (`{kind, level, runs:[{text, href}], meta?}`). Paragraphs, bullet lists,
    links, horizontal rules, dropdown summaries, selected callout/card visual
    cues, image placeholders, attached-file placeholders, and video/iframe embeds
@@ -128,7 +131,10 @@ Every section routed from a page also carries provenance in the JSON model:
 `source_page` (the page title) and `level` (the heading level, 0 for a whole
 page). Intro content that sits *before* a page's first heading follows the
 page's own classification (a "Learning Materials" page intro belongs with
-resources, not the week overview).
+resources, not the week overview). A panel that opens with a heading routes
+with that heading and stays whole; when it also holds headings that would
+route elsewhere, the model's diagnostics name them (`Routing: … is kept whole
+under …`).
 
 ### The Learning Objectives fallback
 
@@ -170,8 +176,11 @@ matches; Description and Introduction match by topic title. Empty → `Needs rev
   export-label fallback. Course number and term can still be stored as optional
   model metadata, but they do not build the rendered H1/DOCX title.
 - **Segmentation depends on real headings.** A course that styles headings as
-  bold paragraphs instead of `<h1>`–`<h4>` will under-segment (content stays in
+  bold paragraphs instead of `<h1>`–`<h6>` will under-segment (content stays in
   Overview). This is intentional: we follow real structure, not guesswork.
+- **A panel is one block.** A callout, card or dropdown that holds headings of
+  several kinds is not cut apart; it routes with the heading it opens with and
+  the diagnostics say what it also holds.
 - **Numeric due dates are deliberately not encoded.** The coded date fields in
   the XML are term-relative (they shift every time the course is offered), so
   encoding them would be misleading. The day-of-week cadence that assignments,

@@ -49,6 +49,7 @@ from common_xml import (
     should_divide_labeled_sections,
     xml_safe_text,
 )
+from reconstruct_course_structure import panel_owned_heading, panel_owns_label
 from course_artifact_contracts import (
     annotate_activity_payload,
     annotate_structure_payload,
@@ -787,6 +788,8 @@ def route_topic(topic: dict, *, lock_overview_resources: bool = False):
             label = heading if bucket != "other" else _path_label(page, [h for _, h in stack])
         entry = {"bucket": bucket, "label": label, "blocks": blocks,
                  "source_page": page, "level": level}
+        if seg.get("heading_owner"):
+            entry["heading_owner"] = seg["heading_owner"]  # the heading sits inside the segment's first panel
         if routing_note:
             entry["routing_note"] = routing_note
         yield entry
@@ -829,18 +832,66 @@ def _label_block(text: str) -> dict:
     return {"kind": "label", "level": 0, "runs": [{"text": clean_label(text), "href": ""}]}
 
 
-def _heading_label_block(text: str, level: int = 0) -> dict | None:
+def _heading_label_block(text: str, level: int = 0, *, blocks: list[dict] | None = None) -> dict | None:
     """Label block for one of a page's own headings.
 
     ``level`` is the source heading level (1-6). It is what tells a heading
     label apart from the level-0 labels used for activity metadata lines, so a
     renderer can give page headings real heading styles. Level 0 means the
     label did not come from a heading tag (a page title, for example).
+
+    When ``blocks`` (the content the label would introduce) opens with a panel
+    that owns this very heading, no label is made: the heading is written once,
+    inside its panel (``reconstruct_course_structure.panel_owns_label``).
     """
     label = clean_label(text)
     if not label:
         return None
+    if blocks and panel_owns_label(blocks, label):
+        return None
     return {"kind": "label", "level": max(0, int(level or 0)), "runs": [{"text": f"{label}:", "href": ""}]}
+
+
+def _nested_headings(blocks: list[dict]):
+    """Heading labels inside the panels of ``blocks``, at any depth, in order."""
+    for block in blocks:
+        for child in block.get("blocks") or []:
+            if child.get("kind") == "label" and int(child.get("level") or 0) > 0:
+                yield child
+            yield from _nested_headings([child])
+
+
+def _would_route(heading: str, page_bucket: str | None) -> str | None:
+    """The bucket a heading would take on its own page (the overview page's pull included)."""
+    bucket = classify_heading(heading)
+    if page_bucket == "overview" and bucket not in ("objectives", "resources", "checklist"):
+        return "overview"
+    return bucket
+
+
+def mixed_bucket_headings(entry: dict, page_bucket: str | None) -> list[tuple[str, str]]:
+    """Headings a panel-owned entry keeps whole that would route elsewhere on their own.
+
+    A panel that opens with a heading stays whole in that heading's bucket; a
+    later heading inside it never splits it. This names the headings whose own
+    classification differs, so the week model can report the choice instead of
+    making it silently.
+    """
+    blocks = entry.get("blocks") or []
+    if not blocks:
+        return []
+    owned = panel_owned_heading(blocks[0])
+    if owned is None:
+        return []
+    mixed: list[tuple[str, str]] = []
+    for label in _nested_headings([blocks[0]]):
+        if label is owned:
+            continue
+        text = clean_label(" ".join(str(run.get("text", "")) for run in label.get("runs", [])))
+        bucket = _would_route(text, page_bucket)
+        if text and bucket and bucket != entry.get("bucket"):
+            mixed.append((text, bucket))
+    return mixed
 
 
 def _activity_meta_blocks(details: list[tuple[str, str]]) -> list[dict]:
@@ -1470,7 +1521,7 @@ def build_week_model(
         label = clean_label(entry.get("label", ""))
         bare_label = label.lower()
         if label and bare_label not in {"overview", "introduction", "welcome", "start here"}:
-            label_block = _heading_label_block(label, entry.get("level", 0))
+            label_block = _heading_label_block(label, entry.get("level", 0), blocks=entry["blocks"])
             if label_block:
                 overview_blocks.append(label_block)
         overview_blocks.extend(entry["blocks"])
@@ -1487,6 +1538,14 @@ def build_week_model(
                     f"Routing: {clean_text(module.get('title', 'Course Module'))}: {entry['routing_note']}."
                 )
             bucket = entry["bucket"]
+            mixed = mixed_bucket_headings(entry, topic_page_bucket)
+            if mixed:
+                held = ", ".join(f"'{text}' ({other})" for text, other in mixed)
+                routing_diagnostics.append(
+                    f"Routing: {clean_text(module.get('title', 'Course Module'))}: the panel headed "
+                    f"'{clean_label(entry.get('label', ''))}' on page '{entry['source_page']}' is kept whole "
+                    f"under {bucket}; it also holds {held}, which would route there on its own."
+                )
             if bucket == "overview":
                 extend_overview(entry)
             elif bucket == "objectives":
@@ -1611,7 +1670,7 @@ def build_before_week_sections(
                     continue
                 local_label = _before_week_local_label(entry.get("label", ""), source_page)
                 if local_label and local_label.lower() != previous_label.lower():
-                    label_block = _heading_label_block(local_label, entry.get("level", 0))
+                    label_block = _heading_label_block(local_label, entry.get("level", 0), blocks=blocks)
                     if label_block:
                         page_blocks.append(label_block)
                     previous_label = local_label
@@ -1878,7 +1937,8 @@ def panel_keyword(kind: str, label: str) -> str:
     """The bracket keyword for a visual or dropdown block with children.
 
     Mirrors blueprint_to_docx.panel_keyword: dropdowns are [dropdown], callouts
-    and notes are [callout], a timeline is [timeline], anything else is [box].
+    and notes are [callout], a timeline is [timeline], anything else is
+    [box: Label], where the label is what the source called the component.
     """
     if kind == "dropdown":
         return "dropdown"
@@ -1901,10 +1961,16 @@ def panel_attrs(meta: dict | None) -> str:
 
 
 def md_panel_lines(kind: str, runs: list[dict], meta: dict | None = None) -> tuple[str, str]:
+    """Mirrors blueprint_to_docx.panel_lines: the opening and closing bracket lines of a panel."""
     label = clean_text(" ".join(str(run.get("text", "")) for run in runs))
     keyword = panel_keyword(kind, label)
     attrs = panel_attrs(meta) if keyword != "dropdown" else ""
-    opening = f"[{keyword}: {md_escape(label)}]" if keyword == "dropdown" and label else f"[{keyword}{attrs}]"
+    if keyword == "dropdown":
+        opening = f"[dropdown: {md_escape(label)}]" if label else "[dropdown]"
+    elif keyword == "box" and label:
+        opening = f"[box{attrs}: {md_escape(label)}]"
+    else:
+        opening = f"[{keyword}{attrs}]"
     return opening, f"[/{keyword}]"
 
 
@@ -2051,6 +2117,8 @@ def md_labeled(sections: list[dict], fallback: str = NOT_FOUND_LIST, *, divider:
     for sec in sections:
         body = md_blocks(sec.get("blocks", []), "")
         label = md_escape(clean_label(sec.get("label", "")))
+        if label and panel_owns_label(sec.get("blocks", []), clean_label(sec.get("label", ""))):
+            label = ""  # the heading is inside the section's panel and is written there, once
         if label and body:
             line = f"**{label}:**<br>{body}"
         elif label:

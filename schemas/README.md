@@ -6,7 +6,12 @@ emits:
 - `coursecraft.activities/1` — additive activity, grade, condition, join, and
   diagnostic evidence;
 - `coursecraft.structure/1` — additive manifest-tree, HTML-topic, unknown-node,
-  and diagnostic evidence;
+  and diagnostic evidence. An HTML topic's `body_segments` are open
+  `{heading, level, blocks, text}` chunks; since 2026-10-13 a segment whose
+  heading sits inside its first block (a panel that opens with a heading it
+  owns) carries the additive marker `heading_owner: "panel"`, and a consumer
+  that prints the segment heading itself must not print it again in front of
+  that panel;
 - `coursecraft.run/1` — source, producer, contract, step, artifact, and checksum
   historical receipt, also retained for unreadable-input failure evidence;
 - `coursecraft.run/2` — numeric-org-unit/manifest lineage, classified observed
