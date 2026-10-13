@@ -2,9 +2,11 @@
 
 ## 2026-10-13 — v1.4.0 structure fidelity, model /5, one-to-one headings, heading ownership
 
-Released 2026-10-13 from the commit this entry describes (the asset hash is
-recorded in a later documentation commit). Prepared 2026-10-08 and amended
-2026-10-13; both parts follow.
+Released 2026-10-13 from `35eb6a55c251fba9cc1b53273920274c89bf6d0c` (tag `v1.4.0`,
+Workbench `1f48e07`). Asset `brightspace-blueprint-bundle-v1.4.0.tar.gz`,
+370,902 bytes, SHA-256
+`8e92a995198e5ea41f3c241ab6a0560c74cf36dd21337d12909116a867f18a40`.
+Prepared 2026-10-08 and amended 2026-10-13; both parts follow.
 
 Refreshed from the CourseCraft Workbench at `f0f0aa4`, the merge of pull
 request #5 (nine commits on `9d3a620`), by three-way merge onto the bundle's
