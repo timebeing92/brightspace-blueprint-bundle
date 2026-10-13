@@ -83,6 +83,30 @@ def test_a_panel_with_leading_prose_or_no_owned_heading_joins_the_current_segmen
     ]
 
 
+def test_a_heading_with_nothing_of_its_own_governs_the_panel_below_it() -> None:
+    """MBA 620 Week 5: <h2>Assignment – …</h2> directly followed by a callout that
+    opens with an h3. The h2 must not be lost; the panel is its content."""
+    raw = (
+        "<h2>Assignment – Sponsorship ROI Case</h2>"
+        '<div class="callout"><h3>This Week’s Deliverable</h3><p>Write the case.</p></div>'
+        "<h2>Learning Objectives</h2><ul><li>Explain X.</li></ul>"
+        '<h3>Empty heading</h3><div class="callout"><h2>Peer heading</h2><p>Own section.</p></div>'
+    )
+    assert segments_of(raw) == [
+        ("Assignment – Sponsorship ROI Case", 2, "", [
+            ("visual", "Callout", [("label", "This Week’s Deliverable"), ("p", "Write the case.")]),
+        ]),
+        ("Learning Objectives", 2, "", [("li", "Explain X.")]),
+        ("Empty heading", 3, "", []),  # an equal-or-higher heading in the panel is its own section
+        ("Peer heading", 2, "panel", [("visual", "Callout", [("label", "Peer heading"), ("p", "Own section.")])]),
+    ]
+    # the page's own h1 does not govern: a panel-owned h2 right after it is its own section
+    page = '<h1>Week 1 Learning Materials</h1><section class="resources-section"><h2>Assigned Reading</h2><ul><li>Ch. 1</li></ul></section>'
+    assert [(s["heading"], s["level"], s.get("heading_owner", "")) for s in structure.html_to_segments(page)] == [
+        ("Week 1 Learning Materials", 1, ""), ("Assigned Reading", 2, "panel"),
+    ]
+
+
 def test_a_timeline_with_heading_stages_is_one_segment() -> None:
     raw = (
         '<section class="timeline"><h3>Stage 1</h3><p>One.</p><h3>Stage 2</h3><p>Two.</p><h3>Stage 3</h3><p>Three.</p></section>'
@@ -313,7 +337,9 @@ def test_mixed_bucket_headings_are_named_not_silently_routed() -> None:
         ]},
     ]}
     assert blueprint.mixed_bucket_headings(entry, "overview") == [("Learning Objectives", "objectives")]
-    entry["blocks"][0]["blocks"].pop(0)  # no owned heading: nothing to report
+    entry["blocks"][0]["blocks"].pop(0)  # a panel without an owned heading is scanned the same way
+    assert blueprint.mixed_bucket_headings(entry, "overview") == [("Learning Objectives", "objectives")]
+    entry["blocks"][0]["blocks"] = [{"kind": "p", "level": 0, "runs": [{"text": "x", "href": ""}]}]
     assert blueprint.mixed_bucket_headings(entry, "overview") == []
 
 
@@ -400,7 +426,7 @@ def test_the_week_model_keeps_the_panel_whole_and_reports_the_held_heading(owner
     assert week["learning_objectives"] == []  # the objectives heading stayed inside its panel ...
     diagnostics = ownership_bundle["model"]["diagnostics"]
     assert any(  # ... and the model says so
-        "Routing: Week 1: the panel headed 'Welcome' on page 'Week 1 Overview' is kept whole under overview; "
+        "Routing: Week 1: a panel under 'Welcome' on page 'Week 1 Overview' is kept whole under overview; "
         "it also holds 'Learning Objectives' (objectives), which would route there on its own." == d
         for d in diagnostics
     ), diagnostics

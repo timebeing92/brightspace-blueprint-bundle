@@ -1,9 +1,9 @@
 {
   "schema": "coursecraft.run/2",
-  "run_id": "cc:run:b6e2d7a0-843c-410e-b2bc-4d1bd5437da3",
+  "run_id": "cc:run:74ffddd8-382c-4365-aaf1-4ae1730fe3a2",
   "status": "ok",
-  "started_at": "2026-10-13T19:25:52.440245Z",
-  "finished_at": "2026-10-13T19:25:53.768749Z",
+  "started_at": "2026-10-13T19:40:54.906178Z",
+  "finished_at": "2026-10-13T19:40:56.472554Z",
   "source": {
     "source_lineage_key": "cc:lineage:431334cbe13f558a2d72c27c9ee50df8",
     "source_instance_key": "cc:source:d08688cdb116c668b097ac3ef673567150a0001f8bf2b0128cb5f49298a20e36",
@@ -59,7 +59,7 @@
     "version": null,
     "repository": "https://github.com/timebeing92/brightspace-blueprint-bundle.git",
     "ref": "candidate/heading-ownership-2026-10-13",
-    "commit": "91b7219e2744cc939e9e60baa9637ad96aeeafa8",
+    "commit": "a563d76d776d85f2ed4774542c5b4f60b6096351",
     "dirty": true,
     "extensions": {}
   },
@@ -119,8 +119,8 @@
     {
       "name": "Establish source identity",
       "status": "completed",
-      "started_at": "2026-10-13T19:25:52.440245Z",
-      "finished_at": "2026-10-13T19:25:52.448117Z",
+      "started_at": "2026-10-13T19:40:54.906178Z",
+      "finished_at": "2026-10-13T19:40:54.914858Z",
       "artifact_paths": [],
       "diagnostic_ids": [],
       "notes": [],
@@ -129,8 +129,8 @@
     {
       "name": "Inventory export files",
       "status": "completed",
-      "started_at": "2026-10-13T19:25:52.448134Z",
-      "finished_at": "2026-10-13T19:25:52.502233Z",
+      "started_at": "2026-10-13T19:40:54.914870Z",
+      "finished_at": "2026-10-13T19:40:55.000057Z",
       "artifact_paths": [
         "sample_export__inventory.json",
         "sample_export__inventory.md"
@@ -142,8 +142,8 @@
     {
       "name": "Probe manifest",
       "status": "completed",
-      "started_at": "2026-10-13T19:25:52.502589Z",
-      "finished_at": "2026-10-13T19:25:52.563892Z",
+      "started_at": "2026-10-13T19:40:55.000469Z",
+      "finished_at": "2026-10-13T19:40:55.071700Z",
       "artifact_paths": [
         "sample_export__manifest_probe.json",
         "sample_export__manifest_probe.md"
@@ -155,8 +155,8 @@
     {
       "name": "Reconstruct course structure",
       "status": "completed",
-      "started_at": "2026-10-13T19:25:52.564265Z",
-      "finished_at": "2026-10-13T19:25:52.720657Z",
+      "started_at": "2026-10-13T19:40:55.072177Z",
+      "finished_at": "2026-10-13T19:40:55.238683Z",
       "artifact_paths": [
         "sample_course__course_structure.json",
         "sample_course__course_structure.md"
@@ -168,8 +168,8 @@
     {
       "name": "Extract course activities",
       "status": "completed",
-      "started_at": "2026-10-13T19:25:52.721088Z",
-      "finished_at": "2026-10-13T19:25:52.960492Z",
+      "started_at": "2026-10-13T19:40:55.239285Z",
+      "finished_at": "2026-10-13T19:40:55.463632Z",
       "artifact_paths": [
         "sample_course__course_activities.json",
         "sample_course__course_activities.md",
@@ -182,8 +182,8 @@
     {
       "name": "Extract rubrics",
       "status": "completed",
-      "started_at": "2026-10-13T19:25:52.960910Z",
-      "finished_at": "2026-10-13T19:25:53.100156Z",
+      "started_at": "2026-10-13T19:40:55.464168Z",
+      "finished_at": "2026-10-13T19:40:55.630082Z",
       "artifact_paths": [
         "sample_course__rubrics.docx",
         "sample_course__rubrics.json",
@@ -196,8 +196,8 @@
     {
       "name": "Run QA report",
       "status": "completed",
-      "started_at": "2026-10-13T19:25:53.100491Z",
-      "finished_at": "2026-10-13T19:25:53.272114Z",
+      "started_at": "2026-10-13T19:40:55.630472Z",
+      "finished_at": "2026-10-13T19:40:55.863962Z",
       "artifact_paths": [
         "sample_course__course_qa.json",
         "sample_course__course_qa.md"
@@ -209,8 +209,8 @@
     {
       "name": "Assemble blueprint model and Markdown",
       "status": "completed",
-      "started_at": "2026-10-13T19:25:53.272522Z",
-      "finished_at": "2026-10-13T19:25:53.309143Z",
+      "started_at": "2026-10-13T19:40:55.864406Z",
+      "finished_at": "2026-10-13T19:40:55.913790Z",
       "artifact_paths": [
         "sample_course__blueprint.json",
         "sample_course__blueprint.md",
@@ -223,8 +223,8 @@
     {
       "name": "Render DOCX",
       "status": "completed",
-      "started_at": "2026-10-13T19:25:53.309221Z",
-      "finished_at": "2026-10-13T19:25:53.537898Z",
+      "started_at": "2026-10-13T19:40:55.913893Z",
+      "finished_at": "2026-10-13T19:40:56.167787Z",
       "artifact_paths": [
         "sample_course__blueprint.docx"
       ],
@@ -235,8 +235,8 @@
     {
       "name": "Render rubrics DOCX",
       "status": "completed",
-      "started_at": "2026-10-13T19:25:53.538036Z",
-      "finished_at": "2026-10-13T19:25:53.655310Z",
+      "started_at": "2026-10-13T19:40:56.167951Z",
+      "finished_at": "2026-10-13T19:40:56.339122Z",
       "artifact_paths": [
         "sample_course__rubrics.docx"
       ],
@@ -247,8 +247,8 @@
     {
       "name": "Check DOCX structure",
       "status": "completed",
-      "started_at": "2026-10-13T19:25:53.655493Z",
-      "finished_at": "2026-10-13T19:25:53.766834Z",
+      "started_at": "2026-10-13T19:40:56.339338Z",
+      "finished_at": "2026-10-13T19:40:56.470667Z",
       "artifact_paths": [
         "sample_course__docx_structure.json",
         "sample_course__docx_structure.md"
@@ -282,7 +282,7 @@
     {
       "path": "sample_course__blueprint.docx",
       "bytes": 42052,
-      "sha256": "e4f5b71ce3b67be18259e8c456eade3079cbe8e5202a1730357fdb8bec4aca25",
+      "sha256": "327a82798a8f0c7065a6f3a024a4b3eb30afaad9d4115dbcd50d99ee86e5a200",
       "media_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "contract": null,
       "extensions": {}
@@ -306,7 +306,7 @@
     {
       "path": "sample_course__course_activities.json",
       "bytes": 42155,
-      "sha256": "087c774e3213dc18519a6ec1e69f2d00a77886b4855b5a6e248c25a1393f8265",
+      "sha256": "1c00beac6db3891cc7aa52f833193acbbb1b7488768d8dc22f9ddc46db23e80b",
       "media_type": "application/json",
       "contract": "coursecraft.activities/1",
       "extensions": {}
@@ -322,7 +322,7 @@
     {
       "path": "sample_course__course_activities.xlsx",
       "bytes": 11868,
-      "sha256": "a08e202a3514a8705749f9da6f849db88794fd18fcb1997d959c3d400d4af476",
+      "sha256": "60254d7e686c23be9f067038d10c9d3fae28c972eb6c99ca7dc7b2df9d146d0b",
       "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "contract": null,
       "extensions": {}
@@ -346,7 +346,7 @@
     {
       "path": "sample_course__course_structure.json",
       "bytes": 74039,
-      "sha256": "d69d1393b9849cfcfa1f7db36f63c127d2be4dd71274a644d7125f877f297960",
+      "sha256": "3224dd052e1898d8eec4dd6196f500bdaa90251525e9ca8d0d9c4b6b81cd1e81",
       "media_type": "application/json",
       "contract": "coursecraft.structure/1",
       "extensions": {}
@@ -402,7 +402,7 @@
     {
       "path": "sample_course__rubrics.docx",
       "bytes": 37582,
-      "sha256": "37c7e3b45b50773b4fae7554377f47f1c461cd0c763692804485d2c94badb534",
+      "sha256": "72863c02dc835d67786cc9021f08c45d76d50c06324b2d8c0e240ae5485b734b",
       "media_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "contract": null,
       "extensions": {}
@@ -418,7 +418,7 @@
     {
       "path": "sample_course__rubrics.xlsx",
       "bytes": 6015,
-      "sha256": "2d4d32915c61da250911d3fd6c73cda1de32b3ced76f8013ecf1fe51cc358c6b",
+      "sha256": "8500556b8f8e47acda21eade9a6e927e93de6ca80c8d6c79887b9f6b455b39d0",
       "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "contract": null,
       "extensions": {}

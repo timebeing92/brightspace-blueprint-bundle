@@ -870,21 +870,18 @@ def _would_route(heading: str, page_bucket: str | None) -> str | None:
 
 
 def mixed_bucket_headings(entry: dict, page_bucket: str | None) -> list[tuple[str, str]]:
-    """Headings a panel-owned entry keeps whole that would route elsewhere on their own.
+    """Headings inside an entry's panels that would route elsewhere on their own.
 
-    A panel that opens with a heading stays whole in that heading's bucket; a
-    later heading inside it never splits it. This names the headings whose own
-    classification differs, so the week model can report the choice instead of
-    making it silently.
+    A panel stays whole in its segment's bucket; a heading inside it never
+    splits it. This names the headings whose own classification differs, so
+    the week model can report the choice instead of making it silently.
     """
     blocks = entry.get("blocks") or []
     if not blocks:
         return []
     owned = panel_owned_heading(blocks[0])
-    if owned is None:
-        return []
     mixed: list[tuple[str, str]] = []
-    for label in _nested_headings([blocks[0]]):
+    for label in _nested_headings(blocks):
         if label is owned:
             continue
         text = clean_label(" ".join(str(run.get("text", "")) for run in label.get("runs", [])))
@@ -1542,7 +1539,7 @@ def build_week_model(
             if mixed:
                 held = ", ".join(f"'{text}' ({other})" for text, other in mixed)
                 routing_diagnostics.append(
-                    f"Routing: {clean_text(module.get('title', 'Course Module'))}: the panel headed "
+                    f"Routing: {clean_text(module.get('title', 'Course Module'))}: a panel under "
                     f"'{clean_label(entry.get('label', ''))}' on page '{entry['source_page']}' is kept whole "
                     f"under {bucket}; it also holds {held}, which would route there on its own."
                 )

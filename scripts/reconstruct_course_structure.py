@@ -1544,7 +1544,10 @@ def segment_blocks(blocks: list[dict]) -> list[dict]:
     That panel stays whole, heading inside, as its segment's first block, and
     the segment carries the additive marker ``heading_owner: "panel"``. A panel
     with leading prose, or without an owned heading, joins the current segment,
-    as does prose after a panel. Later headings inside a panel never split it.
+    as does prose after a panel; so does a panel whose owned heading is a
+    sub-heading of a content heading (h2 or below) that has nothing of its own
+    yet (the heading above governs it). Later headings inside a panel never
+    split it.
     Content before the first heading is an untitled intro segment
     (``heading == ""``, ``level == 0``).
     """
@@ -1557,9 +1560,22 @@ def segment_blocks(blocks: list[dict]) -> list[dict]:
             continue
         owned = panel_owned_heading(block)
         if owned is not None:
+            level = int(owned["level"])
+            if (
+                current is not None and current["heading"] and not current["blocks"]
+                and 2 <= int(current["level"]) < level
+            ):
+                # A content heading with nothing of its own yet, followed by a panel
+                # that opens with a lower-level heading: the heading above governs the
+                # panel (<h2>Assignment</h2><div class="callout"><h3>Deliverable</h3>…).
+                # Starting a new segment there would leave the h2 empty and unwritten.
+                # The page's own h1 is not such a heading: the sections under it are
+                # siblings, and a panel-owned h2 right after it starts its own segment.
+                current["blocks"].append(block)
+                continue
             current = {
                 "heading": _runs_text(owned),
-                "level": int(owned["level"]),
+                "level": level,
                 "blocks": [block],
                 "heading_owner": "panel",
             }
