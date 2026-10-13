@@ -1,6 +1,10 @@
 # Changelog
 
-## 2026-10-08 — v1.4.0 structure fidelity, model /5, one-to-one headings (unreleased)
+## 2026-10-13 — v1.4.0 structure fidelity, model /5, one-to-one headings, heading ownership
+
+Released 2026-10-13 from the commit this entry describes (the asset hash is
+recorded in a later documentation commit). Prepared 2026-10-08 and amended
+2026-10-13; both parts follow.
 
 Refreshed from the CourseCraft Workbench at `f0f0aa4`, the merge of pull
 request #5 (nine commits on `9d3a620`), by three-way merge onto the bundle's

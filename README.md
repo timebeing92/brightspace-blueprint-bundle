@@ -1,7 +1,6 @@
 # Brightspace Blueprint Bundle
 
-Current release: **1.3.2**; **1.4.0** is on `main` as an unreleased candidate
-(see `CHANGELOG.md`).
+Current release: **1.4.0** (2026-10-13; see `CHANGELOG.md`).
 
 Turn a Brightspace/D2L course export into a source-traceable course blueprint:
 Markdown, DOCX, JSON, activity workbook, optional rubric grid documents,
